@@ -1,0 +1,65 @@
+services:
+  next:
+    image: node:21
+    container_name: next
+    env_file:
+      - next.env
+    volumes:
+      - ./ui/the-eye:/next-app
+    ports:
+      - "80:3000"
+    networks:
+      - datagetta_net
+    working_dir: /next-app
+    depends_on:
+      - postgres
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        npm ci
+        npx prisma db pull --force
+        npx prisma generate
+        npx prisma migrate dev --name init
+        npx prisma migrate deploy
+        npm run build
+        npm run start
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    volumes:
+      - ./backups:/backups
+      - ./data:/var/lib/postgresql/data
+      - ./database/sql:/sql
+    env_file:
+      - db.env
+    networks:
+      - datagetta_net
+    ports:
+      - "5432:5432"
+  python:
+    image: python:3.10-slim
+    container_name: python
+    mem_limit: 4g
+    networks:
+      - datagetta_net
+    entrypoint: ["/bin/sh", "-c"]
+    volumes:
+      - ../ext_files/combined_dataset.csv:/combined_dataset.csv
+      - ../ext_files/db_info.txt:/db_info.txt
+      - csvparser:/csvparser
+    command:
+      - |
+        apt update
+        apt install -y git gcc pkg-config libcairo2-dev
+        git clone https://github.com/tmgavron/shifting_model.git
+        cp /combined_dataset.csv shifting_model/Data/
+        cd shifting_model && pip install -r requirements.txt && cd /
+        git clone https://github.com/IsaiahGallardo/SDProjectAIOrange.git
+        cp /db_info.txt SDProjectAIOrange/
+        cd SDProjectAIOrange && pip install -r requirements.txt && cd /
+        cd csvparser && pip install -r requirements.txt
+        tail -f /dev/null
+
+networks:
+  datagetta_net:
+    driver: bridge

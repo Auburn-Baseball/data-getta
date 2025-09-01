@@ -1,0 +1,37 @@
+{
+  "name": "the-eye",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@lottiefiles/react-lottie-player": "^3.5.3",
+    "@mui/icons-material": "^5.15.7",
+    "@mui/material": "^5.15.6",
+    "@mui/material-nextjs": "^5.15.6",
+    "@mui/x-charts": "^7.1.0",
+    "@mui/x-data-grid": "^7.0.0",
+    "@mui/x-date-pickers": "^7.0.0",
+    "@prisma/client": "^5.9.1",
+    "dayjs": "^1.11.10",
+    "next": "14.1.0",
+    "prisma": "^5.9.1",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "typescript": "^5"
+  }
+}

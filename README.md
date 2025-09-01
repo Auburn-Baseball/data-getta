@@ -1,2 +1,4 @@
-# data-getta
-AI for Auburn University Baseball
+# DATA GETTA
+
+Spring 2024 Senior Design Project
+for Auburn Baseball

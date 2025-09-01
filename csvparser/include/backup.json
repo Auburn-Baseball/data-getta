@@ -1,0 +1,696 @@
+{
+    "columns": [
+        {
+            "name": "PlayerName",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "TeamName",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "DisplayName",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Conference",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "ConferenceName",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitchUID",
+            "type": "UUID"
+        },
+        {
+            "name": "GameDate",
+            "type": "DATE"
+        },
+        {
+            "name": "PitchTime",
+            "type": "TIME"
+        },
+        {
+            "name": "Inning",
+            "type": "INT"
+        },
+        {
+            "name": "TopBottom",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Outs",
+            "type": "INT"
+        },
+        {
+            "name": "Balls",
+            "type": "INT"
+        },
+        {
+            "name": "Strikes",
+            "type": "INT"
+        },
+        {
+            "name": "PitchCall",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "KorBB",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "TaggedHitType",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PlayResult",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "OutsOnPlay",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "RunsScored",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "RunnersAt",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "HomeTeam",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "AwayTeam",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Stadium",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Level",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "League",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "GameID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "GameUID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "UTCDate",
+            "type": "DATE"
+        },
+        {
+            "name": "UTCtime",
+            "type": "TIME"
+        },
+        {
+            "name": "LocalDateTime",
+            "type": "DATE"
+        },
+        {
+            "name": "UTCDateTime",
+            "type": "DATE"
+        },
+        {
+            "name": "AutoHitType",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "System",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "HomeTeamForeignID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "AwayTeamForeignID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "GameForeignID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PlayID",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitchNo",
+            "type": "INT"
+        },
+        {
+            "name": "PAofInning",
+            "type": "INT"
+        },
+        {
+            "name": "PitchofPA",
+            "type": "INT"
+        },
+        {
+            "name": "Pitcher",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitcherID",
+            "type": "INT"
+        },
+        {
+            "name": "PitcherThrows",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitcherTeam",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitcherSet",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "TaggedPitchType",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "AutoPitchType",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "RelSpeed",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "VertRelAngle",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HorzRelAngle",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "SpinRate",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "SpinAxis",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Tilt",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "RelHeight",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "RelSide",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Extension",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "VertBreak",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "InducedVert",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HorzBreak",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "primary",
+            "type": "KEY"
+        },
+        {
+            "name": "PlateLocHeight",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PlateLocSide",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ZoneSpeed",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "VertApprAngle",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HorzApprAngle",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ZoneTime",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "pfxx",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "pfxz",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "x0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "y0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "z0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "vx0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "vy0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "vz0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ax0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ay0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "az0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "SpeedDrop",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchLastMeasuredX",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchLastMeasuredY",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchLastMeasuredZ",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryXc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryXc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryXc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryYc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryYc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryYc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryZc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryZc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchTrajectoryZc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PitchReleaseConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitchLocationConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "PitchMovementConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Catcher",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "CatcherID",
+            "type": "INT"
+        },
+        {
+            "name": "CatcherThrows",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "CatcherTeam",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "ThrowSpeed",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PopTime",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ExchangeTime",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "TimeToBase",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "CatchPositionX",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "CatchPositionY",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "CatchPositionZ",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowPositionX",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowPositionY",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowPositionZ",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "BasePositionX",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "BasePositionY",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "BasePositionZ",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryXc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryXc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryXc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryYc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryYc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryYc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryZc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryZc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ThrowTrajectoryZc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "CatcherThrowCatchConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "CatcherThrowReleaseConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "CatcherThrowLocationConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "Batter",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "BatterID",
+            "type": "INT"
+        },
+        {
+            "name": "BatterSide",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "BatterTeam",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "ExitSpeed",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Angle",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Direction",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitSpinRate",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PositionAt110X",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PositionAt110Y",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "PositionAt110Z",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Distance",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "LastTracked",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "Bearing",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HangTime",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "EffectiveVelo",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "MaxHeight",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "MeasuredDuration",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ContactPositionX",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ContactPositionY",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "ContactPositionZ",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitSpinAxis",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc3",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc4",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc5",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc6",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc7",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryXc8",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc3",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc4",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc5",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc6",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc7",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryYc8",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc0",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc1",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc2",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc3",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc4",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc5",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc6",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc7",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitTrajectoryZc8",
+            "type": "DECIMAL"
+        },
+        {
+            "name": "HitLaunchConfidence",
+            "type": "VARCHAR"
+        },
+        {
+            "name": "HitLandingConfidence",
+            "type": "VARCHAR"
+        }
+    ]
+}

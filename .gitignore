@@ -1,0 +1,4 @@
+db.env
+next.env
+ui/the-eye/prisma/migrations
+data

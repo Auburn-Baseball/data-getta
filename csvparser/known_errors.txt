@@ -1,0 +1,2 @@
+File for known errors.
+* Counter for check_pull and pull_all is not 100% accurate
