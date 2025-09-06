@@ -1,5 +1,3 @@
-How to run scripts
-
 ## Installation
 ```bash
 poetry install
