@@ -1,3 +1,0 @@
-datagetta.cse.eng.auburn.edu:80 {
-    reverse_proxy next:3000
-}
