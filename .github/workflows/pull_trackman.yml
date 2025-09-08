@@ -3,7 +3,7 @@ name: Pull TrackMan CSVs
 on:
   schedule:
     # At 2 AM every day
-    - cron: '10 19 * * *'
+    - cron: '20 19 * * *'
   workflow_dispatch:
 
 jobs:
