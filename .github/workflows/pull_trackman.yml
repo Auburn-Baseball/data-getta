@@ -35,7 +35,7 @@ jobs:
           echo "TRACKMAN_PASSWORD=${{ secrets.TRACKMAN_PASSWORD }}" >> $GITHUB_ENV
 
       # Step 5: Run the script
-      - name: Run pull_all_trackman_cvs.py
+      - name: Run pull_all_trackman_csv.py
         run: python scripts/pull_all_trackman_csv.py
 
       # Step 6: Upload CSVs as artifacts
