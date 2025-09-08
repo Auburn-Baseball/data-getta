@@ -128,7 +128,7 @@ def main():
 
                         print(f"Found {len(csv_files)} CSV files")
 
-                        for csv_file in csv_files[:2]:
+                        for csv_file in csv_files:
                             file_year = extract_year_from_filename(csv_file)
 
                             remote_file_path = f"{csv_path}/{csv_file}"
