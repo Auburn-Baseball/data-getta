@@ -115,7 +115,7 @@ def main():
                 days = [day for day in days if is_numeric_dir(day)]
 
                 # for day in days:
-                for day in range(2): # Here to shorten for testing
+                for day in range(5): # Here to shorten for testing
                     day_path = f"{month_path}/{day}"
                     csv_path = f"{day_path}/csv"
 
