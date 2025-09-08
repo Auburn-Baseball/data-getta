@@ -107,15 +107,14 @@ def main():
             months = get_directory_list(ftp, year_path)
             months = [month for month in months if is_numeric_dir(month)]
 
-            for month in months:
+            for month in months[:3]:
                 month_path = f"{year_path}/{month}"
                 print(f"Processing month: {month}")
 
                 days = get_directory_list(ftp, month_path)
                 days = [day for day in days if is_numeric_dir(day)]
 
-                # for day in days:
-                for day in range(5): # Here to shorten for testing
+                for day in days:
                     day_path = f"{month_path}/{day}"
                     csv_path = f"{day_path}/csv"
 
