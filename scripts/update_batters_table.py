@@ -216,30 +216,17 @@ def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict
                     continue
 
             # Calculate percentages
-            batting_average = hits / at_bats if at_bats > 0 else None
+            batting_average = round(hits / at_bats, 3) if at_bats > 0 else 0.000
 
-            on_base_percentage = (
-                (
-                    (hits + walks + hit_by_pitch)
-                    / (at_bats + walks + hit_by_pitch + sacrifice)
-                )
-                if (at_bats + walks + hit_by_pitch + sacrifice) > 0
-                else None
-            )
+            on_base_percentage = round(
+                (hits + walks + hit_by_pitch) / (at_bats + walks + hit_by_pitch + sacrifice), 3
+            ) if (at_bats + walks + hit_by_pitch + sacrifice) > 0 else 0.000
 
-            slugging_percentage = total_bases / at_bats if at_bats > 0 else None
+            slugging_percentage = round(total_bases / at_bats, 3) if at_bats > 0 else 0.000
 
-            onbase_plus_slugging = (
-                ((on_base_percentage or 0) + (slugging_percentage or 0))
-                if (on_base_percentage is not None and slugging_percentage is not None)
-                else None
-            )
+            onbase_plus_slugging = round(on_base_percentage + slugging_percentage, 3)
 
-            isolated_power = (
-                (slugging_percentage or 0) - (batting_average or 0)
-                if (slugging_percentage is not None and batting_average is not None)
-                else None
-            )
+            isolated_power = round(slugging_percentage - batting_average, 3)
 
             k_percentage = (
                 strikeouts / plate_appearances if plate_appearances > 0 else None
@@ -379,63 +366,22 @@ def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]
                 existing["games"] = len(existing["unique_games"])
 
                 # Recalculate percentages
-                existing["batting_average"] = (
-                    round(existing["hits"] / existing["at_bats"], 3)
-                    if existing["at_bats"] > 0
-                    else None
+                existing["batting_average"] = round(existing["hits"] / existing["at_bats"], 3) \
+                    if existing["at_bats"] > 0 else 0.000
+                existing["on_base_percentage"] = round(
+                    (existing["hits"] + existing["walks"] + existing["hit_by_pitch"]) /
+                    (existing["at_bats"] + existing["walks"] + existing["hit_by_pitch"] + existing["sacrifice"]),
+                    3
+                ) if (existing["at_bats"] + existing["walks"] + existing["hit_by_pitch"] + existing["sacrifice"]) > 0 else 0.000
+                existing["slugging_percentage"] = round(existing["total_bases"] / existing["at_bats"], 3) \
+                    if existing["at_bats"] > 0 else 0.000
+
+                existing["onbase_plus_slugging"] = round(
+                    existing["on_base_percentage"] + existing["slugging_percentage"], 3
                 )
-                existing["on_base_percentage"] = (
-                    round(
-                        (
-                            existing["hits"]
-                            + existing["walks"]
-                            + existing["hit_by_pitch"]
-                        )
-                        / (
-                            existing["at_bats"]
-                            + existing["walks"]
-                            + existing["hit_by_pitch"]
-                            + existing["sacrifice"]
-                        ),
-                        3,
-                    )
-                    if (
-                        existing["at_bats"]
-                        + existing["walks"]
-                        + existing["hit_by_pitch"]
-                        + existing["sacrifice"]
-                    )
-                    > 0
-                    else None
-                )
-                existing["slugging_percentage"] = (
-                    round(existing["total_bases"] / existing["at_bats"], 3)
-                    if existing["at_bats"] > 0
-                    else None
-                )
-                existing["onbase_plus_slugging"] = (
-                    round(
-                        (existing["on_base_percentage"] or 0)
-                        + (existing["slugging_percentage"] or 0),
-                        3,
-                    )
-                    if (
-                        existing["on_base_percentage"] is not None
-                        and existing["slugging_percentage"] is not None
-                    )
-                    else None
-                )
-                existing["isolated_power"] = (
-                    round(
-                        (existing["slugging_percentage"] or 0)
-                        - (existing["batting_average"] or 0),
-                        3,
-                    )
-                    if (
-                        existing["slugging_percentage"] is not None
-                        and existing["batting_average"] is not None
-                    )
-                    else None
+
+                existing["isolated_power"] = round(
+                    existing["slugging_percentage"] - existing["batting_average"], 3
                 )
                 existing["k_percentage"] = (
                     round(existing["strikeouts"] / existing["plate_appearances"], 3)
