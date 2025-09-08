@@ -2,7 +2,7 @@ name: Pull TrackMan CSVs and Process
 
 on:
   schedule:
-    # At 2:10 PM Central Daylight Time (UTC-5 = 19:10 UTC)
+    # At 2:00 AM CDT
     - cron: "0 7 * * *"
   workflow_dispatch:
 
