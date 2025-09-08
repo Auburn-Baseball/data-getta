@@ -47,10 +47,3 @@ jobs:
           python scripts/update_pitchers_table.py
           python scripts/update_pitches_table.py
           python scripts/update_players_table.py
-
-      # Step 7: Upload CSVs as artifacts
-      - name: Upload CSV files
-        uses: actions/upload-artifact@v4
-        with:
-          name: trackman-csvs
-          path: csv/**/*
