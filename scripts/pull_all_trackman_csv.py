@@ -114,7 +114,8 @@ def main():
                 days = get_directory_list(ftp, month_path)
                 days = [day for day in days if is_numeric_dir(day)]
 
-                for day in days:
+                # for day in days:
+                for day in range(2): # Here to shorten for testing
                     day_path = f"{month_path}/{day}"
                     csv_path = f"{day_path}/csv"
 
@@ -128,7 +129,7 @@ def main():
 
                         print(f"Found {len(csv_files)} CSV files")
 
-                        for csv_file in csv_files[:10]:
+                        for csv_file in csv_files:
                             file_year = extract_year_from_filename(csv_file)
 
                             remote_file_path = f"{csv_path}/{csv_file}"
