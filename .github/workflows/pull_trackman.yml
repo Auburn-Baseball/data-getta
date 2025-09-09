@@ -51,7 +51,7 @@ jobs:
           python scripts/update_pitches_table.py
           python scripts/update_players_table.py
           python scripts/update_batted_balls_table.py
-          python scripts/update_advanced_batter_table.py
+      # python scripts/update_advanced_batter_table.py
 
       # Step 8: Commit downloaded_files.txt if updated
       - name: Commit downloaded files log
