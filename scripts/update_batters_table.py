@@ -83,6 +83,36 @@ def format_stat(value: float) -> str:
     return f"{value:.3f}"
 
 
+def extract_batted_balls_from_csv(file_path: str):
+    batted_balls = []
+    with open(file_path, "r", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            if row.get("PitchCall") == "InPlay":  # Only track batted balls
+                try:
+                    batted_balls.append({
+                        "game_year": row.get("GameDate", "")[:4],  # Extract year
+                        "pitcher_id": row.get("PitcherId"),
+                        "batter_id": row.get("BatterId"),
+                        "pitch_call": row.get("PitchCall"),
+                        "tagged_hit_type": row.get("TaggedHitType"),
+                        "play_result": row.get("PlayResult"),
+                        "exit_speed": float(row.get("ExitSpeed") or 0),
+                        "launch_angle": float(row.get("Angle") or 0),
+                        "direction": float(row.get("Direction") or 0),
+                        "hit_spin_rate": float(row.get("HitSpinRate") or 0),
+                        "distance": float(row.get("Distance") or 0),
+                        "hang_time": float(row.get("HangTime") or 0),
+                        "pitch_last_measured_x": float(row.get("PitchLastMeasuredX") or 0),
+                        "pitch_last_measured_y": float(row.get("PitchLastMeasuredY") or 0),
+                        "pitch_last_measured_z": float(row.get("PitchLastMeasuredZ") or 0),
+                        "created_at": datetime.utcnow().isoformat(),
+                    })
+                except Exception as e:
+                    print(f"Skipping malformed row in {file_path}: {e}")
+    return batted_balls
+
+
 def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract batter statistics from a CSV file"""
     try:
