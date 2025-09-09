@@ -100,7 +100,7 @@ def upload_batted_balls_to_supabase(batted_balls):
 
             try:
                 # Use play_id for conflict to prevent duplicate rows
-                supabase.table("BattedBalls").upsert(batch).execute()
+                supabase.table("BattedBalls").upsert(batch, on_conflict="play_id").execute()
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
