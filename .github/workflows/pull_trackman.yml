@@ -46,11 +46,21 @@ jobs:
           echo "VITE_SUPABASE_PROJECT_URL=${{ secrets.VITE_SUPABASE_PROJECT_URL }}" >> $GITHUB_ENV
           echo "VITE_SUPABASE_API_KEY=${{ secrets.VITE_SUPABASE_API_KEY }}" >> $GITHUB_ENV
 
-      # Step 6: Run FTP download script
-      - name: Run pull_all_trackman_csv.py
+            # Step 6: Run FTP download script
+      - name: Pull TrackMan CSVs
         run: python scripts/pull_all_trackman_csv.py
 
-      # Step 7: Commit downloaded_files.txt if updated
+      # Step 7: Run CSV-to-DB processing scripts
+      - name: Process CSVs into DB
+        run: |
+          python scripts/update_batters_table.py
+          python scripts/update_pitchers_table.py
+          python scripts/update_pitches_table.py
+          python scripts/update_players_table.py
+          python scripts/update_batted_balls_table.py
+          python scripts/update_advanced_batter_table.py
+
+      # Step 8: Commit downloaded_files.txt if updated
       - name: Commit downloaded files log
         run: |
           git config --local user.email "action@github.com"
@@ -59,5 +69,5 @@ jobs:
           git commit -m "Update downloaded CSV log" || echo "No changes to commit"
           git push
         env:
-          # Use the automatically provided GitHub token
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
