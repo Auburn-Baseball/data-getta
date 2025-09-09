@@ -4,13 +4,17 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 import joblib
-from supabase import create_client
+from supabase import create_client, Client
 from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
 
 # ----------------------------
 # Supabase configuration
 # ----------------------------
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent.parent
 load_dotenv(project_root / '.env')
 
 # Supabase configuration
@@ -58,7 +62,7 @@ scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 # Save scaler for later use
-joblib.dump(scaler, "models/scaler.save")
+joblib.dump(scaler, project_root / "training_models/models/scaler.save")
 
 # ----------------------------
 # Convert to PyTorch tensors
@@ -113,6 +117,11 @@ for epoch in range(epochs):
 # Save trained model
 # ----------------------------
 timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-model_filename = f"models/xba_model_{timestamp}.pt"
+
+model_dir = project_root / "training_models" / "models"
+model_dir.mkdir(parents=True, exist_ok=True)  # Create folder if it doesn't exist
+
+model_filename = model_dir / f"xba_model_{timestamp}.pt"
 torch.save(model.state_dict(), model_filename)
+
 print(f"Trained model saved as {model_filename}")
