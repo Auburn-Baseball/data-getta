@@ -5,6 +5,9 @@ from pathlib import Path
 import re
 from datetime import datetime
 
+# ----------------------------
+# Project setup
+# ----------------------------
 project_root = Path(__file__).parent.parent
 load_dotenv(project_root / '.env')
 
@@ -15,9 +18,21 @@ TRACKMAN_PASSWORD = os.getenv("TRACKMAN_PASSWORD")
 if not TRACKMAN_USERNAME or not TRACKMAN_PASSWORD:
     raise ValueError("TRACKMAN_USERNAME and TRACKMAN_PASSWORD must be set in .env file")
 
+download_dir = "csv"
+Path(download_dir).mkdir(exist_ok=True)
 
+downloaded_log_path = Path("downloaded_files.txt")
+downloaded_files = set()
+
+# Load already downloaded files
+if downloaded_log_path.exists():
+    with open(downloaded_log_path, "r") as f:
+        downloaded_files = set(line.strip() for line in f.readlines())
+
+# ----------------------------
+# FTP connection
+# ----------------------------
 def connect_to_ftp():
-    """Connect to TrackMan FTP server"""
     try:
         ftp = ftplib.FTP(TRACKMAN_URL)
         ftp.login(TRACKMAN_USERNAME, TRACKMAN_PASSWORD)
@@ -27,9 +42,7 @@ def connect_to_ftp():
         print(f"Failed to connect: {e}")
         return None
 
-
 def get_directory_list(ftp, path):
-    """Get list of directories/files in the given path"""
     try:
         items = []
         ftp.cwd(path)
@@ -44,11 +57,8 @@ def get_directory_list(ftp, path):
         print(f"Error listing directory {path}: {e}")
         return []
 
-
 def extract_year_from_filename(filename):
-    """Extract year from CSV filename like 20240426-FalconField-4.csv"""
     try:
-        # Extract date part (first 8 characters should be YYYYMMDD)
         date_match = re.match(r"^(\d{8})", filename)
         if date_match:
             date_str = date_match.group(1)
@@ -59,9 +69,7 @@ def extract_year_from_filename(filename):
         print(f"Error extracting year from filename {filename}: {e}")
         return "unknown"
 
-
 def download_file(ftp, remote_path, local_path):
-    """Download a file from FTP server"""
     try:
         local_dir = os.path.dirname(local_path)
         Path(local_dir).mkdir(parents=True, exist_ok=True)
@@ -74,30 +82,24 @@ def download_file(ftp, remote_path, local_path):
         print(f"Error downloading {remote_path}: {e}")
         return False
 
-
 def is_numeric_dir(name):
-    """Check if directory name is numeric (year/month/day)"""
     return name.isdigit()
 
-
 def is_csv_file(name):
-    """Check if file is a CSV file"""
     return name.lower().endswith(".csv")
 
-
+# ----------------------------
+# Main workflow
+# ----------------------------
 def main():
     ftp = connect_to_ftp()
     if not ftp:
         return
 
-    download_dir = "csv"
-    Path(download_dir).mkdir(exist_ok=True)
-
     try:
         ftp.cwd("/v3")
-
         years = get_directory_list(ftp, "/v3")
-        years = [year for year in years if is_numeric_dir(year)]
+        years = [y for y in years if is_numeric_dir(y)]
         print(f"Found years: {years}")
 
         for year in years:
@@ -105,38 +107,37 @@ def main():
             print(f"\nProcessing year: {year}")
 
             months = get_directory_list(ftp, year_path)
-            months = [month for month in months if is_numeric_dir(month)]
+            months = [m for m in months if is_numeric_dir(m)]
 
             for month in months:
                 month_path = f"{year_path}/{month}"
                 print(f"Processing month: {month}")
 
                 days = get_directory_list(ftp, month_path)
-                days = [day for day in days if is_numeric_dir(day)]
+                days = [d for d in days if is_numeric_dir(d)]
 
                 for day in days:
                     day_path = f"{month_path}/{day}"
                     csv_path = f"{day_path}/csv"
-
                     print(f"Processing day: {day}")
 
                     try:
                         ftp.cwd(csv_path)
-
                         files = get_directory_list(ftp, csv_path)
                         csv_files = [f for f in files if is_csv_file(f)]
-
                         print(f"Found {len(csv_files)} CSV files")
 
                         for csv_file in csv_files[:2]:
+                            if csv_file in downloaded_files:
+                                print(f"Skipping already downloaded file: {csv_file}")
+                                continue
+
                             file_year = extract_year_from_filename(csv_file)
-
                             remote_file_path = f"{csv_path}/{csv_file}"
-                            local_file_path = os.path.join(
-                                download_dir, file_year, csv_file
-                            )
+                            local_file_path = os.path.join(download_dir, file_year, csv_file)
 
-                            download_file(ftp, remote_file_path, local_file_path)
+                            if download_file(ftp, remote_file_path, local_file_path):
+                                downloaded_files.add(csv_file)
 
                     except ftplib.error_perm as e:
                         if "550" in str(e):
@@ -148,12 +149,16 @@ def main():
 
         print(f"\nDownload completed! Files saved to: {download_dir}")
 
+        # Update the downloaded files log
+        with open(downloaded_log_path, "w") as f:
+            for fname in sorted(downloaded_files):
+                f.write(fname + "\n")
+
     except Exception as e:
         print(f"Error during download process: {e}")
     finally:
         ftp.quit()
         print("FTP connection closed")
-
 
 if __name__ == "__main__":
     main()
