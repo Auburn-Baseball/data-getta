@@ -46,7 +46,7 @@ jobs:
           echo "VITE_SUPABASE_PROJECT_URL=${{ secrets.VITE_SUPABASE_PROJECT_URL }}" >> $GITHUB_ENV
           echo "VITE_SUPABASE_API_KEY=${{ secrets.VITE_SUPABASE_API_KEY }}" >> $GITHUB_ENV
 
-            # Step 6: Run FTP download script
+      # Step 6: Run FTP download script
       - name: Pull TrackMan CSVs
         run: python scripts/pull_all_trackman_csv.py
 
