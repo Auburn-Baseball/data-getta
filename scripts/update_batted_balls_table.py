@@ -49,6 +49,7 @@ def extract_batted_balls_from_csv(file_path: str):
                         "direction": float(row.get("Direction") or 0),
                         "hit_spin_rate": float(row.get("HitSpinRate") or 0),
                         "distance": float(row.get("Distance") or 0),
+                        "bearing": float(row.get("Bearing") or 0),
                         "hang_time": float(row.get("HangTime") or 0),
                         "created_at": datetime.utcnow().isoformat(),
                     })
