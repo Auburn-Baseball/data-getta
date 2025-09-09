@@ -312,7 +312,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         for i in range(0, len(batter_data), batch_size):
             batch = batter_data[i : i + batch_size]
             try:
-                supabase.table("BatterStats").upsert(batch, on_conflict="Batter,BatterTeam,Year").execute()
+                supabase.table("DevBatterStats").upsert(batch, on_conflict="Batter,BatterTeam,Year").execute()
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
@@ -322,7 +322,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                 continue
 
         print(f"Successfully processed {total_inserted} batter records")
-        count_result = supabase.table("BatterStats").select("*", count="exact").eq("Year", 2025).execute()
+        count_result = supabase.table("DevBatterStats").select("*", count="exact").eq("Year", 2025).execute()
         total_batters = count_result.count
         print(f"Total 2025 batters in database: {total_batters}")
 
