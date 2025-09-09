@@ -21,8 +21,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ----------------------------
 # Paths to model and scaler
 # ----------------------------
-MODEL_PATH = Path(__file__).parent / "models" / "xba_model.pt"
-SCALER_PATH = Path(__file__).parent / "models" / "scaler.save"
+MODEL_PATH = Path(__file__).parent.parent / "training_models" / "models" / "xba_model_20250909_040802.pt"
+SCALER_PATH = Path(__file__).parent.parent / "training_models" / "models" / "scaler.save"
 
 if not MODEL_PATH.exists() or not SCALER_PATH.exists():
     raise FileNotFoundError("Model or scaler not found. Run training script first.")
