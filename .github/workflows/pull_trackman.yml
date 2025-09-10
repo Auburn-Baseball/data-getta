@@ -48,4 +48,3 @@ jobs:
           python scripts/update_pitchers_table.py
           python scripts/update_pitches_table.py
           python scripts/update_players_table.py
-          python scripts/update_batted_balls_table.py
