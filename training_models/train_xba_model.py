@@ -10,7 +10,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-
 # ----------------------------
 # Supabase configuration
 # ----------------------------
@@ -42,12 +41,22 @@ if df.empty:
 # ----------------------------
 # Define target variable
 # ----------------------------
-df['is_hit'] = df['play_result'].isin(['Single', 'Double', 'Triple', 'HomeRun']).astype(int)
+df['is_hit'] = df['play_result'].isin(
+    ['Single', 'Double', 'Triple', 'HomeRun']
+).astype(int)
 
 # ----------------------------
 # Select features
 # ----------------------------
-features = ['exit_speed', 'launch_angle', 'direction', 'hit_spin_rate', 'distance', 'bearing', 'hang_time']
+features = [
+    'exit_speed',
+    'launch_angle',
+    'direction',
+    'hit_spin_rate',
+    'distance',
+    'bearing',
+    'hang_time'
+]
 
 # Drop rows with missing features or target
 df = df.dropna(subset=features + ['is_hit'])
@@ -87,6 +96,7 @@ class HitPredictor(nn.Module):
             nn.Linear(32, 1),
             nn.Sigmoid()
         )
+
     def forward(self, x):
         return self.model(x)
 
@@ -111,13 +121,13 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
+
     print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss/len(dataloader):.4f}")
 
 # ----------------------------
 # Save trained model
 # ----------------------------
 timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-
 model_dir = project_root / "training_models" / "models"
 model_dir.mkdir(parents=True, exist_ok=True)  # Create folder if it doesn't exist
 
