@@ -7,15 +7,15 @@ import RosterTab from '@/pages/RosterTab';
 import BatterTab from '@/pages/BatterTab';
 import PitcherTab from '@/pages/PitcherTab';
 
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
-        {/* force user to login each time */}
         <Route index element={<LandingPage />} />
-
         <Route element={<AppLayout />}>
-          <Route index path="conferences" element={<ConferencePage />} />
+          <Route path="conferences" element={<ConferencePage />} />
           <Route path="team/:trackmanAbbreviation" element={<TeamPage />}>
             <Route index element={<Navigate to="roster" replace />} />
             <Route path="roster" element={<RosterTab />} />
