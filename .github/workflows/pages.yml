@@ -23,14 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
+          node-version: '>=22'
+          package-manager-cache: false
 
-      - run: npm ci
-
+      - run: npm install
       - name: Build
         run: npm run build
         env:
