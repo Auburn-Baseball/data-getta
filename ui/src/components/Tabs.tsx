@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import GroupsIcon from '@mui/icons-material/Groups';
 import { common } from '@mui/material/colors';
 import { Theme } from '@/utils/theme';
+import auLogo from '@/assets/AuLogo.svg';
 
 export default function Tabs() {
   return (
@@ -25,7 +26,7 @@ export default function Tabs() {
           <ListItemIcon sx={{ minWidth: 'auto' }}>
             <Box
               component="img"
-              src="/AuLogo.svg"
+              src={auLogo}
               alt="Auburn logo"
               sx={{ width: 24, height: 24, display: 'block' }}
             />
