@@ -10,7 +10,8 @@ from pathlib import Path
 
 # Load environment variables
 project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env')
+env = os.getenv('ENV', 'development')
+load_dotenv(project_root / f'.env.{env}')
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -44,13 +45,6 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def should_exclude_file(filename: str) -> bool:
-    """Check if file should be excluded based on name patterns"""
-    exclude_patterns = ["playerpositioning", "fhc", "unverified"]
-    filename_lower = filename.lower()
-    return any(pattern in filename_lower for pattern in exclude_patterns)
-
-
 def is_in_strike_zone(plate_loc_height, plate_loc_side):
     """Check if pitch is in strike zone"""
     try:
@@ -78,10 +72,10 @@ def calculate_total_bases(play_result):
         return 0
 
 
-def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Extract batter statistics from a CSV file"""
+def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
+    """Extract batter statistics from a CSV file in-memory"""
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(buffer)
 
         # Check if required columns exist
         required_columns = [
@@ -321,142 +315,6 @@ def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict
         return {}
 
 
-def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Process all 2025 CSV files in the folder"""
-    all_batters = {}
-
-    # Look in the 2025 subfolder
-    year_folder = os.path.join(csv_folder_path, "2025")
-
-    if not os.path.exists(year_folder):
-        print(f"2025 CSV folder not found: {year_folder}")
-        return all_batters
-
-    # Get all CSV files
-    csv_files = [f for f in os.listdir(year_folder) if f.endswith(".csv")]
-
-    # Filter out unwanted patterns
-    filtered_files = []
-    for file in csv_files:
-        if not should_exclude_file(file):
-            filtered_files.append(file)
-        else:
-            print(f"Excluding file: {file}")
-
-    print(f"Found {len(filtered_files)} 2025 CSV files to process")
-
-    for filename in filtered_files:
-        file_path = os.path.join(year_folder, filename)
-
-        print(f"Processing: {filename}")
-
-        batters_from_file = get_batter_stats_from_csv(file_path)
-
-        # Merge batters from this file with the main dictionary
-        for key, batter_data in batters_from_file.items():
-            if key in all_batters:
-                # Batter already exists, merge the stats
-                existing = all_batters[key]
-
-                # Add up counting stats
-                for stat in [
-                    "hits",
-                    "at_bats",
-                    "strikes",
-                    "walks",
-                    "strikeouts",
-                    "homeruns",
-                    "extra_base_hits",
-                    "plate_appearances",
-                    "hit_by_pitch",
-                    "sacrifice",
-                    "total_bases",
-                ]:
-                    existing[stat] += batter_data[stat]
-
-                # MERGE THE UNIQUE GAMES SETS - This is the key fix!
-                existing["unique_games"].update(batter_data["unique_games"])
-                existing["games"] = len(existing["unique_games"])
-
-                # Recalculate percentages
-                existing["batting_average"] = (
-                    round(existing["hits"] / existing["at_bats"], 3)
-                    if existing["at_bats"] > 0
-                    else None
-                )
-                existing["on_base_percentage"] = (
-                    round(
-                        (
-                            existing["hits"]
-                            + existing["walks"]
-                            + existing["hit_by_pitch"]
-                        )
-                        / (
-                            existing["at_bats"]
-                            + existing["walks"]
-                            + existing["hit_by_pitch"]
-                            + existing["sacrifice"]
-                        ),
-                        3,
-                    )
-                    if (
-                        existing["at_bats"]
-                        + existing["walks"]
-                        + existing["hit_by_pitch"]
-                        + existing["sacrifice"]
-                    )
-                    > 0
-                    else None
-                )
-                existing["slugging_percentage"] = (
-                    round(existing["total_bases"] / existing["at_bats"], 3)
-                    if existing["at_bats"] > 0
-                    else None
-                )
-                existing["onbase_plus_slugging"] = (
-                    round(
-                        (existing["on_base_percentage"] or 0)
-                        + (existing["slugging_percentage"] or 0),
-                        3,
-                    )
-                    if (
-                        existing["on_base_percentage"] is not None
-                        and existing["slugging_percentage"] is not None
-                    )
-                    else None
-                )
-                existing["isolated_power"] = (
-                    round(
-                        (existing["slugging_percentage"] or 0)
-                        - (existing["batting_average"] or 0),
-                        3,
-                    )
-                    if (
-                        existing["slugging_percentage"] is not None
-                        and existing["batting_average"] is not None
-                    )
-                    else None
-                )
-                existing["k_percentage"] = (
-                    round(existing["strikeouts"] / existing["plate_appearances"], 3)
-                    if existing["plate_appearances"] > 0
-                    else None
-                )
-                existing["base_on_ball_percentage"] = (
-                    round(existing["walks"] / existing["plate_appearances"], 3)
-                    if existing["plate_appearances"] > 0
-                    else None
-                )
-            else:
-                # New batter, add to dictionary
-                all_batters[key] = batter_data
-
-        print(f"  Found {len(batters_from_file)} unique batters in this file")
-        print(f"  Total unique batters so far: {len(all_batters)}")
-
-    return all_batters
-
-
 def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
     """Upload batter statistics to Supabase"""
     if not batters_dict:
@@ -487,7 +345,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table("BatterStats")
+                    supabase.table(f"BatterStats")
                     .upsert(batch, on_conflict="Batter,BatterTeam,Year")
                     .execute()
                 )
@@ -506,61 +364,14 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
 
         # Get final count
         count_result = (
-            supabase.table("BatterStats")
+            supabase.table(f"BatterStats")
             .select("*", count="exact")
             .eq("Year", 2025)
             .execute()
         )
+
         total_batters = count_result.count
         print(f"Total 2025 batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
-
-
-def main():
-    print("Starting batter statistics CSV processing...")
-
-    # Set the path to your CSV folder
-    csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    print(f"Looking for CSV files in: {csv_folder_path}")
-
-    # Process all CSV files and collect unique batters
-    all_batters = process_csv_folder(csv_folder_path)
-
-    print(f"\nTotal unique batters found: {len(all_batters)}")
-
-    # Show sample of batters found
-    if all_batters:
-        print("\nSample batters:")
-        for i, (key, batter) in enumerate(list(all_batters.items())[:5]):
-            name, team, year = key
-            print(
-                f"  {batter['Batter']} - Team: {batter['BatterTeam']}, "
-                f"AVG: {batter['batting_average']}, HR: {batter['homeruns']}, Games: {batter['games']}"
-            )
-
-        # Show some statistics
-        total_hits = sum(b["hits"] for b in all_batters.values())
-        total_at_bats = sum(b["at_bats"] for b in all_batters.values())
-        total_homeruns = sum(b["homeruns"] for b in all_batters.values())
-        total_games = sum(b["games"] for b in all_batters.values())
-
-        print(f"\nStatistics:")
-        print(f"  Total hits: {total_hits}")
-        print(f"  Total at-bats: {total_at_bats}")
-        print(f"  Total home runs: {total_homeruns}")
-        print(f"  Total games played (all players): {total_games}")
-        print(
-            f"  Overall batting average: {round(total_hits / total_at_bats, 3) if total_at_bats > 0 else 'N/A'}"
-        )
-
-        # Upload to Supabase
-        print("\nUploading to Supabase...")
-        upload_batters_to_supabase(all_batters)
-    else:
-        print("No batters found to upload")
-
-
-if __name__ == "__main__":
-    main()
