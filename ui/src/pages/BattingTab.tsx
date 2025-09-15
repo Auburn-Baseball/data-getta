@@ -5,7 +5,7 @@ import BatterTable from '@/components/team/BatterTable';
 import { BatterStatsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 
-export default function BatterTab() {
+export default function BattingTab() {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [batters, setBatters] = useState<BatterStatsTable[]>([]);
   const [loading, setLoading] = useState(true);
