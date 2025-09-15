@@ -7,7 +7,7 @@ import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 import Box from '@mui/material/Box';
 
-export default function PitcherTab() {
+export default function PitchingTab() {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [pitchers, setPitchers] = useState<PitcherStatsTable[]>([]);
   const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
