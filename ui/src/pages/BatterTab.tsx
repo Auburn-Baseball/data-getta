@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import BatterTable from '@/components/team/BatterTable';
 import { BatterStatsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
