@@ -2,7 +2,7 @@
 """
 Author: Joshua Henley
 Created: 07 September 2025
-Updated: 15 September 2025
+Updated: 19 September 2025
 
 Unified TrackMan CSV Processor - Database Tracking Version
 - Downloads CSV files from FTP concurrently
@@ -27,10 +27,10 @@ import sys
 from supabase import create_client, Client
 
 # Import your existing processing functions
-from update_batters_table import get_batter_stats_from_buffer, upload_batters_to_supabase
-from update_pitchers_table import get_pitcher_stats_from_buffer, upload_pitchers_to_supabase
-from update_pitches_table import get_pitch_counts_from_buffer, upload_pitches_to_supabase
-from update_players_table import get_players_from_buffer, upload_players_to_supabase
+from util import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
+                   get_pitcher_stats_from_buffer, upload_pitchers_to_supabase,
+                   get_pitch_counts_from_buffer, upload_pitches_to_supabase,
+                   get_players_from_buffer, upload_players_to_supabase )
 
 project_root = Path(__file__).parent.parent
 env = os.getenv('ENV', 'development')

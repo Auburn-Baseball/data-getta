@@ -34,6 +34,7 @@ ui/*.local
 package-lock.json
 scripts/poetry.lock
 scripts/__pycache__/
+scripts/util/__pycache__/
 csv/
 
 .vscode
