@@ -30,3 +30,4 @@ package-lock.json
 scripts/poetry.lock
 scripts/__pycache__/
 csv/
+.vscode

@@ -3,7 +3,7 @@ import Typography from '@mui/material/Typography';
 
 export default function PlayerInfo({ name, team }: { name: string; team: string }) {
   console.log(name);
-  const playerName = name.split(", ");
+  const playerName = name.split(', ');
 
   return (
     <Box>

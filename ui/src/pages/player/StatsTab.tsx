@@ -1,28 +1,133 @@
-/*
- * Dummy page to redirect to the stats page
- * since the startDate and endDate are required to query the database.
- *
- * A redirect is used to make it easier to route to a player's page from other parts of the app,
- * then from here the dynamic routes will be filled out to query the database and populate the stats tables.
- *
- * author: Braden Mosley
- * lastEdit: 04-15-2024
- */
+import { supabase } from '@/utils/supabase';
+import { BatterStatsTable, PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
+import { Typography, Box } from '@mui/material';
+import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
+import PitchingStatsTable from '@/components/player/Pitching/PitchingStatsTable';
+import { useState, useEffect } from 'react';
+import StatsTableSkeleton from '@/components/player/StatsTableSkeleton';
+import { useParams } from 'react-router';
 
-import dayjs from "dayjs";
-import { redirect } from "next/navigation";
+export default function StatsTab() {
+  const { trackmanAbbreviation, playerName, year } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+    year: string;
+  }>();
 
-export default async function Page(props: {
-  params: Promise<{ teamName: string; playerName: string }>;
-}) {
-  const params = await props.params;
-  const decodedTeamName = decodeURIComponent(params.teamName);
-  const decodedPlayerName = decodeURIComponent(params.playerName);
+  const [batter, setBatter] = useState<BatterStatsTable[]>([]);
+  const [pitcher, setPitcher] = useState<PitcherStatsTable[]>([]);
+  const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Will have to change to the start of the current season
-  const startOfSeason = "2024-02-16";
-  const currentDate = dayjs().format("YYYY-MM-DD");
+  // Parse the player name correctly
+  const decodedPlayerName = playerName ? decodeURIComponent(playerName).replace('_', ', ') : '';
+  const decodedTeamName = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
+  const safeYear = year || '2025';
 
-  // Use redirect instead of permanentRedirect to avoid caching issues
-  redirect(`/team/${decodedTeamName}/player/${decodedPlayerName}/stats/${startOfSeason}/${currentDate}`);
+  useEffect(() => {
+    async function fetchStats() {
+      if (!decodedPlayerName || !decodedTeamName) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data: batterData, error: batterError } = await supabase
+          .from('BatterStats')
+          .select('*')
+          .eq('Batter', decodedPlayerName)
+          .eq('BatterTeam', decodedTeamName)
+          .eq('Year', safeYear)
+          .overrideTypes<BatterStatsTable[], { merge: false }>();
+
+        if (batterError) throw batterError;
+
+        const { data: pitcherData, error: pitcherError } = await supabase
+          .from('PitcherStats')
+          .select('*')
+          .eq('Pitcher', decodedPlayerName)
+          .eq('PitcherTeam', decodedTeamName)
+          .eq('Year', safeYear)
+          .overrideTypes<PitcherStatsTable[], { merge: false }>();
+
+        if (pitcherError) throw pitcherError;
+
+        const { data: pitchData, error: pitchError } = await supabase
+          .from('PitchCounts')
+          .select('*')
+          .eq('Pitcher', decodedPlayerName)
+          .eq('PitcherTeam', decodedTeamName)
+          .eq('Year', safeYear)
+          .overrideTypes<PitchCountsTable[], { merge: false }>();
+
+        if (pitchError) throw pitchError;
+
+        setBatter(batterData || []);
+        setPitcher(pitcherData || []);
+        setPitches(pitchData || []);
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+        setError('Failed to load player stats');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, [decodedPlayerName, decodedTeamName, safeYear]);
+
+  if (loading) return <StatsTableSkeleton />;
+
+  if (error) {
+    return (
+      <Typography variant="h6" color="#d32f2f">
+        <strong>Error!</strong>
+        <br />
+        {error}
+      </Typography>
+    );
+  }
+
+  const hasBatterData = batter.length > 0;
+  const hasPitcherData = pitcher.length > 0;
+  const hasPitchData = pitches.length > 0;
+
+  if (!hasBatterData && !hasPitcherData && !hasPitchData) {
+    return (
+      <Typography variant="h6" color="#d32f2f">
+        <strong>Strikeout!</strong>
+        <br />
+        No stats found for this player.
+      </Typography>
+    );
+  }
+
+  return (
+    <>
+      {/* Stats Tables */}
+      <Box sx={{ mt: 2, mb: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {hasBatterData && (
+            <div>
+              <BattingStatsTable
+                teamName={decodedTeamName}
+                playerName={decodedPlayerName}
+                year={safeYear}
+              />
+            </div>
+          )}
+          {hasPitcherData && (
+            <div>
+              <PitchingStatsTable
+                teamName={decodedTeamName}
+                playerName={decodedPlayerName}
+                year={safeYear}
+              />
+            </div>
+          )}
+        </div>
+      </Box>
+    </>
+  );
 }
