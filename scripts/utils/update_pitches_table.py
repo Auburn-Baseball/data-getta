@@ -9,7 +9,7 @@ from typing import Dict, Tuple, List, Set
 from pathlib import Path
 
 # Load environment variables
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 env = os.getenv('ENV', 'development')
 load_dotenv(project_root / f'.env.{env}')
 
