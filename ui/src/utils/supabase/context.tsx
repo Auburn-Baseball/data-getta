@@ -2,12 +2,13 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/client';
 
-type AuthCtx = { user: User | null; loading: boolean };
-const Ctx = createContext<AuthCtx>({ user: null, loading: true });
+type AuthCtx = { user: User | null; recovery: boolean; loading: boolean };
+const Ctx = createContext<AuthCtx>({ user: null, recovery: false, loading: true });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -19,7 +20,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (_event === 'PASSWORD_RECOVERY') {
+        setUser(null);
+        setRecovery(true);
+      } else {
+        setUser(session?.user ?? null);
+      }
     });
 
     return () => {
@@ -28,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  return <Ctx.Provider value={{ user, loading }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, recovery, loading }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
