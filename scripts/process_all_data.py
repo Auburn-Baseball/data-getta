@@ -27,7 +27,7 @@ import sys
 from supabase import create_client, Client
 
 # Import your existing processing functions
-from util import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
+from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitcher_stats_from_buffer, upload_pitchers_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
                    get_players_from_buffer, upload_players_to_supabase )
