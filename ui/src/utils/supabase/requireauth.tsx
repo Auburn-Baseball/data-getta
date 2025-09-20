@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
-import { useAuth } from '@/utils/supabase/context';
+import { useAuth } from '@/utils/supabase/useauth';
 
 export default function RequireAuth() {
   const { user, loading } = useAuth();

@@ -1,4 +1,3 @@
-// components/ResetPasswordForm.tsx
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -10,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/utils/supabase/client';
+import { useAuth } from '@/utils/supabase/useauth';
 
 const schema = z
   .object({
@@ -26,6 +26,8 @@ type Values = z.infer<typeof schema>;
 export function ResetPasswordForm({ className }: { className?: string }) {
   const [search] = useSearchParams();
   const navigate = useNavigate();
+  const { setRecovery } = useAuth();
+
   const [errorMessage, setErrorMessage] = React.useState('');
   const [info, setInfo] = React.useState<string>('');
 
@@ -46,9 +48,7 @@ export function ResetPasswordForm({ className }: { className?: string }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<Values>({
-    resolver: zodResolver(schema),
-  });
+  } = useForm<Values>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (values: Values) => {
     setErrorMessage('');
@@ -58,8 +58,9 @@ export function ResetPasswordForm({ className }: { className?: string }) {
       setErrorMessage(error.message);
       return;
     }
-    setInfo('Password updated. You can sign in with your new password.');
-    setTimeout(() => navigate('/', { replace: true }), 1000);
+
+    setInfo('Password updated! You can now sign in with your new password.');
+    setRecovery(false);
   };
 
   return (
