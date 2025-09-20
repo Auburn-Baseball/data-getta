@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import Box from '@mui/material/Box';
+import { useTheme } from '@mui/material/styles';
 
 import { login, signup } from '@/utils/supabase/auth';
 import { supabase } from '@/utils/supabase/client';
@@ -28,7 +30,6 @@ const signUpSchema = signInSchema
     message: 'Passwords do not match',
   });
 
-// Forgot view only needs an email
 const forgotSchema = z.object({
   email: z.string().email(),
 });
@@ -39,6 +40,8 @@ type ForgotValues = z.infer<typeof forgotSchema>;
 type AuthValues = SignInValues | SignUpValues | ForgotValues;
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
+  const theme = useTheme();
+
   const [mode, setMode] = useState<Mode>('sign-in');
   const [isLoading, setIsLoading] = useState(false);
   const [banner, setBanner] = useState<{ kind: 'info' | 'warn' | null; text: string }>({
@@ -169,8 +172,28 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     setForgotSent(null);
   };
 
+  const cssVars = {
+    '--secondary-main': theme.palette.secondary.main,
+    '--secondary-light': theme.palette.secondary.light,
+  } as React.CSSProperties;
+
+  const inputClasses =
+    'border-[var(--secondary-main)] focus-visible:ring-2 focus-visible:ring-[var(--secondary-main)]';
+  const linkish = 'underline underline-offset-4 hover:cursor-pointer';
+  const ctaBtn =
+    '!cursor-pointer !border !border-[var(--secondary-main)] !bg-[var(--secondary-main)] hover:!bg-[var(--secondary-light)] !text-white';
+
   return (
-    <div className={cn('flex flex-col gap-6', className)} {...props}>
+    <Box
+      sx={{
+        borderWidth: '4px',
+        borderColor: 'secondary.main',
+        borderRadius: '16px',
+      }}
+      style={cssVars}
+      className={cn('flex flex-col gap-6', className)}
+      {...props}
+    >
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -187,6 +210,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     type="email"
                     placeholder="m@example.com"
                     required
+                    className={inputClasses}
                     {...register('email', {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
@@ -203,7 +227,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     <Label htmlFor="password">Password</Label>
                     <button
                       type="button"
-                      className="ml-auto inline-block text-sm underline underline-offset-4 hover:underline"
+                      className={`ml-auto inline-block text-sm ${linkish}`}
                       onClick={() => switchMode('forgot')}
                     >
                       Forgot your password?
@@ -213,6 +237,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="password"
                     type="password"
                     required
+                    className={inputClasses}
                     {...register('password', {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
@@ -230,18 +255,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className={`w-full ${ctaBtn}`} disabled={isLoading}>
                     {isLoading ? 'Working...' : submitText}
                   </Button>
                 </div>
 
                 <div className="mt-2 text-center text-sm">
                   Don&apos;t have an account?{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-4"
-                    onClick={() => switchMode('sign-up')}
-                  >
+                  <button type="button" className={linkish} onClick={() => switchMode('sign-up')}>
                     Sign up
                   </button>
                 </div>
@@ -257,6 +278,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     type="email"
                     placeholder="m@example.com"
                     required
+                    className={inputClasses}
                     {...register('email', {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
@@ -274,6 +296,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="password"
                     type="password"
                     required
+                    className={inputClasses}
                     {...register('password', {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
@@ -291,6 +314,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="confirmPassword"
                     type="password"
                     required
+                    className={inputClasses}
                     {...register('confirmPassword' as any, {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
@@ -315,14 +339,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                         <div className="mt-1 flex gap-3 text-sm">
                           <button
                             type="button"
-                            className="underline text-[#e87722]"
+                            className={`text-[var(--secondary-main)] ${linkish.replace('underline underline-offset-4 ', '')}`}
                             onClick={() => switchMode('sign-in')}
                           >
                             Sign in
                           </button>
                           <button
                             type="button"
-                            className="underline text-[#e87722]"
+                            className={`text-[var(--secondary-main)] ${linkish.replace('underline underline-offset-4 ', '')}`}
                             onClick={() => {
                               const email = (control._formValues as any)?.email as string;
                               if (email) void sendReset(email);
@@ -337,18 +361,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={isLoading || mismatch}>
+                  <Button
+                    type="submit"
+                    className={`w-full ${ctaBtn}`}
+                    disabled={isLoading || mismatch}
+                  >
                     {isLoading ? 'Working...' : submitText}
                   </Button>
                 </div>
 
                 <div className="mt-2 text-center text-sm">
                   Already have an account?{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-4"
-                    onClick={() => switchMode('sign-in')}
-                  >
+                  <button type="button" className={linkish} onClick={() => switchMode('sign-in')}>
                     Back to sign in
                   </button>
                 </div>
@@ -363,6 +387,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     id="email"
                     type="email"
                     placeholder="m@example.com"
+                    className={inputClasses}
                     {...register('email', {
                       onChange: () => {
                         if (forgotSent) setForgotSent(null);
@@ -390,18 +415,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className={`w-full ${ctaBtn}`} disabled={isLoading}>
                     {isLoading ? 'Working...' : submitText}
                   </Button>
                 </div>
 
                 <div className="mt-2 text-center text-sm">
                   Remembered your password?{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-4"
-                    onClick={() => switchMode('sign-in')}
-                  >
+                  <button type="button" className={linkish} onClick={() => switchMode('sign-in')}>
                     Back to sign in
                   </button>
                 </div>
@@ -410,6 +431,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
           </form>
         </CardContent>
       </Card>
-    </div>
+    </Box>
   );
 }

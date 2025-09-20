@@ -6,6 +6,7 @@ type AuthCtx = {
   user: User | null;
   recovery: boolean;
   loading: boolean;
+  setUser: (u: User | null) => void;
   setRecovery: (v: boolean) => void;
 };
 
@@ -13,6 +14,7 @@ export const AuthContext = createContext<AuthCtx>({
   user: null,
   recovery: false,
   loading: true,
+  setUser: () => {},
   setRecovery: () => {},
 });
 
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, recovery, loading, setRecovery }}>
+    <AuthContext.Provider value={{ user, recovery, loading, setUser, setRecovery }}>
       {children}
     </AuthContext.Provider>
   );
