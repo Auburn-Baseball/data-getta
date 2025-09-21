@@ -9,8 +9,8 @@
  * lastEdit: 04-15-2024
  */
 
-import dayjs from "dayjs";
-import { redirect } from "next/navigation";
+import dayjs from 'dayjs';
+import { redirect } from 'next/navigation';
 
 export default async function Page(props: {
   params: Promise<{ teamName: string; playerName: string }>;
@@ -20,9 +20,11 @@ export default async function Page(props: {
   const decodedPlayerName = decodeURIComponent(params.playerName);
 
   // Will have to change to the start of the current season
-  const startOfSeason = "2024-02-16";
-  const currentDate = dayjs().format("YYYY-MM-DD");
+  const startOfSeason = '2024-02-16';
+  const currentDate = dayjs().format('YYYY-MM-DD');
 
   // Use redirect instead of permanentRedirect to avoid caching issues
-  redirect(`/team/${decodedTeamName}/player/${decodedPlayerName}/stats/${startOfSeason}/${currentDate}`);
+  redirect(
+    `/team/${decodedTeamName}/player/${decodedPlayerName}/stats/${startOfSeason}/${currentDate}`,
+  );
 }

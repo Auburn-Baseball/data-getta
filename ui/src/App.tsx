@@ -27,7 +27,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="conferences" element={<ConferencePage />} />
-            <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />} >
+            <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />}>
               <Route index element={<Navigate to="stats" replace />} />
               <Route path="stats" element={<div>a</div>} />
               <Route path="heat-map" element={<div>Heat Map Page</div>} />

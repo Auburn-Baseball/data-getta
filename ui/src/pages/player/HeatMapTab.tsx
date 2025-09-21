@@ -1,6 +1,6 @@
-import Box from "@mui/material/Box";
-import { prisma } from "@/utils/db";
-import HeatMap from "@/player/components/HeatMap/HeatMap";
+import Box from '@mui/material/Box';
+import { prisma } from '@/utils/db';
+import HeatMap from '@/player/components/HeatMap/HeatMap';
 
 type Params = Promise<{ teamName: string; playerName: string }>;
 type SearchParams = Promise<{ year?: string; pitch?: string; batter?: string }>;
@@ -12,11 +12,10 @@ export default async function Page(props: {
   const params = await props.params;
   const searchParams = await props.searchParams;
 
-
   const decodedPlayerName = decodeURIComponent(params.playerName);
-  const year = searchParams.year === "2025" ? "2025" : "2024"; // fallback to 2024
-  const pitchType = searchParams.pitch || "";
-  const batter = searchParams.batter || "Both"; // default to both
+  const year = searchParams.year === '2025' ? '2025' : '2024'; // fallback to 2024
+  const pitchType = searchParams.pitch || '';
+  const batter = searchParams.batter || 'Both'; // default to both
 
   // Use year-specific table
   const pTableName = `trackman_pitcher_${year}`;
@@ -48,31 +47,25 @@ export default async function Page(props: {
 
   const raw = (await prisma.$queryRawUnsafe(query, ...args)) as any[];
 
-
   const pitches = raw.map((p) => ({
     x: Number(p.x),
     y: Number(p.y),
-    pitchType: p.pitchType,       // TaggedPitchType
+    pitchType: p.pitchType, // TaggedPitchType
     batterSide: p.batterSide,
-
   }));
-  console.log("Passing to HeatMap:", pitches.length, "pitches");
+  console.log('Passing to HeatMap:', pitches.length, 'pitches');
 
   return (
     <Box
       sx={{
-        width: "100%",
-        display: "flex",
-        justifyContent: "center",
-        padding: "2rem 0",
-        minHeight: "100vh",
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        padding: '2rem 0',
+        minHeight: '100vh',
       }}
     >
-      <HeatMap
-        playerName={decodedPlayerName}
-        batterFilter={batter}
-        pitches={pitches}
-      />
+      <HeatMap playerName={decodedPlayerName} batterFilter={batter} pitches={pitches} />
     </Box>
   );
 }

@@ -8,7 +8,10 @@ import PlayerInfo from '@/components/player/PlayerInfo';
 import { Outlet } from 'react-router';
 
 export default function PlayerPage() {
-  const { trackmanAbbreviation, playerName } = useParams<{ trackmanAbbreviation: string, playerName: string }>();
+  const { trackmanAbbreviation, playerName } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+  }>();
 
   const [player, setPlayer] = useState<PlayersTable | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +22,7 @@ export default function PlayerPage() {
 
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        const decodedPlayerName = decodeURIComponent(playerName).split("_").join(", ");
+        const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
         console.log(decodedPlayerName);
         const { data, error } = await supabase
           .from('Players')
