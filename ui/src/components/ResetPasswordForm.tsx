@@ -30,7 +30,7 @@ export function ResetPasswordForm({ className }: { className?: string }) {
   const theme = useTheme();
   const [search] = useSearchParams();
   const navigate = useNavigate();
-  const { setRecovery } = useAuth();
+  const { setUser, setRecovery } = useAuth();
 
   const [errorMessage, setErrorMessage] = React.useState('');
   const [info, setInfo] = React.useState<string>('');
@@ -140,8 +140,13 @@ export function ResetPasswordForm({ className }: { className?: string }) {
                 Remembered your password?{' '}
                 <button
                   type="button"
-                  className={linkish}
-                  onClick={() => navigate('/', { replace: true })}
+                  className={`${linkish} hover:text-[var(--secondary-main)]`}
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    setRecovery(false);
+                    setUser(null);
+                    navigate('/', { replace: false });
+                  }}
                 >
                   Back to sign in
                 </button>

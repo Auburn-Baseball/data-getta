@@ -227,7 +227,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     <Label htmlFor="password">Password</Label>
                     <button
                       type="button"
-                      className={`ml-auto inline-block text-sm ${linkish}`}
+                      className={`ml-auto inline-block text-sm ${linkish} hover:text-[var(--secondary-main)]`}
                       onClick={() => switchMode('forgot')}
                     >
                       Forgot your password?
@@ -262,7 +262,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
                 <div className="mt-2 text-center text-sm">
                   Don&apos;t have an account?{' '}
-                  <button type="button" className={linkish} onClick={() => switchMode('sign-up')}>
+                  <button
+                    type="button"
+                    className={`${linkish} hover:text-[var(--secondary-main)]`}
+                    onClick={() => switchMode('sign-up')}
+                  >
                     Sign up
                   </button>
                 </div>
@@ -372,7 +376,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
                 <div className="mt-2 text-center text-sm">
                   Already have an account?{' '}
-                  <button type="button" className={linkish} onClick={() => switchMode('sign-in')}>
+                  <button
+                    type="button"
+                    className={`${linkish} hover:text-[var(--secondary-main)]`}
+                    onClick={() => switchMode('sign-in')}
+                  >
                     Back to sign in
                   </button>
                 </div>
@@ -422,7 +430,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
                 <div className="mt-2 text-center text-sm">
                   Remembered your password?{' '}
-                  <button type="button" className={linkish} onClick={() => switchMode('sign-in')}>
+                  <button
+                    type="button"
+                    className={`${linkish} hover:text-[var(--secondary-main)]`}
+                    onClick={() => switchMode('sign-in')}
+                  >
                     Back to sign in
                   </button>
                 </div>
