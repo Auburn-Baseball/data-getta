@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router';
+import { Navigate, Outlet } from 'react-router';
 import { useAuth } from '@/utils/supabase/useauth';
 
 export default function AuthGuard() {
@@ -14,5 +14,5 @@ export default function AuthGuard() {
     return <Navigate to="/conferences" replace />;
   }
 
-  return <Navigate to="/" replace />;
+  return <Outlet />;
 }
