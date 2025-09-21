@@ -7,7 +7,6 @@ export default function AuthGuard() {
   if (loading) return <div style={{ padding: 24 }}>Checking session…</div>;
 
   if (recovery) {
-    console.log('redirecting to reset-password');
     return <Navigate to="/reset-password" replace />;
   }
 
