@@ -17,7 +17,7 @@ import {
 import { useState, useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import { useNavigate, useParams } from 'react-router';
 
 export default function PitchingStatsTable({

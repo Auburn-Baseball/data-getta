@@ -1,16 +1,16 @@
 import Box from '@mui/material/Box';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import HeatMap from '@/components/player/HeatMap/HeatMap';
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { CircularProgress, Typography } from '@mui/material';
 
 export type ZoneBin = {
-  zoneId: number;            // 1..13 (1..9 inner; 10..13 outer)
-  inZone: boolean;           // true for inner
-  zoneRow: number;           // 1..3 for inner, 0 outer
-  zoneCol: number;           // 1..3 for inner, 0 outer
-  zoneCell: number;          // 1..9 for inner, 0 outer
+  zoneId: number; // 1..13 (1..9 inner; 10..13 outer)
+  inZone: boolean; // true for inner
+  zoneRow: number; // 1..3 for inner, 0 outer
+  zoneCol: number; // 1..3 for inner, 0 outer
+  zoneCell: number; // 1..9 for inner, 0 outer
   outerLabel: 'NA' | 'OTL' | 'OTR' | 'OBL' | 'OBR';
 
   totalPitchCount: number;
@@ -67,12 +67,14 @@ export default function HeatMapTab() {
 
         const { data, error } = await supabase
           .from('PitcherPitchBins')
-          .select(`
+          .select(
+            `
             ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
             TotalPitchCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
             Count_L, Count_R
-          `)
+          `,
+          )
           .eq('Pitcher', decodedPlayerName)
           .eq('Year', Number(year))
           .eq('PitcherTeam', team);
@@ -130,7 +132,15 @@ export default function HeatMapTab() {
   }
 
   return (
-    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', py: '2rem', minHeight: '100vh' }}>
+    <Box
+      sx={{
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        py: '2rem',
+        minHeight: '100vh',
+      }}
+    >
       <HeatMap
         playerName={decodedPlayerName}
         batterFilter={batter}

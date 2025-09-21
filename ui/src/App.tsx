@@ -29,16 +29,16 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="conferences" element={<ConferencePage />} />
-          <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />}>
-            <Route path="stats/:year" element={<StatsTab />} />
-            <Route path="heat-map/:year" element={<HeatMapTab />} />
-            <Route path="percentiles/:year" element={<div>Percentiles Page</div>} />
-          </Route>
-          <Route path="team/:trackmanAbbreviation" element={<TeamPage />}>
-            <Route index element={<Navigate to="roster" replace />} />
-            <Route path="roster" element={<RosterTab />} />
-            <Route path="batting" element={<BattingTab />} />
-            <Route path="pitching" element={<PitchingTab />} />
+            <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />}>
+              <Route path="stats/:year" element={<StatsTab />} />
+              <Route path="heat-map/:year" element={<HeatMapTab />} />
+              <Route path="percentiles/:year" element={<div>Percentiles Page</div>} />
+            </Route>
+            <Route path="team/:trackmanAbbreviation" element={<TeamPage />}>
+              <Route index element={<Navigate to="roster" replace />} />
+              <Route path="roster" element={<RosterTab />} />
+              <Route path="batting" element={<BattingTab />} />
+              <Route path="pitching" element={<PitchingTab />} />
             </Route>
           </Route>
         </Route>

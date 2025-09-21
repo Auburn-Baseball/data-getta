@@ -24,7 +24,7 @@ const Z = { halfWidth: 0.8391667, yBot: 1.5, yTop: 3.5 };
 
 // ZoneId mapping (1..9 inner; 10..13 outer)
 const OUTER = ['OTL', 'OTR', 'OBL', 'OBR'] as const;
-type OuterLabel = typeof OUTER[number];
+type OuterLabel = (typeof OUTER)[number];
 
 export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bins }: Props) {
   // Build a complete 13-cell map with zeros, then overlay DB rows.
@@ -143,10 +143,14 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   };
   const outerRectFor = (lab: OuterLabel) => {
     switch (lab) {
-      case 'OTL': return { x: outerX, y: outerY, w: outerSize / 2, h: outerSize / 2 };
-      case 'OTR': return { x: midX,   y: outerY, w: outerSize / 2, h: outerSize / 2 };
-      case 'OBL': return { x: outerX, y: midY,   w: outerSize / 2, h: outerSize / 2 };
-      case 'OBR': return { x: midX,   y: midY,   w: outerSize / 2, h: outerSize / 2 };
+      case 'OTL':
+        return { x: outerX, y: outerY, w: outerSize / 2, h: outerSize / 2 };
+      case 'OTR':
+        return { x: midX, y: outerY, w: outerSize / 2, h: outerSize / 2 };
+      case 'OBL':
+        return { x: outerX, y: midY, w: outerSize / 2, h: outerSize / 2 };
+      case 'OBR':
+        return { x: midX, y: midY, w: outerSize / 2, h: outerSize / 2 };
     }
   };
 
@@ -159,9 +163,9 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   // --- New: offset outer labels away from center so they don't overlap inner grid ---
   const signFor: Record<OuterLabel, { sx: number; sy: number }> = {
     OTL: { sx: -1, sy: -1 },
-    OTR: { sx:  1, sy: -1 },
-    OBL: { sx: -1, sy:  1 },
-    OBR: { sx:  1, sy:  1 },
+    OTR: { sx: 1, sy: -1 },
+    OBL: { sx: -1, sy: 1 },
+    OBR: { sx: 1, sy: 1 },
   };
 
   function outerTextPos(lab: OuterLabel, r: { x: number; y: number; w: number; h: number }) {
@@ -176,8 +180,7 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Pitch Heat Map — {playerName}{' '}
-        {batterFilter !== 'Both' ? `(${batterFilter} batters)` : ''}{' '}
+        Pitch Heat Map — {playerName} {batterFilter !== 'Both' ? `(${batterFilter} batters)` : ''}{' '}
         {pitchTypeFilter !== 'All' ? `• ${pitchTypeFilter}` : ''}
       </Typography>
 
@@ -185,7 +188,15 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
         <svg width={W} height={H} role="img" aria-label="Pitch heatmap (3x3 + 4 outer)">
           {/* background & big frame */}
           <rect x={0} y={0} width={W} height={H} rx={12} fill="#111" />
-          <rect x={outerX} y={outerY} width={outerSize} height={outerSize} rx={10} fill="#181818" stroke="#2a2a2a" />
+          <rect
+            x={outerX}
+            y={outerY}
+            width={outerSize}
+            height={outerSize}
+            rx={10}
+            fill="#181818"
+            stroke="#2a2a2a"
+          />
 
           {/* outer 2×2 quadrants (below inner grid), labels offset away from center */}
           {OUTER.map((lab) => {
@@ -199,7 +210,7 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
             const tColor = textFill(fill);
 
             const pos = outerTextPos(lab, r); // position nudged toward corner
-            const lineGap = 16;               // distance between % and count
+            const lineGap = 16; // distance between % and count
             return (
               <g key={`out-${lab}`}>
                 <rect
@@ -238,18 +249,46 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
           })}
 
           {/* inner strike zone outline + grid */}
-          <rect x={ix} y={iy} width={innerSize} height={innerSize} fill="none" stroke="#aab4e5" strokeWidth={2} rx={6} />
+          <rect
+            x={ix}
+            y={iy}
+            width={innerSize}
+            height={innerSize}
+            fill="none"
+            stroke="#aab4e5"
+            strokeWidth={2}
+            rx={6}
+          />
           {[1, 2].map((i) => (
-            <line key={`v${i}`} x1={ix + i * (innerSize / 3)} x2={ix + i * (innerSize / 3)} y1={iy} y2={iy + innerSize} stroke="#aab4e5" strokeWidth={1} opacity={0.85} />
+            <line
+              key={`v${i}`}
+              x1={ix + i * (innerSize / 3)}
+              x2={ix + i * (innerSize / 3)}
+              y1={iy}
+              y2={iy + innerSize}
+              stroke="#aab4e5"
+              strokeWidth={1}
+              opacity={0.85}
+            />
           ))}
           {[1, 2].map((i) => (
-            <line key={`h${i}`} x1={ix} x2={ix + innerSize} y1={iy + i * (innerSize / 3)} y2={iy + i * (innerSize / 3)} stroke="#aab4e5" strokeWidth={1} opacity={0.85} />
+            <line
+              key={`h${i}`}
+              x1={ix}
+              x2={ix + innerSize}
+              y1={iy + i * (innerSize / 3)}
+              y2={iy + i * (innerSize / 3)}
+              stroke="#aab4e5"
+              strokeWidth={1}
+              opacity={0.85}
+            />
           ))}
 
           {/* inner 3×3 cells */}
           {Array.from({ length: 3 }).flatMap((_, r) =>
             Array.from({ length: 3 }).map((__, c) => {
-              const row = r + 1, col = c + 1;
+              const row = r + 1,
+                col = c + 1;
               const zid = (row - 1) * 3 + col;
               const z = zoneMap.get(zid)!;
               const v = valueFor(z);
@@ -260,23 +299,48 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
               const tColor = textFill(fill);
               return (
                 <g key={`in-${zid}`}>
-                  <rect x={x} y={y} width={w} height={h} fill={fill} opacity={dim ? 0.35 : 1} stroke="#2d2d2d" rx={6} />
-                  <text x={x + w / 2} y={y + h / 2 - 6} fill={tColor} textAnchor="middle" fontWeight={700} fontSize={13}>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={w}
+                    height={h}
+                    fill={fill}
+                    opacity={dim ? 0.35 : 1}
+                    stroke="#2d2d2d"
+                    rx={6}
+                  />
+                  <text
+                    x={x + w / 2}
+                    y={y + h / 2 - 6}
+                    fill={tColor}
+                    textAnchor="middle"
+                    fontWeight={700}
+                    fontSize={13}
+                  >
                     {pct}
                   </text>
-                  <text x={x + w / 2} y={y + h / 2 + 14} fill={tColor} textAnchor="middle" fontSize={12} opacity={0.9}>
+                  <text
+                    x={x + w / 2}
+                    y={y + h / 2 + 14}
+                    fill={tColor}
+                    textAnchor="middle"
+                    fontSize={12}
+                    opacity={0.9}
+                  >
                     {v.toLocaleString()}
                   </text>
                 </g>
               );
-            })
+            }),
           )}
         </svg>
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
-        Inner grid is a fixed 3×3 strike zone; four outer quadrants aggregate all pitches outside the zone and are split by the
-        square’s midlines. Percentages reflect the current pitch type filter; cells with no {batterFilter !== 'Both' ? `${batterFilter}-handed` : ''} pitches are dimmed.
+        Inner grid is a fixed 3×3 strike zone; four outer quadrants aggregate all pitches outside
+        the zone and are split by the square’s midlines. Percentages reflect the current pitch type
+        filter; cells with no {batterFilter !== 'Both' ? `${batterFilter}-handed` : ''} pitches are
+        dimmed.
       </Typography>
     </Box>
   );

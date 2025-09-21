@@ -1,4 +1,4 @@
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import { BatterStatsTable, PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import { Typography, Box } from '@mui/material';
 import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
