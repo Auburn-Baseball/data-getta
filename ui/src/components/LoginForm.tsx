@@ -100,7 +100,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   async function sendReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${buildBaseUrl()}/reset-password`,
+      redirectTo: `${buildBaseUrl()}reset-password`,
     });
     if (error) {
       setErrorMessage(error.message);
