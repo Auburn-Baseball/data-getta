@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import PitcherTable from '@/components/team/PitcherTable';
 import PitchSumsTable from '@/components/team/PitchSumsTable';
 import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';

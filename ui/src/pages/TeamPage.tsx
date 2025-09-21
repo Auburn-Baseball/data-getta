@@ -3,7 +3,7 @@ import { useParams, Outlet, useSearchParams } from 'react-router';
 import Box from '@mui/material/Box';
 import TeamInfo from '@/components/team/TeamInfo';
 import TableTabs from '@/components/team/TableTabs';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import { TeamsTable } from '@/types/schemas';
 import PlayerPage from '@/pages/PlayerPage';
 

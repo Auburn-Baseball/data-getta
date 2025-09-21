@@ -3,7 +3,7 @@ import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ConferenceTable from '@/components/ConferenceTable';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import { TeamsTable } from '@/types/schemas';
 import { ConferenceGroup, ConferenceGroupTeam } from '@/types/types';
 
