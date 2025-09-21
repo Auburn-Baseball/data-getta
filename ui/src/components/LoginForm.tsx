@@ -15,7 +15,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { login, signup } from '@/utils/supabase/auth';
 import { supabase } from '@/utils/supabase/client';
-import { buildBaseUrl } from '@/utils/url';
+import { buildUrl } from '@/utils/url';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
 
@@ -100,7 +100,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   async function sendReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${buildBaseUrl()}reset-password`,
+      redirectTo: buildUrl('reset-password'),
     });
     if (error) {
       setErrorMessage(error.message);

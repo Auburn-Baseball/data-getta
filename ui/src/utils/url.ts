@@ -1,6 +1,6 @@
-export function buildBaseUrl() {
+export function buildUrl(path: string) {
   const base = import.meta.env.BASE_URL;
-  const url = new URL(base, window.location.origin).toString();
-  console.log(url);
-  return url;
+  const baseNormalized = base.replace(/\/+$/, '');
+  const pathNormalized = path.replace(/^\/+/, '');
+  return new URL(`${baseNormalized}/${pathNormalized}`, window.location.origin).toString();
 }
