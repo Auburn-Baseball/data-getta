@@ -9,8 +9,9 @@ from typing import Dict, Tuple, List, Set
 from pathlib import Path
 
 # Load environment variables
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env')
+project_root = Path(__file__).parent.parent.parent
+env = os.getenv('ENV', 'development')
+load_dotenv(project_root / f'.env.{env}')
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -38,17 +39,10 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def should_exclude_file(filename: str) -> bool:
-    """Check if file should be excluded based on name patterns"""
-    exclude_patterns = ["playerpositioning", "fhc", "unverified"]
-    filename_lower = filename.lower()
-    return any(pattern in filename_lower for pattern in exclude_patterns)
-
-
-def get_pitch_counts_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitch count statistics from a CSV file"""
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(buffer)
 
         # Check if required columns exist
         required_columns = [
@@ -141,73 +135,6 @@ def get_pitch_counts_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict
         return {}
 
 
-def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Process all 2025 CSV files in the folder"""
-    all_pitchers = {}
-
-    # Look in the 2025 subfolder
-    year_folder = os.path.join(csv_folder_path, "2025")
-
-    if not os.path.exists(year_folder):
-        print(f"2025 CSV folder not found: {year_folder}")
-        return all_pitchers
-
-    # Get all CSV files
-    csv_files = [f for f in os.listdir(year_folder) if f.endswith(".csv")]
-
-    # Filter out unwanted patterns
-    filtered_files = []
-    for file in csv_files:
-        if not should_exclude_file(file):
-            filtered_files.append(file)
-        else:
-            print(f"Excluding file: {file}")
-
-    print(f"Found {len(filtered_files)} 2025 CSV files to process")
-
-    for filename in filtered_files:
-        file_path = os.path.join(year_folder, filename)
-
-        print(f"Processing: {filename}")
-
-        pitchers_from_file = get_pitch_counts_from_csv(file_path)
-
-        # Merge pitchers from this file with the main dictionary
-        for key, pitcher_data in pitchers_from_file.items():
-            if key in all_pitchers:
-                # Pitcher already exists, merge the stats
-                existing = all_pitchers[key]
-
-                # Add up counting stats
-                counting_stats = [
-                    "total_pitches",
-                    "curveball_count",
-                    "fourseam_count",
-                    "sinker_count",
-                    "slider_count",
-                    "twoseam_count",
-                    "changeup_count",
-                    "cutter_count",
-                    "splitter_count",
-                    "other_count",
-                ]
-                for stat in counting_stats:
-                    existing[stat] += pitcher_data[stat]
-
-                # MERGE THE UNIQUE GAMES SETS
-                existing["unique_games"].update(pitcher_data["unique_games"])
-                existing["games"] = len(existing["unique_games"])
-
-            else:
-                # New pitcher, add to dictionary
-                all_pitchers[key] = pitcher_data
-
-        print(f"  Found {len(pitchers_from_file)} unique pitchers in this file")
-        print(f"  Total unique pitchers so far: {len(all_pitchers)}")
-
-    return all_pitchers
-
-
 def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
     """Upload pitch count statistics to Supabase"""
     if not pitchers_dict:
@@ -238,7 +165,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table("PitchCounts")
+                    supabase.table(f"PitchCounts")
                     .upsert(batch, on_conflict="Pitcher,PitcherTeam,Year")
                     .execute()
                 )
@@ -257,7 +184,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
 
         # Get final count
         count_result = (
-            supabase.table("PitchCounts")
+            supabase.table(f"PitchCounts")
             .select("*", count="exact")
             .eq("Year", 2025)
             .execute()
@@ -267,56 +194,3 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
 
     except Exception as e:
         print(f"Supabase error: {e}")
-
-
-def main():
-    print("Starting pitch count CSV processing...")
-
-    # Set the path to your CSV folder
-    csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    print(f"Looking for CSV files in: {csv_folder_path}")
-
-    # Process all CSV files and collect unique pitchers
-    all_pitchers = process_csv_folder(csv_folder_path)
-
-    print(f"\nTotal unique pitchers found: {len(all_pitchers)}")
-
-    # Show sample of pitchers found
-    if all_pitchers:
-        print("\nSample pitchers:")
-        for i, (key, pitcher) in enumerate(list(all_pitchers.items())[:5]):
-            name, team, year = key
-            print(
-                f"  {pitcher['Pitcher']} - Team: {pitcher['PitcherTeam']}, "
-                f"Total Pitches: {pitcher['total_pitches']}, "
-                f"Fastballs: {pitcher['fourseam_count']}, "
-                f"Curveballs: {pitcher['curveball_count']}, "
-                f"Games: {pitcher['games']}"
-            )
-
-        # Show some statistics
-        total_pitches = sum(p["total_pitches"] for p in all_pitchers.values())
-        total_fastballs = sum(p["fourseam_count"] for p in all_pitchers.values())
-        total_curveballs = sum(p["curveball_count"] for p in all_pitchers.values())
-        total_sliders = sum(p["slider_count"] for p in all_pitchers.values())
-        total_games = sum(p["games"] for p in all_pitchers.values())
-
-        print(f"\nStatistics:")
-        print(f"  Total pitches: {total_pitches}")
-        print(f"  Total four-seam fastballs: {total_fastballs}")
-        print(f"  Total curveballs: {total_curveballs}")
-        print(f"  Total sliders: {total_sliders}")
-        print(f"  Total games pitched (all players): {total_games}")
-        print(
-            f"  Average pitches per game: {round(total_pitches / total_games, 1) if total_games > 0 else 'N/A'}"
-        )
-
-        # Upload to Supabase
-        print("\nUploading to Supabase...")
-        upload_pitches_to_supabase(all_pitchers)
-    else:
-        print("No pitch data found to upload")
-
-
-if __name__ == "__main__":
-    main()

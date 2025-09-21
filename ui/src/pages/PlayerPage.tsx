@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Outlet } from 'react-router';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import { PlayersTable } from '@/types/schemas';
 import Box from '@mui/material/Box';
 import ModelTabs from '@/components/player/ModelTabs';

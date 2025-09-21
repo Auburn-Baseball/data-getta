@@ -6,7 +6,15 @@ import eyeLogo from '@/assets/TheEyeLogo.svg';
 
 export default function TabGroup() {
   return (
-    <Box sx={{ textAlign: 'center' }}>
+    <Box
+      sx={{
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        alignItems: 'center',
+      }}
+    >
       <Link
         component={RouterLink}
         to="/conferences"
