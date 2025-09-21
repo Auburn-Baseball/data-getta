@@ -8,6 +8,7 @@ export default function RequireAuth() {
   if (loading) {
     return <div style={{ padding: 24 }}>Checking session…</div>;
   }
+
   if (!user) {
     return <Navigate to="/" replace state={{ from: location }} />;
   }
