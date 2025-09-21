@@ -1,4 +1,5 @@
 import { supabase } from '@/utils/supabase/client';
+import { buildBaseUrl } from '@/utils/url';
 
 export async function login(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -11,7 +12,7 @@ export async function signup(email: string, password: string) {
     email,
     password,
     options: {
-      emailRedirectTo: 'https://auburn-baseball.github.io/data-getta/',
+      emailRedirectTo: buildBaseUrl(),
     },
   });
   if (error) throw error;
