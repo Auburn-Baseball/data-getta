@@ -2,7 +2,7 @@
 """
 Author: Joshua Henley
 Created: 07 September 2025
-Updated: 19 September 2025
+Updated: 21 September 2025
 
 Unified TrackMan CSV Processor - Database Tracking Version
 - Downloads CSV files from FTP concurrently
@@ -30,7 +30,8 @@ from supabase import create_client, Client
 from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitcher_stats_from_buffer, upload_pitchers_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
-                   get_players_from_buffer, upload_players_to_supabase )
+                   get_players_from_buffer, upload_players_to_supabase,
+                   CSVFilenameParser )
 
 project_root = Path(__file__).parent.parent
 env = os.getenv('ENV', 'development')
@@ -275,13 +276,15 @@ def is_csv_file(name):
     filename_lower = name.lower()
     return not any(pattern in filename_lower for pattern in exclude_patterns)
 
-def collect_csv_file_info(ftp, tracker, base_path="/v3"):
+def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_path="/v3"):
     """ ---------------------------------------------------------------
     Collect all CSV file information, filtering out already processed
     files using database.
     ------------------------------------------------------------------- """
     csv_files = []
     skipped_files = 0
+    in_date_range = 0
+    out_date_range = 0
 
     try:
         years = [item['name'] for item in get_directory_list(ftp, base_path)
@@ -309,12 +312,19 @@ def collect_csv_file_info(ftp, tracker, base_path="/v3"):
                         files_info = get_directory_list(ftp, csv_path)
                         day_csv_files = [f for f in files_info
                                        if not f['is_dir'] and is_csv_file(f['name'])]
+                        file_date_parser = CSVFilenameParser()
 
                         for file_info in day_csv_files:
                             csv_file = file_info['name']
                             remote_file_path = f"{csv_path}/{csv_file}"
 
-                            # Check database instead of JSON file
+                            # Check if the file is in the user-specified date range
+                            if not file_date_parser.is_in_date_range(csv_file, date_range):
+                                out_date_range += 1
+                                continue
+                            in_date_range += 1
+
+                            # Check database if the file has already been processed
                             if tracker.is_processed(remote_file_path, file_info['size'], file_info['date']):
                                 skipped_files += 1
                                 continue
@@ -344,8 +354,10 @@ def collect_csv_file_info(ftp, tracker, base_path="/v3"):
         print(f"Error collecting CSV files: {e}")
 
     print(f"\nFile Summary:")
+    print(f"  Files found inside date range: {in_date_range}")
     print(f"  New files to process: {len(csv_files)}")
     print(f"  Previously processed (skipped): {skipped_files}")
+    print(f"  # of files outside of date range (skipped): {out_date_range}")
 
     return csv_files
 
@@ -516,13 +528,23 @@ def upload_all_stats(all_stats):
 
 def main():
 
+    # Get test flag
     test_mode = "--test" in sys.argv or os.getenv('TEST_MODE', 'false').lower() == 'true'
+    # Get date range if set
+    date_range = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--date-range" and i + 1 < len(sys.argv):
+            date_range = sys.argv[i + 1]
+            break
 
     print("="*60)
     print("UNIFIED TRACKMAN CSV PROCESSOR - DATABASE TRACKING")
     if test_mode:
         print("*** TEST MODE - Processing only 1 file ***")
+    if date_range:
+        print(f"*** Processing only files in the following range (YYYYMMDD - YYYYMMDD): {date_range} ***")
     print("="*60)
+    print("")
 
     # Initialize database-based processed files tracker
     tracker = DatabaseProcessedFilesTracker(supabase)
@@ -545,7 +567,7 @@ def main():
 
     try:
         # Collect new CSV files (filters out already processed)
-        csv_files = collect_csv_file_info(ftp, tracker, "/v3")
+        csv_files = collect_csv_file_info(ftp, tracker, date_range, "/v3")
         ftp.quit()
 
         if not csv_files:
