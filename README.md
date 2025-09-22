@@ -22,7 +22,7 @@ data-getta/
 ```bash
 cd scripts
 poetry install
-poetry run python my_script.py
+poetry run python process_all_data.py
 ```
 
 ### UI (React)
