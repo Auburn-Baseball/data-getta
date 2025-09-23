@@ -39,12 +39,4 @@ jobs:
 
       # Step 5: Run FTP download script
       - name: Pull TrackMan CSVs
-        run: python scripts/pull_all_trackman_csv.py
-
-      # Step 6: Run CSV-to-DB processing scripts
-      - name: Process CSVs into DB
-        run: |
-          python scripts/update_batters_table.py
-          python scripts/update_pitchers_table.py
-          python scripts/update_pitches_table.py
-          python scripts/update_players_table.py
+        run: python scripts/process_all_data.py

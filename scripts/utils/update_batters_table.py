@@ -72,48 +72,8 @@ def calculate_total_bases(play_result):
         return 0
 
 
-<<<<<<< HEAD:scripts/update_batters_table.py
-def format_stat(value: float) -> str:
-    """Format a stat as a string with exactly 3 decimal places"""
-    return f"{value:.3f}"
-
-
-def extract_batted_balls_from_csv(file_path: str):
-    batted_balls = []
-    with open(file_path, "r", encoding="utf-8") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if row.get("PitchCall") == "InPlay":  # Only track batted balls
-                try:
-                    batted_balls.append({
-                        "game_year": row.get("GameDate", "")[:4],  # Extract year
-                        "pitcher_id": row.get("PitcherId"),
-                        "batter_id": row.get("BatterId"),
-                        "pitch_call": row.get("PitchCall"),
-                        "tagged_hit_type": row.get("TaggedHitType"),
-                        "play_result": row.get("PlayResult"),
-                        "exit_speed": float(row.get("ExitSpeed") or 0),
-                        "launch_angle": float(row.get("Angle") or 0),
-                        "direction": float(row.get("Direction") or 0),
-                        "hit_spin_rate": float(row.get("HitSpinRate") or 0),
-                        "distance": float(row.get("Distance") or 0),
-                        "hang_time": float(row.get("HangTime") or 0),
-                        "pitch_last_measured_x": float(row.get("PitchLastMeasuredX") or 0),
-                        "pitch_last_measured_y": float(row.get("PitchLastMeasuredY") or 0),
-                        "pitch_last_measured_z": float(row.get("PitchLastMeasuredZ") or 0),
-                        "created_at": datetime.utcnow().isoformat(),
-                    })
-                except Exception as e:
-                    print(f"Skipping malformed row in {file_path}: {e}")
-    return batted_balls
-
-
-def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Extract batter statistics from a CSV file"""
-=======
 def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract batter statistics from a CSV file in-memory"""
->>>>>>> upstream/main:scripts/utils/update_batters_table.py
     try:
         df = pd.read_csv(buffer)
 
@@ -133,6 +93,8 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             return {}
 
         batters_dict = {}
+
+        # Group by batter and team
         grouped = df.groupby(["Batter", "BatterTeam"])
 
         for (batter_name, batter_team), group in grouped:
@@ -141,30 +103,78 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
 
             batter_name = str(batter_name).strip()
             batter_team = str(batter_team).strip()
+
             if not batter_name or not batter_team:
                 continue
 
             key = (batter_name, batter_team, 2025)
 
-            hits = len(group[group["PlayResult"].isin(["Single", "Double", "Triple", "HomeRun"])])
-            at_bats = len(group[
-                group["PlayResult"].isin(["Error", "Out", "FieldersChoice", "Single", "Double", "Triple", "HomeRun"])
-                | (group["KorBB"] == "Strikeout")
-            ])
-            strikes = len(group[group["PitchCall"].isin(["StrikeCalled", "StrikeSwinging", "FoulBallNotFieldable"])])
+            # Calculate hits
+            hits = len(
+                group[
+                    group["PlayResult"].isin(["Single", "Double", "Triple", "HomeRun"])
+                ]
+            )
+
+            # Calculate at-bats
+            at_bats = len(
+                group[
+                    group["PlayResult"].isin(
+                        [
+                            "Error",
+                            "Out",
+                            "FieldersChoice",
+                            "Single",
+                            "Double",
+                            "Triple",
+                            "HomeRun",
+                        ]
+                    )
+                    | (group["KorBB"] == "Strikeout")
+                ]
+            )
+
+            # Calculate strikes
+            strikes = len(
+                group[
+                    group["PitchCall"].isin(
+                        ["StrikeCalled", "StrikeSwinging", "FoulBallNotFieldable"]
+                    )
+                ]
+            )
+
+            # Calculate walks
             walks = len(group[group["KorBB"] == "Walk"])
+
+            # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
+
+            # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
-            extra_base_hits = len(group[group["PlayResult"].isin(["Double", "Triple", "HomeRun"])])
-            plate_appearances = len(group[
-                group["KorBB"].isin(["Walk", "Strikeout"])
-                | group["PitchCall"].isin(["InPlay", "HitByPitch"])
-            ])
+
+            # Calculate extra base hits
+            extra_base_hits = len(
+                group[group["PlayResult"].isin(["Double", "Triple", "HomeRun"])]
+            )
+
+            # Calculate plate appearances
+            plate_appearances = len(
+                group[
+                    group["KorBB"].isin(["Walk", "Strikeout"])
+                    | group["PitchCall"].isin(["InPlay", "HitByPitch"])
+                ]
+            )
+
+            # Calculate hit by pitch
             hit_by_pitch = len(group[group["PitchCall"] == "HitByPitch"])
+
+            # Calculate sacrifices
             sacrifice = len(group[group["PlayResult"] == "Sacrifice"])
+
+            # Calculate total bases
             total_bases = group["PlayResult"].apply(calculate_total_bases).sum()
 
-            # Zone stats
+            # Calculate zone statistics
             in_zone_count = 0
             out_of_zone_count = 0
             in_zone_whiffs = 0
@@ -172,8 +182,17 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
 
             for _, row in group.iterrows():
                 try:
-                    height = float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
-                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
+                    height = (
+                        float(row["PlateLocHeight"])
+                        if pd.notna(row["PlateLocHeight"])
+                        else None
+                    )
+                    side = (
+                        float(row["PlateLocSide"])
+                        if pd.notna(row["PlateLocSide"])
+                        else None
+                    )
+
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):
                             in_zone_count += 1
@@ -181,25 +200,65 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                                 in_zone_whiffs += 1
                         else:
                             out_of_zone_count += 1
-                            if row["PitchCall"] in ["StrikeSwinging", "FoulBallNotFieldable", "InPlay"]:
+                            if row["PitchCall"] in [
+                                "StrikeSwinging",
+                                "FoulBallNotFieldable",
+                                "InPlay",
+                            ]:
                                 out_of_zone_swings += 1
                 except (ValueError, TypeError):
                     continue
 
-            # Format stats to always 3 decimal places
-            batting_average = format_stat(hits / at_bats) if at_bats > 0 else "0.000"
-            on_base_percentage = format_stat(
-                (hits + walks + hit_by_pitch) / (at_bats + walks + hit_by_pitch + sacrifice)
-            ) if (at_bats + walks + hit_by_pitch + sacrifice) > 0 else "0.000"
-            slugging_percentage = format_stat(total_bases / at_bats) if at_bats > 0 else "0.000"
-            onbase_plus_slugging = format_stat(float(on_base_percentage) + float(slugging_percentage))
-            isolated_power = format_stat(float(slugging_percentage) - float(batting_average))
-            k_percentage = round(strikeouts / plate_appearances, 3) if plate_appearances > 0 else None
-            base_on_ball_percentage = round(walks / plate_appearances, 3) if plate_appearances > 0 else None
-            chase_percentage = round(out_of_zone_swings / out_of_zone_count, 3) if out_of_zone_count > 0 else None
-            in_zone_whiff_percentage = round(in_zone_whiffs / in_zone_count, 3) if in_zone_count > 0 else None
+            # Calculate percentages
+            batting_average = hits / at_bats if at_bats > 0 else None
 
-            unique_games = set(group["GameUID"].dropna().unique()) if "GameUID" in group.columns else set()
+            on_base_percentage = (
+                (
+                    (hits + walks + hit_by_pitch)
+                    / (at_bats + walks + hit_by_pitch + sacrifice)
+                )
+                if (at_bats + walks + hit_by_pitch + sacrifice) > 0
+                else None
+            )
+
+            slugging_percentage = total_bases / at_bats if at_bats > 0 else None
+
+            onbase_plus_slugging = (
+                ((on_base_percentage or 0) + (slugging_percentage or 0))
+                if (on_base_percentage is not None and slugging_percentage is not None)
+                else None
+            )
+
+            isolated_power = (
+                (slugging_percentage or 0) - (batting_average or 0)
+                if (slugging_percentage is not None and batting_average is not None)
+                else None
+            )
+
+            k_percentage = (
+                strikeouts / plate_appearances if plate_appearances > 0 else None
+            )
+
+            base_on_ball_percentage = (
+                walks / plate_appearances if plate_appearances > 0 else None
+            )
+
+            chase_percentage = (
+                out_of_zone_swings / out_of_zone_count
+                if out_of_zone_count > 0
+                else None
+            )
+
+            in_zone_whiff_percentage = (
+                in_zone_whiffs / in_zone_count if in_zone_count > 0 else None
+            )
+
+            # Get unique games from this file - store as a set for later merging
+            unique_games = (
+                set(group["GameUID"].dropna().unique())
+                if "GameUID" in group.columns
+                else set()
+            )
 
             batter_stats = {
                 "Batter": batter_name,
@@ -216,17 +275,35 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
-                "batting_average": batting_average,
-                "on_base_percentage": on_base_percentage,
-                "slugging_percentage": slugging_percentage,
-                "onbase_plus_slugging": onbase_plus_slugging,
-                "isolated_power": isolated_power,
-                "k_percentage": k_percentage,
-                "base_on_ball_percentage": base_on_ball_percentage,
-                "chase_percentage": chase_percentage,
-                "in_zone_whiff_percentage": in_zone_whiff_percentage,
-                "unique_games": unique_games,
-                "games": len(unique_games),
+                "batting_average": round(batting_average, 3)
+                if batting_average is not None
+                else None,
+                "on_base_percentage": round(on_base_percentage, 3)
+                if on_base_percentage is not None
+                else None,
+                "slugging_percentage": round(slugging_percentage, 3)
+                if slugging_percentage is not None
+                else None,
+                "onbase_plus_slugging": round(onbase_plus_slugging, 3)
+                if onbase_plus_slugging is not None
+                else None,
+                "isolated_power": round(isolated_power, 3)
+                if isolated_power is not None
+                else None,
+                "k_percentage": round(k_percentage, 3)
+                if k_percentage is not None
+                else None,
+                "base_on_ball_percentage": round(base_on_ball_percentage, 3)
+                if base_on_ball_percentage is not None
+                else None,
+                "chase_percentage": round(chase_percentage, 3)
+                if chase_percentage is not None
+                else None,
+                "in_zone_whiff_percentage": round(in_zone_whiff_percentage, 3)
+                if in_zone_whiff_percentage is not None
+                else None,
+                "unique_games": unique_games,  # Store the set of unique games
+                "games": len(unique_games),  # This will be recalculated later
             }
 
             batters_dict[key] = batter_stats
@@ -238,61 +315,6 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         return {}
 
 
-<<<<<<< HEAD:scripts/update_batters_table.py
-def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Process all 2025 CSV files in the folder"""
-    all_batters = {}
-    year_folder = os.path.join(csv_folder_path, "2025")
-
-    if not os.path.exists(year_folder):
-        print(f"2025 CSV folder not found: {year_folder}")
-        return all_batters
-
-    csv_files = [f for f in os.listdir(year_folder) if f.endswith(".csv")]
-    filtered_files = [f for f in csv_files if not should_exclude_file(f)]
-
-    print(f"Found {len(filtered_files)} 2025 CSV files to process")
-
-    for filename in filtered_files:
-        file_path = os.path.join(year_folder, filename)
-        print(f"Processing: {filename}")
-        batters_from_file = get_batter_stats_from_csv(file_path)
-
-        for key, batter_data in batters_from_file.items():
-            if key in all_batters:
-                existing = all_batters[key]
-                for stat in [
-                    "hits", "at_bats", "strikes", "walks", "strikeouts",
-                    "homeruns", "extra_base_hits", "plate_appearances",
-                    "hit_by_pitch", "sacrifice", "total_bases"
-                ]:
-                    existing[stat] += batter_data[stat]
-
-                existing["unique_games"].update(batter_data["unique_games"])
-                existing["games"] = len(existing["unique_games"])
-
-                # Recalculate formatted stats
-                existing["batting_average"] = format_stat(existing["hits"] / existing["at_bats"]) if existing["at_bats"] > 0 else "0.000"
-                existing["on_base_percentage"] = format_stat(
-                    (existing["hits"] + existing["walks"] + existing["hit_by_pitch"]) /
-                    (existing["at_bats"] + existing["walks"] + existing["hit_by_pitch"] + existing["sacrifice"])
-                ) if (existing["at_bats"] + existing["walks"] + existing["hit_by_pitch"] + existing["sacrifice"]) > 0 else "0.000"
-                existing["slugging_percentage"] = format_stat(existing["total_bases"] / existing["at_bats"]) if existing["at_bats"] > 0 else "0.000"
-                existing["onbase_plus_slugging"] = format_stat(float(existing["on_base_percentage"]) + float(existing["slugging_percentage"]))
-                existing["isolated_power"] = format_stat(float(existing["slugging_percentage"]) - float(existing["batting_average"]))
-                existing["k_percentage"] = round(existing["strikeouts"] / existing["plate_appearances"], 3) if existing["plate_appearances"] > 0 else None
-                existing["base_on_ball_percentage"] = round(existing["walks"] / existing["plate_appearances"], 3) if existing["plate_appearances"] > 0 else None
-            else:
-                all_batters[key] = batter_data
-
-        print(f"  Found {len(batters_from_file)} unique batters in this file")
-        print(f"  Total unique batters so far: {len(all_batters)}")
-
-    return all_batters
-
-
-=======
->>>>>>> upstream/main:scripts/utils/update_batters_table.py
 def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
     """Upload batter statistics to Supabase"""
     if not batters_dict:
@@ -300,23 +322,27 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         return
 
     try:
+        # Convert dictionary values to list and ensure JSON serializable
         batter_data = []
         for batter_dict in batters_dict.values():
+            # Remove the unique_games set before uploading (it's not needed in the DB)
             clean_dict = {k: v for k, v in batter_dict.items() if k != "unique_games"}
+
+            # Convert to JSON and back to ensure all numpy types are converted
             json_str = json.dumps(clean_dict, cls=NumpyEncoder)
             clean_batter = json.loads(json_str)
             batter_data.append(clean_batter)
 
         print(f"Preparing to upload {len(batter_data)} unique batters...")
+
+        # Insert data in batches to avoid request size limits
         batch_size = 100
         total_inserted = 0
 
         for i in range(0, len(batter_data), batch_size):
             batch = batter_data[i : i + batch_size]
+
             try:
-<<<<<<< HEAD:scripts/update_batters_table.py
-                supabase.table("DevBatterStats").upsert(batch, on_conflict="Batter,BatterTeam,Year").execute()
-=======
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"BatterStats")
@@ -324,19 +350,17 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                     .execute()
                 )
 
->>>>>>> upstream/main:scripts/utils/update_batters_table.py
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
+
             except Exception as batch_error:
                 print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
+                # Print first record of failed batch for debugging
                 if batch:
                     print(f"Sample record from failed batch: {batch[0]}")
                 continue
 
         print(f"Successfully processed {total_inserted} batter records")
-<<<<<<< HEAD:scripts/update_batters_table.py
-        count_result = supabase.table("DevBatterStats").select("*", count="exact").eq("Year", 2025).execute()
-=======
 
         # Get final count
         count_result = (
@@ -346,50 +370,8 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
             .execute()
         )
 
->>>>>>> upstream/main:scripts/utils/update_batters_table.py
         total_batters = count_result.count
         print(f"Total 2025 batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
-<<<<<<< HEAD:scripts/update_batters_table.py
-
-
-def main():
-    print("Starting batter statistics CSV processing...")
-    csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    print(f"Looking for CSV files in: {csv_folder_path}")
-    all_batters = process_csv_folder(csv_folder_path)
-    print(f"\nTotal unique batters found: {len(all_batters)}")
-
-    if all_batters:
-        print("\nSample batters:")
-        for i, (key, batter) in enumerate(list(all_batters.items())[:5]):
-            name, team, year = key
-            print(
-                f"  {batter['Batter']} - Team: {batter['BatterTeam']}, "
-                f"AVG: {batter['batting_average']}, HR: {batter['homeruns']}, Games: {batter['games']}"
-            )
-
-        total_hits = sum(b["hits"] for b in all_batters.values())
-        total_at_bats = sum(b["at_bats"] for b in all_batters.values())
-        total_homeruns = sum(b["homeruns"] for b in all_batters.values())
-        total_games = sum(b["games"] for b in all_batters.values())
-
-        print(f"\nStatistics:")
-        print(f"  Total hits: {total_hits}")
-        print(f"  Total at-bats: {total_at_bats}")
-        print(f"  Total home runs: {total_homeruns}")
-        print(f"  Total games played (all players): {total_games}")
-        print(f"  Overall batting average: {format_stat(total_hits / total_at_bats) if total_at_bats > 0 else '0.000'}")
-
-        print("\nUploading to Supabase...")
-        upload_batters_to_supabase(all_batters)
-    else:
-        print("No batters found to upload")
-
-
-if __name__ == "__main__":
-    main()
-=======
->>>>>>> upstream/main:scripts/utils/update_batters_table.py
