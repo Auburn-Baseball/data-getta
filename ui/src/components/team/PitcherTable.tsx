@@ -16,7 +16,7 @@ const columns: GridColDef[] = [
 
       return (
         <Link
-          href={playerURL.concat(params.row.PitcherTeam + '?player=' + name.join('_'))}
+          href={playerURL.concat(params.row.PitcherTeam + '/player/' + name.join('_'))}
           name={name.join(', ')}
           fontWeight={500}
           underline="always"

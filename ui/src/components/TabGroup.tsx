@@ -2,6 +2,7 @@ import { Link as RouterLink } from 'react-router';
 import Tabs from './Tabs';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import eyeLogo from '@/assets/TheEyeLogo.svg';
 
 export default function TabGroup() {
   return (
@@ -15,7 +16,7 @@ export default function TabGroup() {
       >
         <Box
           component="img"
-          src={'/TheEyeLogo.svg'}
+          src={eyeLogo}
           sx={{ width: 134, height: 200 }}
           loading="lazy"
           decoding="async"

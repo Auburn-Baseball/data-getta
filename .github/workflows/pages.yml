@@ -1,0 +1,56 @@
+name: Build & Deploy Vite (ui) to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '>=22'
+          package-manager-cache: false
+  
+      - name: Create env file at repo root
+        run: |
+          printf "VITE_SUPABASE_PROJECT_URL=%s\nVITE_SUPABASE_API_KEY=%s\n" \
+            "${{ vars.VITE_SUPABASE_PROJECT_URL }}" \
+            "${{ vars.VITE_SUPABASE_API_KEY }}" > ../.env.production
+          # Confirm non-empty lines (won’t print values)
+          grep -E 'VITE_SUPABASE_.*=.+' ../.env.production >/dev/null || (echo "VITE_* vars missing" && exit 1)
+
+      - run: npm install
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

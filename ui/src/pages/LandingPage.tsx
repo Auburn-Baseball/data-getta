@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import LoginIcon from '@mui/icons-material/Login';
+import lineAnimation from '@/assets/LineAnimation.gif';
 
 export default function LandingPage() {
   return (
@@ -11,7 +12,7 @@ export default function LandingPage() {
     >
       <Box
         component="img"
-        src="/LineAnimation.gif"
+        src={lineAnimation}
         alt="Animation"
         sx={{
           position: 'absolute',
