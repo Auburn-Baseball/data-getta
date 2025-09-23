@@ -9,8 +9,9 @@ from typing import Dict, Tuple, List, Set
 from pathlib import Path
 
 # Load environment variables
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / '.env')
+project_root = Path(__file__).parent.parent.parent
+env = os.getenv('ENV', 'development')
+load_dotenv(project_root / f'.env.{env}')
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -44,13 +45,6 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def should_exclude_file(filename: str) -> bool:
-    """Check if file should be excluded based on name patterns"""
-    exclude_patterns = ["playerpositioning", "fhc", "unverified"]
-    filename_lower = filename.lower()
-    return any(pattern in filename_lower for pattern in exclude_patterns)
-
-
 def is_in_strike_zone(plate_loc_height, plate_loc_side):
     """Check if pitch is in strike zone"""
     try:
@@ -78,6 +72,7 @@ def calculate_total_bases(play_result):
         return 0
 
 
+<<<<<<< HEAD:scripts/update_batters_table.py
 def format_stat(value: float) -> str:
     """Format a stat as a string with exactly 3 decimal places"""
     return f"{value:.3f}"
@@ -115,8 +110,12 @@ def extract_batted_balls_from_csv(file_path: str):
 
 def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract batter statistics from a CSV file"""
+=======
+def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
+    """Extract batter statistics from a CSV file in-memory"""
+>>>>>>> upstream/main:scripts/utils/update_batters_table.py
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(buffer)
 
         # Check if required columns exist
         required_columns = [
@@ -239,6 +238,7 @@ def get_batter_stats_from_csv(file_path: str) -> Dict[Tuple[str, str, int], Dict
         return {}
 
 
+<<<<<<< HEAD:scripts/update_batters_table.py
 def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]:
     """Process all 2025 CSV files in the folder"""
     all_batters = {}
@@ -291,6 +291,8 @@ def process_csv_folder(csv_folder_path: str) -> Dict[Tuple[str, str, int], Dict]
     return all_batters
 
 
+=======
+>>>>>>> upstream/main:scripts/utils/update_batters_table.py
 def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
     """Upload batter statistics to Supabase"""
     if not batters_dict:
@@ -312,7 +314,17 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         for i in range(0, len(batter_data), batch_size):
             batch = batter_data[i : i + batch_size]
             try:
+<<<<<<< HEAD:scripts/update_batters_table.py
                 supabase.table("DevBatterStats").upsert(batch, on_conflict="Batter,BatterTeam,Year").execute()
+=======
+                # Use upsert to handle conflicts based on primary key
+                result = (
+                    supabase.table(f"BatterStats")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
+                    .execute()
+                )
+
+>>>>>>> upstream/main:scripts/utils/update_batters_table.py
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
@@ -322,12 +334,25 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                 continue
 
         print(f"Successfully processed {total_inserted} batter records")
+<<<<<<< HEAD:scripts/update_batters_table.py
         count_result = supabase.table("DevBatterStats").select("*", count="exact").eq("Year", 2025).execute()
+=======
+
+        # Get final count
+        count_result = (
+            supabase.table(f"BatterStats")
+            .select("*", count="exact")
+            .eq("Year", 2025)
+            .execute()
+        )
+
+>>>>>>> upstream/main:scripts/utils/update_batters_table.py
         total_batters = count_result.count
         print(f"Total 2025 batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
+<<<<<<< HEAD:scripts/update_batters_table.py
 
 
 def main():
@@ -366,3 +391,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+=======
+>>>>>>> upstream/main:scripts/utils/update_batters_table.py

@@ -1,11 +1,8 @@
-import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import LoginIcon from '@mui/icons-material/Login';
 import lineAnimation from '@/assets/LineAnimation.gif';
 
-export default function LandingPage() {
+export default function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <Box
       sx={{ position: 'absolute', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden' }}
@@ -22,7 +19,7 @@ export default function LandingPage() {
           objectFit: 'cover',
           zIndex: -1,
         }}
-        loading="lazy"
+        fetchPriority="high"
         decoding="async"
       />
 
@@ -32,18 +29,10 @@ export default function LandingPage() {
         <Typography variant="h3" sx={{ color: '#e86100', fontWeight: 700, whiteSpace: 'nowrap' }}>
           DATA GETTA
         </Typography>
+      </Box>
 
-        <Button
-          component={RouterLink}
-          to="/conferences"
-          prefetch="intent"
-          variant="contained"
-          size="large"
-          endIcon={<LoginIcon />}
-          sx={{ backgroundColor: '#e86100', '&:hover': { backgroundColor: '#cc4e0b' } }}
-        >
-          Login
-        </Button>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80%' }}>
+        {children}
       </Box>
     </Box>
   );

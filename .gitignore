@@ -25,8 +25,16 @@ ui/*.local
 
 # Local env files
 .env
+.env.development
+.env.production
+
+# Locally processed file log
+./scripts/processed_files.json
 
 package-lock.json
 scripts/poetry.lock
 scripts/__pycache__/
+scripts/utils/__pycache__/
 csv/
+
+.vscode

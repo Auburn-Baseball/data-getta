@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase';
+import { supabase } from '@/utils/supabase/client';
 import RosterTable from '@/components/team/RosterTable';
 import { PlayersTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
