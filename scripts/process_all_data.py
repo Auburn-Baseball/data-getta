@@ -319,9 +319,10 @@ def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_pat
                             remote_file_path = f"{csv_path}/{csv_file}"
 
                             # Check if the file is in the user-specified date range
-                            if not file_date_parser.is_in_date_range(csv_file, date_range):
-                                out_date_range += 1
-                                continue
+                            if date_range:
+                                if not file_date_parser.is_in_date_range(csv_file, date_range):
+                                    out_date_range += 1
+                                    continue
                             in_date_range += 1
 
                             # Check database if the file has already been processed
