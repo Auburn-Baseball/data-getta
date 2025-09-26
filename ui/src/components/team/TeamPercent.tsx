@@ -4,10 +4,10 @@ import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 export interface Row {
-  team: string;        // e.g., "Auburn" or "AUB_TIG" — whatever you're storing
-  label: string;       // e.g., "AVG", "OBP", "ERA", etc.
-  raw_value: number | string; // number preferred; string is OK (we just display it)
-  percentile: number;  // 0..100
+  team: string;                 // e.g., "AUB_TIG"
+  label: string;                // e.g., "AVG", "Opponent BA", etc.
+  raw_value: number | string;   // display only
+  percentile: number | string;  // 0..100 (may arrive as string)
 }
 
 function YearDropdown({ year }: { year: string }) {
@@ -30,9 +30,10 @@ function YearDropdown({ year }: { year: string }) {
   );
 }
 
-// If you ever need to invert some metrics (e.g., lower is better), do it here.
-// Your SQL/view already bakes the percentiles correctly, so just return as-is.
-const getAdjustedPercentile = (_label: string, percentile: number) => percentile;
+// ---------- helpers ----------
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toUpperCase();
+const asNum = (x: number | string | null | undefined) =>
+  x == null ? NaN : (typeof x === 'number' ? x : Number(x));
 
 const getBarColor = (value: number) => {
   if (value >= 90) return '#c62828';
@@ -42,11 +43,21 @@ const getBarColor = (value: number) => {
   return '#90caf9';
 };
 
-const offensiveLabels = ['AVG', 'OBP', 'SLG', 'OPS', 'Runs/Game'];
-const defensiveLabels = ['ERA', 'FIP', 'K/9', 'BB/9', 'Opponent BA'];
+const offensiveSet = new Set(['AVG', 'OBP', 'SLG', 'OPS'].map(norm));
+const defensiveSet = new Set(['ERA', 'FIP', 'K/9', 'BB/9', 'OPPONENT BA'].map(norm));
+
+const formatRaw = (label: string, v: number | string) => {
+  if (typeof v !== 'number') return v;
+  const L = norm(label);
+  if (['AVG', 'OBP', 'SLG', 'OPS', 'OPPONENT BA'].includes(L)) return v.toFixed(3);
+  if (['ERA', 'K/9', 'BB/9', 'FIP'].includes(L)) return v.toFixed(2);
+  return String(v);
+};
+
+// ----------------------------------------------------------
 
 export default function CreateTeamPercent({ year, rows }: { year: string; rows: Row[] }) {
-  // group rows by team
+  // Group rows by team code
   const groupedByTeam = useMemo(() => {
     return rows.reduce((acc, row) => {
       (acc[row.team] ||= []).push(row);
@@ -54,74 +65,83 @@ export default function CreateTeamPercent({ year, rows }: { year: string; rows: 
     }, {} as Record<string, Row[]>);
   }, [rows]);
 
-  // compute average percentile per team & sort desc
+  // Rank teams by average percentile (accept number OR string)
   const rankedTeams = useMemo(() => {
     return Object.entries(groupedByTeam)
       .map(([team, stats]) => {
-        const avg =
-          stats.reduce((sum, s) => sum + getAdjustedPercentile(s.label, s.percentile), 0) /
-          Math.max(stats.length, 1);
+        const nums = stats
+          .map(s => asNum(s.percentile))
+          .filter(v => Number.isFinite(v));
+        const avg = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
         return { team, average: avg };
       })
       .sort((a, b) => b.average - a.average);
   }, [groupedByTeam]);
 
-  const [first, second, third] = rankedTeams.slice(0, 3);
-  const restRanked = rankedTeams.slice(3);
+  // Top-10 only
+  const top10 = rankedTeams.slice(0, 10);
+  const [first, second, third] = top10.slice(0, 3);
+  const restRanked = top10.slice(3); // #4–#10
 
-  // If you want a specific team first (e.g., Auburn), tweak here:
+  // Only show details for Top-10. Pin AUB_TIG first if present.
   const teamVisualOrder = useMemo(() => {
-    const all = Object.keys(groupedByTeam);
-    // Example: pin "Auburn" first if present. Adjust/remove as you prefer.
-    return ['Auburn', ...all.filter((t) => t !== 'Auburn')];
-  }, [groupedByTeam]);
+    const top10Teams = top10.map(t => t.team);
+    return top10Teams.includes('AUB_TIG')
+      ? ['AUB_TIG', ...top10Teams.filter(t => t !== 'AUB_TIG')]
+      : top10Teams;
+  }, [top10]);
 
   const renderStatBars = (category: Row[], prefix: string) =>
-    category.map((stat, i) => (
-      <Box key={`${prefix}-${stat.label}-${i}`}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography>{stat.label}</Typography>
-          <Typography fontWeight={600}>
-            {typeof stat.raw_value === 'number' ? stat.raw_value : stat.raw_value}
-          </Typography>
-        </Box>
-        <Box sx={{ position: 'relative' }}>
-          <LinearProgress
-            variant="determinate"
-            value={stat.percentile}
-            sx={{
-              height: 16,
-              borderRadius: 8,
-              backgroundColor: '#e0e0e0',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: getBarColor(stat.percentile),
-              },
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: `${stat.percentile}%`,
-              transform: 'translate(-50%, -50%)',
-              bgcolor: getBarColor(stat.percentile),
-              color: 'white',
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 12,
-              border: '2px solid white',
-            }}
-          >
-            {stat.percentile}
+    category.map((stat, i) => {
+      const p = asNum(stat.percentile);
+      const pSafe = Number.isFinite(p) ? p : 0;
+      const pRounded = Math.round(pSafe);
+      return (
+        <Box key={`${prefix}-${stat.label}-${i}`}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Typography>{stat.label}</Typography>
+            <Typography fontWeight={600}>
+              {formatRaw(stat.label, stat.raw_value)}
+            </Typography>
+          </Box>
+          <Box sx={{ position: 'relative' }}>
+            <LinearProgress
+              variant="determinate"
+              value={pSafe}
+              sx={{
+                height: 16,
+                borderRadius: 8,
+                backgroundColor: '#e0e0e0',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: getBarColor(pSafe),
+                },
+              }}
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: `${pSafe}%`,
+                transform: 'translate(-50%, -50%)',
+                bgcolor: getBarColor(pSafe),
+                color: 'white',
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 600,
+                fontSize: 12,
+                border: '2px solid white',
+              }}
+            >
+              {pRounded}
+            </Box>
           </Box>
         </Box>
-      </Box>
-    ));
+      );
+    });
 
   return (
     <Box sx={{ px: 8, py: 4, color: 'white' }}>
@@ -158,7 +178,7 @@ export default function CreateTeamPercent({ year, rows }: { year: string; rows: 
         </Box>
       </Box>
 
-      {/* 📋 Full Rankings */}
+      {/* 📋 Full Rankings (Top-10 only) */}
       {restRanked.length > 0 && (
         <Box sx={{ textAlign: 'center', mb: 6, maxWidth: 400, mx: 'auto' }}>
           <Typography variant="h6" fontWeight={600} mb={2}>
@@ -196,42 +216,44 @@ export default function CreateTeamPercent({ year, rows }: { year: string; rows: 
         </Box>
       )}
 
-      {/* 📈 Team Visual Stats */}
-      {teamVisualOrder.map((teamName) => {
-        const stats = groupedByTeam[teamName];
+      {/* 📈 Team Visual Stats (Top-10 only) */}
+      {teamVisualOrder.map((teamCode) => {
+        const stats = groupedByTeam[teamCode];
         if (!stats) return null;
 
-        const offensive = stats.filter((s) => offensiveLabels.includes(s.label));
-        const defensive = stats.filter((s) => defensiveLabels.includes(s.label));
+        // Normalize labels before grouping
+        const offensive = stats.filter(s => offensiveSet.has(norm(s.label)));
+        const defensive = stats.filter(s => defensiveSet.has(norm(s.label)));
 
         return (
-          <Box key={teamName} sx={{ mt: 6 }}>
+          <Box key={teamCode} sx={{ mt: 6 }}>
             <Typography variant="h5" fontWeight={700} gutterBottom>
-              {teamName}
+              {teamCode}
             </Typography>
 
             {offensive.length > 0 && (
               <>
-                <Typography variant="h6" fontWeight={600} gutterBottom mt={2}>
+                <Typography variant="h6" fontWeight={600} gutterBottom mt={1}>
                   Offensive Stats
                 </Typography>
-                <Stack spacing={2}>{renderStatBars(offensive, `off-${teamName}`)}</Stack>
+                <Stack spacing={2}>{renderStatBars(offensive, `off-${teamCode}`)}</Stack>
               </>
             )}
 
             {defensive.length > 0 && (
               <>
-                <Typography variant="h6" fontWeight={600} gutterBottom mt={4}>
+                <Typography variant="h6" fontWeight={600} gutterBottom mt={3}>
                   Defensive Stats
                 </Typography>
-                <Stack spacing={2}>{renderStatBars(defensive, `def-${teamName}`)}</Stack>
+                <Stack spacing={2}>{renderStatBars(defensive, `def-${teamCode}`)}</Stack>
               </>
             )}
 
-            <Divider sx={{ mt: 5, bgcolor: 'white', opacity: 0.2 }} />
+            <Divider sx={{ mt: 4, bgcolor: 'white', opacity: 0.2 }} />
           </Box>
         );
       })}
     </Box>
   );
 }
+
