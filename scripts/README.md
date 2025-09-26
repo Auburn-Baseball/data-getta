@@ -31,3 +31,24 @@ Once the dependencies are installed and the .env file(s) are prepared, the main 
 ```bash
 poetry run python3 process_all_data.py
 ```
+
+There are two flags supported when running the script: test and date-range
+
+```bash
+poetry run python3 process_all_data.py --test
+poetry run python3 process_all_data.py --date-range {range}
+```
+
+The test flag will be deprecated soon, but limits the file processing to only 1-2 files in order to test the data that is being uploaded into the database.
+
+The date-range flag is used to specify which date range of files should be processed during the run. The dates of the files are determined from the filename, which contains the exact day of the game that the csv file contains data for. This is useful to avoid processing unnecessary files and to provide the freedom of pulling only the desired game data.
+
+## QA
+
+The QA directory contains files that should be used for future quality assurance testing, automated or manual. This contains a python script 'process_local_csv.py' which can be used to process a single, local csv file that should be stored in the 'test_csv_files' subdirectory. This permits fully controllable input data which can be used to generate expected outputs for functional testing.
+
+```bash
+poetry run python3 process_local_csv.py {filename}
+```
+
+Note that the filename does not need to be the full path to the file, as the 'process_local_csv.py' file will check the 'test_csv_files' subdirectory by default.
