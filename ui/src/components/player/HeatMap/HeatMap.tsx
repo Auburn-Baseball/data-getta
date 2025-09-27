@@ -2,7 +2,6 @@ import { Box, Typography } from '@mui/material';
 import * as d3 from 'd3';
 import { useMemo, useState } from 'react';
 import type { ZoneBin } from '@/pages/player/HeatMapTab';
-import CircleIcon from '@mui/icons-material/Circle';
 
 type Props = {
   playerName: string;
@@ -17,7 +16,7 @@ type Props = {
     | 'Cutter'
     | 'Splitter'
     | 'Other';
-  bins: ZoneBin[]; // sparse ok
+  bins: ZoneBin[];
 };
 
 const PITCH_TYPES = [
@@ -106,10 +105,11 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   }, [cells, selectedZoneId, zoneMap]);
 
   const resolvedPitchKey = useMemo<PitchKey | null>(() => {
+    if (selectedZoneId) return null;
     if (selectedPitchKey) return selectedPitchKey;
     if (pitchTypeFilter === 'All') return null;
     return pitchTypeFilter as PitchKey;
-  }, [pitchTypeFilter, selectedPitchKey]);
+  }, [pitchTypeFilter, selectedPitchKey, selectedZoneId]);
 
   const valueFor = (z: ZoneBin) => {
     if (!resolvedPitchKey) {
@@ -139,7 +139,16 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   );
 
   const onPitchRowClick = (key: PitchKey) => {
-    setSelectedPitchKey((prev) => (prev === key ? null : key));
+    setSelectedPitchKey((prev) => {
+      if (prev === key) return null;
+      setSelectedZoneId(null);
+      return key;
+    });
+  };
+
+  const handleZoneSelect = (zoneId: number) => {
+    setSelectedZoneId((prev) => (prev === zoneId ? null : zoneId));
+    setSelectedPitchKey(null);
   };
 
   const hasSide = (z: ZoneBin) => {
@@ -184,21 +193,27 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
     return hit ? hit.label : resolvedPitchKey;
   }, [resolvedPitchKey]);
 
-  // Layout: outer big 2x2, inner centered 3x3
-  const W = 520;
-  const H = 520;
-  const margin = { top: 16, right: 16, bottom: 28, left: 16 };
+  // Layout: derive a compact square that tightly wraps the four outer quadrants.
+  const margin = { top: 12, right: 12, bottom: 12, left: 12 };
+  const baseCell = 80;
+  const outerSize = baseCell * 6;
+  const midX = outerSize / 2;
+  const midY = outerSize / 2;
 
-  const outerSize = Math.min(W - margin.left - margin.right, H - margin.top - margin.bottom);
-  const outerX = (W - outerSize) / 2;
-  const outerY = (H - outerSize) / 2;
-  const midX = outerX + outerSize / 2;
-  const midY = outerY + outerSize / 2;
-
-  const cell = outerSize / 6; // 3 inner cells + padding on each side (1 cell)
+  const cell = outerSize / 6;
   const innerSize = cell * 3;
   const ix = midX - innerSize / 2;
   const iy = midY - innerSize / 2;
+
+  const quadrantSize = outerSize / 2.5;
+  const heatmapOriginX = midX - quadrantSize;
+  const heatmapOriginY = midY - quadrantSize;
+  const heatmapSize = quadrantSize * 2;
+  const svgWidth = heatmapSize + margin.left + margin.right;
+  const svgHeight = heatmapSize + margin.top + margin.bottom;
+
+  const toSvgX = (value: number) => value - heatmapOriginX + margin.left;
+  const toSvgY = (value: number) => value - heatmapOriginY + margin.top;
 
   const innerRectFor = (row: number, col: number) => {
     const x = ix + (col - 1) * cell;
@@ -207,15 +222,19 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   };
 
   const outerRectFor = (lab: OuterLabel) => {
+    const w = quadrantSize;
+    const h = quadrantSize;
+    const left = midX - w;
+    const top = midY - h;
     switch (lab) {
       case 'OTL':
-        return { x: outerX, y: outerY, w: outerSize / 2, h: outerSize / 2 };
+        return { x: left, y: top, w, h };
       case 'OTR':
-        return { x: midX, y: outerY, w: outerSize / 2, h: outerSize / 2 };
+        return { x: midX, y: top, w, h };
       case 'OBL':
-        return { x: outerX, y: midY, w: outerSize / 2, h: outerSize / 2 };
+        return { x: left, y: midY, w, h };
       case 'OBR':
-        return { x: midX, y: midY, w: outerSize / 2, h: outerSize / 2 };
+        return { x: midX, y: midY, w, h };
     }
   };
 
@@ -230,7 +249,7 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
     const cx = r.x + r.w / 2;
     const cy = r.y + r.h / 2;
     const s = signFor[lab];
-    const d = Math.min(r.w, r.h) * 0.14;
+    const d = Math.min(r.w, r.h) * 0.25;
     return { x: cx + s.sx * d, y: cy + s.sy * d, sx: s.sx, sy: s.sy };
   }
 
@@ -239,13 +258,19 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Pitch Heat Map - {playerName} {batterFilter !== 'Both' ? `(${batterFilter} batters)` : ''}{' '}
+        Pitch Heat Map {batterFilter !== 'Both' ? `(${batterFilter} batters)` : ''}{' '}
         {pitchTypeFilter !== 'All' ? `- ${pitchTypeFilter}` : ''}
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
         <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-          <svg width={W} height={H} role="img" aria-label="Pitch heatmap (3x3 + 4 outer)">
+          <svg
+            width={svgWidth}
+            height={svgHeight}
+            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+            role="img"
+            aria-label="Pitch heatmap (3x3 + 4 outer)"
+          >
             {OUTER.map((lab) => {
               const id = ({ OTL: 10, OTR: 11, OBL: 12, OBR: 13 } as const)[lab];
               const z = zoneMap.get(id)!;
@@ -256,12 +281,14 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
               const pct = ((v / totalShown) * 100).toFixed(1) + '%';
               const tColor = '#000';
               const isSelected = selectedZoneId === id;
+              const pctWeight = isSelected ? 800 : 600;
+              const countWeight = isSelected ? 700 : 500;
 
               const pos = outerTextPos(lab, r);
               const lineGap = 16;
 
               const handleClick = () => {
-                setSelectedZoneId(isSelected ? null : id);
+                handleZoneSelect(id);
               };
 
               return (
@@ -272,8 +299,8 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                   aria-label={`${lab} quadrant`}
                 >
                   <rect
-                    x={r.x}
-                    y={r.y}
+                    x={toSvgX(r.x)}
+                    y={toSvgY(r.y)}
                     width={r.w}
                     height={r.h}
                     fill={fill}
@@ -282,21 +309,22 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                     strokeWidth={isSelected ? 3 : 1.5}
                   />
                   <text
-                    x={pos.x}
-                    y={pos.y}
+                    x={toSvgX(pos.x)}
+                    y={toSvgY(pos.y)}
                     fill={tColor}
                     textAnchor="middle"
-                    fontWeight={600}
+                    fontWeight={pctWeight}
                     fontSize={14}
                   >
                     {pct}
                   </text>
                   <text
-                    x={pos.x}
-                    y={pos.y + pos.sy * lineGap}
+                    x={toSvgX(pos.x)}
+                    y={toSvgY(pos.y + pos.sy * lineGap)}
                     fill={tColor}
                     textAnchor="middle"
                     fontSize={13}
+                    fontWeight={countWeight}
                     opacity={0.9}
                   >
                     {v.toLocaleString()}
@@ -306,8 +334,8 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
             })}
 
             <rect
-              x={ix}
-              y={iy}
+              x={toSvgX(ix)}
+              y={toSvgY(iy)}
               width={innerSize}
               height={innerSize}
               fill="none"
@@ -317,10 +345,10 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
             {[1, 2].map((i) => (
               <line
                 key={`v${i}`}
-                x1={ix + i * (innerSize / 3)}
-                x2={ix + i * (innerSize / 3)}
-                y1={iy}
-                y2={iy + innerSize}
+                x1={toSvgX(ix + i * (innerSize / 3))}
+                x2={toSvgX(ix + i * (innerSize / 3))}
+                y1={toSvgY(iy)}
+                y2={toSvgY(iy + innerSize)}
                 stroke="#aab4e5"
                 strokeWidth={1}
                 opacity={0.85}
@@ -329,10 +357,10 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
             {[1, 2].map((i) => (
               <line
                 key={`h${i}`}
-                x1={ix}
-                x2={ix + innerSize}
-                y1={iy + i * (innerSize / 3)}
-                y2={iy + i * (innerSize / 3)}
+                x1={toSvgX(ix)}
+                x2={toSvgX(ix + innerSize)}
+                y1={toSvgY(iy + i * (innerSize / 3))}
+                y2={toSvgY(iy + i * (innerSize / 3))}
                 stroke="#aab4e5"
                 strokeWidth={1}
                 opacity={0.85}
@@ -352,9 +380,11 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                 const pct = ((v / totalShown) * 100).toFixed(1) + '%';
                 const tColor = '#000';
                 const isSelected = selectedZoneId === zid;
+                const pctWeight = isSelected ? 800 : 600;
+                const countWeight = isSelected ? 700 : 500;
 
                 const handleClick = () => {
-                  setSelectedZoneId(isSelected ? null : zid);
+                  handleZoneSelect(zid);
                 };
 
                 return (
@@ -365,8 +395,8 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                     aria-label={`Zone ${row}-${col}`}
                   >
                     <rect
-                      x={x}
-                      y={y}
+                      x={toSvgX(x)}
+                      y={toSvgY(y)}
                       width={w}
                       height={h}
                       fill={fill}
@@ -375,21 +405,22 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                       strokeWidth={isSelected ? 3 : 1.5}
                     />
                     <text
-                      x={x + w / 2}
-                      y={y + h / 2 - 6}
+                      x={toSvgX(x + w / 2)}
+                      y={toSvgY(y + h / 2 - 6)}
                       fill={tColor}
                       textAnchor="middle"
-                      fontWeight={600}
+                      fontWeight={pctWeight}
                       fontSize={14}
                     >
                       {pct}
                     </text>
                     <text
-                      x={x + w / 2}
-                      y={y + h / 2 + 14}
+                      x={toSvgX(x + w / 2)}
+                      y={toSvgY(y + h / 2 + 14)}
                       fill={tColor}
                       textAnchor="middle"
                       fontSize={13}
+                      fontWeight={countWeight}
                       opacity={0.9}
                     >
                       {v.toLocaleString()}
@@ -410,8 +441,8 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Pitch Counts - {selectedZoneLabel} - {selectedPitchLabel}
+              <Typography variant="subtitle1" fontWeight={600} sx={{ pl: 1.5 }}>
+                Pitch Counts
               </Typography>
               {(selectedZoneId || selectedPitchKey) && (
                 <Typography
@@ -425,13 +456,14 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                     cursor: 'pointer',
                     userSelect: 'none',
                     fontWeight: 500,
+                    pr: 1.5,
                   }}
                 >
                   Clear
                 </Typography>
               )}
             </Box>
-            {pitchSummary.map(({ key, label, color: swatchColor, total }) => {
+            {pitchSummary.map(({ key, label, total }) => {
               const isActive = resolvedPitchForDisplay === key;
               return (
                 <Box
@@ -448,13 +480,10 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
                     transition: 'background-color 120ms ease',
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CircleIcon sx={{ fontSize: 14, color: swatchColor }} />
-                    <Typography variant="body2" fontWeight={isActive ? 600 : 500}>
-                      {label}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ pl: 1.5 }}>
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={isActive ? 700 : 600} sx={{ pr: 1.5 }}>
                     {total.toLocaleString()}
                   </Typography>
                 </Box>
