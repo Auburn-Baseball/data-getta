@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 import { supabase } from '@/utils/supabase/client';
 import HeatMap from '@/components/player/HeatMap/HeatMap';
+import BatterHeatMap, { BatterZoneSummary } from '@/components/player/HeatMap/BatterHeatMap';
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { CircularProgress, Typography } from '@mui/material';
@@ -56,8 +57,11 @@ export default function HeatMapTab() {
   const decodedPlayerName = playerName ? playerName.replace('_', ', ') : '';
 
   const [bins, setBins] = useState<ZoneBin[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [batterBins, setBatterBins] = useState<BatterZoneSummary[]>([]);
+  const [pitcherLoading, setPitcherLoading] = useState(true);
+  const [batterLoading, setBatterLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [batterError, setBatterError] = useState<string | null>(null);
 
   const pitchType = (searchParams.get('pitch') || 'All') as
     | 'All'
@@ -74,9 +78,12 @@ export default function HeatMapTab() {
 
   useEffect(() => {
     async function fetchBins() {
-      if (!decodedPlayerName || !year || !team) return;
+      if (!decodedPlayerName || !year || !team) {
+        setPitcherLoading(false);
+        return;
+      }
       try {
-        setLoading(true);
+        setPitcherLoading(true);
         setError(null);
         const { data, error } = await supabase
           .from('PitcherPitchBins')
@@ -133,20 +140,12 @@ export default function HeatMapTab() {
         console.error('Error fetching bins:', e);
         setError(e.message || 'Failed to load binned pitch data');
       } finally {
-        setLoading(false);
+        setPitcherLoading(false);
       }
     }
 
     fetchBins();
   }, [decodedPlayerName, year, team]);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: '4rem' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (error) {
     return (
@@ -165,6 +164,89 @@ export default function HeatMapTab() {
     setSearchParams(nextParams);
   };
 
+  useEffect(() => {
+    async function fetchBatterBins() {
+      if (!decodedPlayerName || !year || !team) {
+        setBatterLoading(false);
+        return;
+      }
+      try {
+        setBatterLoading(true);
+        setBatterError(null);
+
+        const { data, error } = await supabase
+          .from('BatterPitchBins')
+          .select(
+            `
+            ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
+            TotalPitchCount, TotalSwingCount, TotalHitCount,
+            Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
+            SwingCount_FourSeam, SwingCount_Sinker, SwingCount_Slider, SwingCount_Curveball, SwingCount_Changeup, SwingCount_Cutter, SwingCount_Splitter, SwingCount_Other,
+            HitCount_FourSeam, HitCount_Sinker, HitCount_Slider, HitCount_Curveball, HitCount_Changeup, HitCount_Cutter, HitCount_Splitter, HitCount_Other
+          `,
+          )
+          .eq('Batter', decodedPlayerName)
+          .eq('Year', Number(year))
+          .eq('BatterTeam', team);
+
+        if (error) throw error;
+
+        const formatted: BatterZoneSummary[] = (data ?? []).map((row: any) => ({
+          zoneId: Number(row.ZoneId),
+          inZone: !!row.InZone,
+          zoneRow: Number(row.ZoneRow ?? 0),
+          zoneCol: Number(row.ZoneCol ?? 0),
+          zoneCell: Number(row.ZoneCell ?? 0),
+          outerLabel: (row.OuterLabel ?? 'NA') as BatterZoneSummary['outerLabel'],
+          totalPitchCount: Number(row.TotalPitchCount) || 0,
+          totalSwingCount: Number(row.TotalSwingCount) || 0,
+          totalHitCount: Number(row.TotalHitCount) || 0,
+          Count_FourSeam: Number(row.Count_FourSeam) || 0,
+          Count_Sinker: Number(row.Count_Sinker) || 0,
+          Count_Slider: Number(row.Count_Slider) || 0,
+          Count_Curveball: Number(row.Count_Curveball) || 0,
+          Count_Changeup: Number(row.Count_Changeup) || 0,
+          Count_Cutter: Number(row.Count_Cutter) || 0,
+          Count_Splitter: Number(row.Count_Splitter) || 0,
+          Count_Other: Number(row.Count_Other) || 0,
+          SwingCount_FourSeam: Number(row.SwingCount_FourSeam) || 0,
+          SwingCount_Sinker: Number(row.SwingCount_Sinker) || 0,
+          SwingCount_Slider: Number(row.SwingCount_Slider) || 0,
+          SwingCount_Curveball: Number(row.SwingCount_Curveball) || 0,
+          SwingCount_Changeup: Number(row.SwingCount_Changeup) || 0,
+          SwingCount_Cutter: Number(row.SwingCount_Cutter) || 0,
+          SwingCount_Splitter: Number(row.SwingCount_Splitter) || 0,
+          SwingCount_Other: Number(row.SwingCount_Other) || 0,
+          HitCount_FourSeam: Number(row.HitCount_FourSeam) || 0,
+          HitCount_Sinker: Number(row.HitCount_Sinker) || 0,
+          HitCount_Slider: Number(row.HitCount_Slider) || 0,
+          HitCount_Curveball: Number(row.HitCount_Curveball) || 0,
+          HitCount_Changeup: Number(row.HitCount_Changeup) || 0,
+          HitCount_Cutter: Number(row.HitCount_Cutter) || 0,
+          HitCount_Splitter: Number(row.HitCount_Splitter) || 0,
+          HitCount_Other: Number(row.HitCount_Other) || 0,
+        }));
+
+        setBatterBins(formatted);
+      } catch (e: any) {
+        console.error('Error fetching batter bins:', e);
+        setBatterError(e.message || 'Failed to load batter pitch data');
+      } finally {
+        setBatterLoading(false);
+      }
+    }
+
+    fetchBatterBins();
+  }, [decodedPlayerName, year, team]);
+
+  if (pitcherLoading || batterLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: '4rem' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -177,13 +259,39 @@ export default function HeatMapTab() {
         gap: 3,
       }}
     >
-      <HeatMap
-        playerName={decodedPlayerName}
-        batterFilter={batter}
-        pitchTypeFilter={pitchType}
-        bins={bins}
-        onBatterFilterChange={handleBatterChange}
-      />
+      {!!bins.length && (
+        <HeatMap
+          playerName={decodedPlayerName}
+          batterFilter={batter}
+          pitchTypeFilter={pitchType}
+          bins={bins}
+          onBatterFilterChange={handleBatterChange}
+        />
+      )}
+      {!bins.length && (
+        <Typography variant="body1" color="text.secondary">
+          No pitcher heat-map data available.
+        </Typography>
+      )}
+
+      {!!batterBins.length && (
+        <BatterHeatMap
+          batterName={decodedPlayerName}
+          pitchTypeFilter={pitchType}
+          bins={batterBins}
+        />
+      )}
+      {!batterBins.length && (
+        <Typography variant="body1" color="text.secondary">
+          No batter heat-map data available.
+        </Typography>
+      )}
+
+      {batterError && (
+        <Typography variant="body2" color="#d32f2f">
+          {batterError}
+        </Typography>
+      )}
     </Box>
   );
 }
