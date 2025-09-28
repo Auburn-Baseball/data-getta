@@ -2,8 +2,9 @@ import Box from '@mui/material/Box';
 import { supabase } from '@/utils/supabase/client';
 import HeatMap from '@/components/player/HeatMap/HeatMap';
 import { useState, useEffect } from 'react';
+import type { MouseEvent } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { CircularProgress, Typography } from '@mui/material';
+import { CircularProgress, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 
 export type ZoneBin = {
   zoneId: number; // 1..13 (1..9 inner; 10..13 outer)
@@ -37,7 +38,7 @@ export default function HeatMapTab() {
     year: string;
   }>();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const team = trackmanAbbreviation ?? '';
   const decodedPlayerName = playerName ? playerName.replace('_', ', ') : '';
 
@@ -131,16 +132,44 @@ export default function HeatMapTab() {
     );
   }
 
+  const handleBatterChange = (_event: MouseEvent<HTMLElement>, next: 'Both' | 'L' | 'R' | null) => {
+    if (!next || next === batter) return;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('batter', next);
+    setSearchParams(nextParams);
+  };
+
   return (
     <Box
       sx={{
         width: '100%',
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
+        alignItems: 'center',
         py: '2rem',
         minHeight: '100vh',
+        gap: 3,
       }}
     >
+      <ToggleButtonGroup
+        value={batter}
+        exclusive
+        onChange={handleBatterChange}
+        size="small"
+        sx={{
+          borderRadius: 2,
+          '& .MuiToggleButton-root': {
+            textTransform: 'none',
+            fontWeight: 600,
+            minWidth: 72,
+          },
+        }}
+      >
+        <ToggleButton value="Both">Both</ToggleButton>
+        <ToggleButton value="L">Left</ToggleButton>
+        <ToggleButton value="R">Right</ToggleButton>
+      </ToggleButtonGroup>
+
       <HeatMap
         playerName={decodedPlayerName}
         batterFilter={batter}

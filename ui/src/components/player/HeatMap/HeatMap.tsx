@@ -1,7 +1,9 @@
 import { Box, Typography } from '@mui/material';
 import * as d3 from 'd3';
 import { useMemo, useState } from 'react';
+import type { JSX } from 'react';
 import type { ZoneBin } from '@/pages/player/HeatMapTab';
+import batterSilhouette from '@/assets/batter-silhouette.png';
 
 type Props = {
   playerName: string;
@@ -255,242 +257,293 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
 
   const resolvedPitchForDisplay = resolvedPitchKey;
 
+  const heatMapGraphic = (
+    <Box
+      key="heatmap"
+      sx={{
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <svg
+        width={svgWidth}
+        height={svgHeight}
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        role="img"
+        aria-label="Pitch heatmap (3x3 + 4 outer)"
+      >
+        {OUTER.map((lab) => {
+          const id = ({ OTL: 10, OTR: 11, OBL: 12, OBR: 13 } as const)[lab];
+          const z = zoneMap.get(id)!;
+          const v = valueFor(z);
+          const fill = color(v);
+          const dim = !hasSide(z);
+          const r = outerRectFor(lab)!;
+          const pct = ((v / totalShown) * 100).toFixed(1) + '%';
+          const tColor = '#000';
+          const isSelected = selectedZoneId === id;
+          const pctWeight = isSelected ? 800 : 600;
+          const countWeight = isSelected ? 700 : 500;
+
+          const pos = outerTextPos(lab, r);
+          const lineGap = 16;
+
+          const handleClick = () => {
+            handleZoneSelect(id);
+          };
+
+          return (
+            <g
+              key={`out-${lab}`}
+              onClick={handleClick}
+              style={{ cursor: 'pointer' }}
+              aria-label={`${lab} quadrant`}
+            >
+              <rect
+                x={toSvgX(r.x)}
+                y={toSvgY(r.y)}
+                width={r.w}
+                height={r.h}
+                fill={fill}
+                opacity={dim ? 0.35 : 0.9}
+                stroke={isSelected ? '#000' : '#2d2d2d'}
+                strokeWidth={isSelected ? 3 : 1.5}
+              />
+              <text
+                x={toSvgX(pos.x)}
+                y={toSvgY(pos.y)}
+                fill={tColor}
+                textAnchor="middle"
+                fontWeight={pctWeight}
+                fontSize={14}
+              >
+                {pct}
+              </text>
+              <text
+                x={toSvgX(pos.x)}
+                y={toSvgY(pos.y + pos.sy * lineGap)}
+                fill={tColor}
+                textAnchor="middle"
+                fontSize={13}
+                fontWeight={countWeight}
+                opacity={0.9}
+              >
+                {v.toLocaleString()}
+              </text>
+            </g>
+          );
+        })}
+
+        <rect
+          x={toSvgX(ix)}
+          y={toSvgY(iy)}
+          width={innerSize}
+          height={innerSize}
+          fill="none"
+          stroke="#aab4e5"
+          strokeWidth={2}
+        />
+        {[1, 2].map((i) => (
+          <line
+            key={`v${i}`}
+            x1={toSvgX(ix + i * (innerSize / 3))}
+            x2={toSvgX(ix + i * (innerSize / 3))}
+            y1={toSvgY(iy)}
+            y2={toSvgY(iy + innerSize)}
+            stroke="#aab4e5"
+            strokeWidth={1}
+            opacity={0.85}
+          />
+        ))}
+        {[1, 2].map((i) => (
+          <line
+            key={`h${i}`}
+            x1={toSvgX(ix)}
+            x2={toSvgX(ix + innerSize)}
+            y1={toSvgY(iy + i * (innerSize / 3))}
+            y2={toSvgY(iy + i * (innerSize / 3))}
+            stroke="#aab4e5"
+            strokeWidth={1}
+            opacity={0.85}
+          />
+        ))}
+
+        {Array.from({ length: 3 }).flatMap((_, r) =>
+          Array.from({ length: 3 }).map((__, c) => {
+            const row = r + 1;
+            const col = c + 1;
+            const zid = (row - 1) * 3 + col;
+            const z = zoneMap.get(zid)!;
+            const v = valueFor(z);
+            const fill = color(v);
+            const dim = !hasSide(z);
+            const { x, y, w, h } = innerRectFor(row, col);
+            const pct = ((v / totalShown) * 100).toFixed(1) + '%';
+            const tColor = '#000';
+            const isSelected = selectedZoneId === zid;
+            const pctWeight = isSelected ? 800 : 600;
+            const countWeight = isSelected ? 700 : 500;
+
+            const handleClick = () => {
+              handleZoneSelect(zid);
+            };
+
+            return (
+              <g
+                key={`in-${zid}`}
+                onClick={handleClick}
+                style={{ cursor: 'pointer' }}
+                aria-label={`Zone ${row}-${col}`}
+              >
+                <rect
+                  x={toSvgX(x)}
+                  y={toSvgY(y)}
+                  width={w}
+                  height={h}
+                  fill={fill}
+                  opacity={dim ? 0.35 : 1}
+                  stroke={isSelected ? '#000' : '#2d2d2d'}
+                  strokeWidth={isSelected ? 3 : 1.5}
+                />
+                <text
+                  x={toSvgX(x + w / 2)}
+                  y={toSvgY(y + h / 2 - 6)}
+                  fill={tColor}
+                  textAnchor="middle"
+                  fontWeight={pctWeight}
+                  fontSize={14}
+                >
+                  {pct}
+                </text>
+                <text
+                  x={toSvgX(x + w / 2)}
+                  y={toSvgY(y + h / 2 + 14)}
+                  fill={tColor}
+                  textAnchor="middle"
+                  fontSize={13}
+                  fontWeight={countWeight}
+                  opacity={0.9}
+                >
+                  {v.toLocaleString()}
+                </text>
+              </g>
+            );
+          }),
+        )}
+      </svg>
+    </Box>
+  );
+
+  const tablePanel = (
+    <Box
+      key="table"
+      sx={{
+        minWidth: 220,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        textAlign: 'left',
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ pl: 1.5 }}>
+          Pitch Counts
+        </Typography>
+        {(selectedZoneId || selectedPitchKey) && (
+          <Typography
+            variant="body2"
+            onClick={() => {
+              setSelectedZoneId(null);
+              setSelectedPitchKey(null);
+            }}
+            sx={{
+              color: '#1d4ed8',
+              cursor: 'pointer',
+              userSelect: 'none',
+              fontWeight: 500,
+              pr: 1.5,
+            }}
+          >
+            Clear
+          </Typography>
+        )}
+      </Box>
+      {pitchSummary.map(({ key, label, total }) => {
+        const isActive = resolvedPitchForDisplay === key;
+        return (
+          <Box
+            key={key}
+            onClick={() => onPitchRowClick(key)}
+            sx={{
+              py: 0.75,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(0,0,0,0.08)',
+              cursor: 'pointer',
+              backgroundColor: isActive ? 'rgba(30, 64, 175, 0.12)' : 'transparent',
+              transition: 'background-color 120ms ease',
+            }}
+          >
+            <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ pl: 1.5 }}>
+              {label}
+            </Typography>
+            <Typography variant="body2" fontWeight={isActive ? 700 : 600} sx={{ pr: 1.5 }}>
+              {total.toLocaleString()}
+            </Typography>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+
+  const showSilhouette = batterFilter !== 'Both';
+  const silhouettePanel = showSilhouette ? (
+    <Box
+      key="silhouette"
+      sx={{
+        width: 220,
+        height: 408,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <Box
+        component="img"
+        src={batterSilhouette}
+        alt={`${batterFilter === 'R' ? 'Right' : 'Left'}-handed batter silhouette`}
+        sx={{
+          width: 'auto',
+          height: '100%',
+          transform: batterFilter === 'L' ? 'scaleX(-1)' : 'none',
+          transformOrigin: 'center',
+        }}
+      />
+    </Box>
+  ) : null;
+
+  const orderedPanels = (() => {
+    const panels =
+      batterFilter === 'R'
+        ? [tablePanel, heatMapGraphic, silhouettePanel]
+        : batterFilter === 'L'
+          ? [silhouettePanel, heatMapGraphic, tablePanel]
+          : [heatMapGraphic, tablePanel];
+    return panels.filter((panel): panel is JSX.Element => panel !== null);
+  })();
+
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Pitch Heat Map {batterFilter !== 'Both' ? `(${batterFilter} batters)` : ''}{' '}
+        Pitch Heat Map {`(${batterFilter} batters)`}
         {pitchTypeFilter !== 'All' ? `- ${pitchTypeFilter}` : ''}
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-          <svg
-            width={svgWidth}
-            height={svgHeight}
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            role="img"
-            aria-label="Pitch heatmap (3x3 + 4 outer)"
-          >
-            {OUTER.map((lab) => {
-              const id = ({ OTL: 10, OTR: 11, OBL: 12, OBR: 13 } as const)[lab];
-              const z = zoneMap.get(id)!;
-              const v = valueFor(z);
-              const fill = color(v);
-              const dim = !hasSide(z);
-              const r = outerRectFor(lab)!;
-              const pct = ((v / totalShown) * 100).toFixed(1) + '%';
-              const tColor = '#000';
-              const isSelected = selectedZoneId === id;
-              const pctWeight = isSelected ? 800 : 600;
-              const countWeight = isSelected ? 700 : 500;
-
-              const pos = outerTextPos(lab, r);
-              const lineGap = 16;
-
-              const handleClick = () => {
-                handleZoneSelect(id);
-              };
-
-              return (
-                <g
-                  key={`out-${lab}`}
-                  onClick={handleClick}
-                  style={{ cursor: 'pointer' }}
-                  aria-label={`${lab} quadrant`}
-                >
-                  <rect
-                    x={toSvgX(r.x)}
-                    y={toSvgY(r.y)}
-                    width={r.w}
-                    height={r.h}
-                    fill={fill}
-                    opacity={dim ? 0.35 : 0.9}
-                    stroke={isSelected ? '#000' : '#2d2d2d'}
-                    strokeWidth={isSelected ? 3 : 1.5}
-                  />
-                  <text
-                    x={toSvgX(pos.x)}
-                    y={toSvgY(pos.y)}
-                    fill={tColor}
-                    textAnchor="middle"
-                    fontWeight={pctWeight}
-                    fontSize={14}
-                  >
-                    {pct}
-                  </text>
-                  <text
-                    x={toSvgX(pos.x)}
-                    y={toSvgY(pos.y + pos.sy * lineGap)}
-                    fill={tColor}
-                    textAnchor="middle"
-                    fontSize={13}
-                    fontWeight={countWeight}
-                    opacity={0.9}
-                  >
-                    {v.toLocaleString()}
-                  </text>
-                </g>
-              );
-            })}
-
-            <rect
-              x={toSvgX(ix)}
-              y={toSvgY(iy)}
-              width={innerSize}
-              height={innerSize}
-              fill="none"
-              stroke="#aab4e5"
-              strokeWidth={2}
-            />
-            {[1, 2].map((i) => (
-              <line
-                key={`v${i}`}
-                x1={toSvgX(ix + i * (innerSize / 3))}
-                x2={toSvgX(ix + i * (innerSize / 3))}
-                y1={toSvgY(iy)}
-                y2={toSvgY(iy + innerSize)}
-                stroke="#aab4e5"
-                strokeWidth={1}
-                opacity={0.85}
-              />
-            ))}
-            {[1, 2].map((i) => (
-              <line
-                key={`h${i}`}
-                x1={toSvgX(ix)}
-                x2={toSvgX(ix + innerSize)}
-                y1={toSvgY(iy + i * (innerSize / 3))}
-                y2={toSvgY(iy + i * (innerSize / 3))}
-                stroke="#aab4e5"
-                strokeWidth={1}
-                opacity={0.85}
-              />
-            ))}
-
-            {Array.from({ length: 3 }).flatMap((_, r) =>
-              Array.from({ length: 3 }).map((__, c) => {
-                const row = r + 1;
-                const col = c + 1;
-                const zid = (row - 1) * 3 + col;
-                const z = zoneMap.get(zid)!;
-                const v = valueFor(z);
-                const fill = color(v);
-                const dim = !hasSide(z);
-                const { x, y, w, h } = innerRectFor(row, col);
-                const pct = ((v / totalShown) * 100).toFixed(1) + '%';
-                const tColor = '#000';
-                const isSelected = selectedZoneId === zid;
-                const pctWeight = isSelected ? 800 : 600;
-                const countWeight = isSelected ? 700 : 500;
-
-                const handleClick = () => {
-                  handleZoneSelect(zid);
-                };
-
-                return (
-                  <g
-                    key={`in-${zid}`}
-                    onClick={handleClick}
-                    style={{ cursor: 'pointer' }}
-                    aria-label={`Zone ${row}-${col}`}
-                  >
-                    <rect
-                      x={toSvgX(x)}
-                      y={toSvgY(y)}
-                      width={w}
-                      height={h}
-                      fill={fill}
-                      opacity={dim ? 0.35 : 1}
-                      stroke={isSelected ? '#000' : '#2d2d2d'}
-                      strokeWidth={isSelected ? 3 : 1.5}
-                    />
-                    <text
-                      x={toSvgX(x + w / 2)}
-                      y={toSvgY(y + h / 2 - 6)}
-                      fill={tColor}
-                      textAnchor="middle"
-                      fontWeight={pctWeight}
-                      fontSize={14}
-                    >
-                      {pct}
-                    </text>
-                    <text
-                      x={toSvgX(x + w / 2)}
-                      y={toSvgY(y + h / 2 + 14)}
-                      fill={tColor}
-                      textAnchor="middle"
-                      fontSize={13}
-                      fontWeight={countWeight}
-                      opacity={0.9}
-                    >
-                      {v.toLocaleString()}
-                    </text>
-                  </g>
-                );
-              }),
-            )}
-          </svg>
-
-          <Box
-            sx={{
-              minWidth: 220,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'stretch',
-              textAlign: 'left',
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ pl: 1.5 }}>
-                Pitch Counts
-              </Typography>
-              {(selectedZoneId || selectedPitchKey) && (
-                <Typography
-                  variant="body2"
-                  onClick={() => {
-                    setSelectedZoneId(null);
-                    setSelectedPitchKey(null);
-                  }}
-                  sx={{
-                    color: '#1d4ed8',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    fontWeight: 500,
-                    pr: 1.5,
-                  }}
-                >
-                  Clear
-                </Typography>
-              )}
-            </Box>
-            {pitchSummary.map(({ key, label, total }) => {
-              const isActive = resolvedPitchForDisplay === key;
-              return (
-                <Box
-                  key={key}
-                  onClick={() => onPitchRowClick(key)}
-                  sx={{
-                    py: 0.75,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderBottom: '1px solid rgba(0,0,0,0.08)',
-                    cursor: 'pointer',
-                    backgroundColor: isActive ? 'rgba(30, 64, 175, 0.12)' : 'transparent',
-                    transition: 'background-color 120ms ease',
-                  }}
-                >
-                  <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ pl: 1.5 }}>
-                    {label}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={isActive ? 700 : 600} sx={{ pr: 1.5 }}>
-                    {total.toLocaleString()}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-        </Box>
+        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>{orderedPanels}</Box>
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
