@@ -1,9 +1,7 @@
-import { Box, Typography } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import * as d3 from 'd3';
 import { useMemo, useState } from 'react';
-import type { JSX } from 'react';
 import type { ZoneBin } from '@/pages/player/HeatMapTab';
-import batterSilhouette from '@/assets/batter-silhouette.png';
 
 type Props = {
   playerName: string;
@@ -19,6 +17,7 @@ type Props = {
     | 'Splitter'
     | 'Other';
   bins: ZoneBin[];
+  onBatterFilterChange?: (next: 'Both' | 'L' | 'R') => void;
 };
 
 const PITCH_TYPES = [
@@ -38,7 +37,29 @@ type PitchKey = (typeof PITCH_TYPES)[number]['key'];
 const OUTER = ['OTL', 'OTR', 'OBL', 'OBR'] as const;
 type OuterLabel = (typeof OUTER)[number];
 
-export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bins }: Props) {
+type Side = 'L' | 'R';
+
+type PitchCountField = `Count_${PitchKey}`;
+type SidePitchCountField = `Count_${Side}_${PitchKey}`;
+type CountField = PitchCountField | SidePitchCountField;
+
+const makeZeroCounts = (): Record<CountField, number> => {
+  const counts = {} as Record<CountField, number>;
+  PITCH_TYPES.forEach(({ key }) => {
+    counts[`Count_${key}` as PitchCountField] = 0;
+    counts[`Count_L_${key}` as SidePitchCountField] = 0;
+    counts[`Count_R_${key}` as SidePitchCountField] = 0;
+  });
+  return counts;
+};
+
+export default function HeatMap({
+  playerName,
+  batterFilter,
+  pitchTypeFilter,
+  bins,
+  onBatterFilterChange,
+}: Props) {
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedPitchKey, setSelectedPitchKey] = useState<PitchKey | null>(null);
 
@@ -56,16 +77,7 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
           zoneCell: cell,
           outerLabel: 'NA',
           totalPitchCount: 0,
-          Count_FourSeam: 0,
-          Count_Sinker: 0,
-          Count_Slider: 0,
-          Count_Curveball: 0,
-          Count_Changeup: 0,
-          Count_Cutter: 0,
-          Count_Splitter: 0,
-          Count_Other: 0,
-          Count_L: 0,
-          Count_R: 0,
+          ...makeZeroCounts(),
         });
       }
     }
@@ -81,16 +93,7 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
         zoneCell: 0,
         outerLabel: lab,
         totalPitchCount: 0,
-        Count_FourSeam: 0,
-        Count_Sinker: 0,
-        Count_Slider: 0,
-        Count_Curveball: 0,
-        Count_Changeup: 0,
-        Count_Cutter: 0,
-        Count_Splitter: 0,
-        Count_Other: 0,
-        Count_L: 0,
-        Count_R: 0,
+        ...makeZeroCounts(),
       });
     });
 
@@ -113,31 +116,40 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
     return pitchTypeFilter as PitchKey;
   }, [pitchTypeFilter, selectedPitchKey, selectedZoneId]);
 
-  const valueFor = (z: ZoneBin) => {
-    if (!resolvedPitchKey) {
-      return (
-        z.Count_FourSeam +
-        z.Count_Sinker +
-        z.Count_Slider +
-        z.Count_Curveball +
-        z.Count_Changeup +
-        z.Count_Cutter +
-        z.Count_Splitter +
-        z.Count_Other
-      );
-    }
-    const key = ('Count_' + resolvedPitchKey) as keyof ZoneBin;
+  const resolvedSide: Side | null = batterFilter === 'Both' ? null : batterFilter;
+
+  const countForPitch = (z: ZoneBin, pitch: PitchKey, side: Side | null) => {
+    const key = (side ? `Count_${side}_${pitch}` : `Count_${pitch}`) as keyof ZoneBin;
     return Number(z[key] ?? 0);
+  };
+
+  const totalForSide = (z: ZoneBin, side: Side) =>
+    PITCH_TYPES.reduce((sum, def) => sum + countForPitch(z, def.key, side), 0);
+
+  const valueFor = (z: ZoneBin) => {
+    if (!resolvedSide) {
+      if (!resolvedPitchKey) return z.totalPitchCount;
+      return countForPitch(z, resolvedPitchKey, null);
+    }
+    if (!resolvedPitchKey) return totalForSide(z, resolvedSide);
+    return countForPitch(z, resolvedPitchKey, resolvedSide);
   };
 
   const pitchSummary = useMemo(
     () =>
       PITCH_TYPES.map((def) => {
-        const key = ('Count_' + def.key) as keyof ZoneBin;
-        const total = activeCells.reduce((sum, z) => sum + Number(z[key] ?? 0), 0);
+        const total = activeCells.reduce(
+          (sum, z) => sum + countForPitch(z, def.key, resolvedSide),
+          0,
+        );
         return { ...def, total };
       }),
-    [activeCells],
+    [activeCells, resolvedSide],
+  );
+
+  const totalPitchDisplay = useMemo(
+    () => pitchSummary.reduce((sum, entry) => sum + entry.total, 0),
+    [pitchSummary],
   );
 
   const onPitchRowClick = (key: PitchKey) => {
@@ -154,29 +166,31 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
   };
 
   const hasSide = (z: ZoneBin) => {
-    if (batterFilter === 'Both') return true;
-    return batterFilter === 'L' ? z.Count_L > 0 : z.Count_R > 0;
+    if (!resolvedSide) return z.totalPitchCount > 0;
+    return totalForSide(z, resolvedSide) > 0;
   };
 
   const totalShown = useMemo(() => {
     const sum = cells.reduce((acc, z) => acc + valueFor(z), 0);
     return Math.max(1, sum);
-  }, [cells, resolvedPitchKey]);
+  }, [cells, resolvedPitchKey, resolvedSide]);
 
-  const sampleValues = useMemo(() => cells.map(valueFor), [cells, resolvedPitchKey]);
-  const nonZeroValues = useMemo(() => sampleValues.filter((v) => v > 0), [sampleValues]);
-  const minVal = nonZeroValues.length ? Math.min(...nonZeroValues) : 0;
-  const maxVal = Math.max(1, ...sampleValues);
+  const sampleValues = useMemo(() => cells.map(valueFor), [cells, resolvedPitchKey, resolvedSide]);
+  const displayMax = useMemo(() => {
+    if (!sampleValues.length) return 1;
+    const maxSample = Math.max(...sampleValues);
+    return Math.max(1, maxSample);
+  }, [sampleValues]);
 
   const color = useMemo(
     () =>
       d3
         .scaleLinear<string>()
-        .domain([minVal, maxVal / 2, maxVal])
+        .domain([0, displayMax / 2, displayMax])
         .range(['#3333ff', '#ffffff', '#ff6060'])
         .clamp(true)
         .interpolate(d3.interpolateRgb),
-    [minVal, maxVal],
+    [displayMax],
   );
 
   const selectedZoneLabel = useMemo(() => {
@@ -447,10 +461,45 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
         textAlign: 'left',
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ pl: 1.5 }}>
-          Pitch Counts
-        </Typography>
+      <ToggleButtonGroup
+        value={batterFilter}
+        exclusive
+        onChange={(_event, next) => {
+          if (!next || next === batterFilter) return;
+          onBatterFilterChange?.(next);
+        }}
+        size="small"
+        disabled={!onBatterFilterChange}
+        sx={{ mt: 1, mb: 1, display: 'flex', width: '100%' }}
+      >
+        <ToggleButton value="Both" sx={{ flex: 1 }}>
+          Both
+        </ToggleButton>
+        <ToggleButton value="L" sx={{ flex: 1 }}>
+          Left
+        </ToggleButton>
+        <ToggleButton value="R" sx={{ flex: 1 }}>
+          Right
+        </ToggleButton>
+      </ToggleButtonGroup>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pl: 1.5,
+          pr: 1.5,
+          mb: 1,
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            Pitch Counts
+          </Typography>
+          <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.75 }}>
+            Total: {Math.round(totalPitchDisplay).toLocaleString()}
+          </Typography>
+        </Box>
         {(selectedZoneId || selectedPitchKey) && (
           <Typography
             variant="body2"
@@ -463,7 +512,6 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
               cursor: 'pointer',
               userSelect: 'none',
               fontWeight: 500,
-              pr: 1.5,
             }}
           >
             Clear
@@ -499,42 +547,6 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
     </Box>
   );
 
-  const showSilhouette = batterFilter !== 'Both';
-  const silhouettePanel = showSilhouette ? (
-    <Box
-      key="silhouette"
-      sx={{
-        width: 220,
-        height: 408,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <Box
-        component="img"
-        src={batterSilhouette}
-        alt={`${batterFilter === 'R' ? 'Right' : 'Left'}-handed batter silhouette`}
-        sx={{
-          width: 'auto',
-          height: '100%',
-          transform: batterFilter === 'L' ? 'scaleX(-1)' : 'none',
-          transformOrigin: 'center',
-        }}
-      />
-    </Box>
-  ) : null;
-
-  const orderedPanels = (() => {
-    const panels =
-      batterFilter === 'R'
-        ? [tablePanel, heatMapGraphic, silhouettePanel]
-        : batterFilter === 'L'
-          ? [silhouettePanel, heatMapGraphic, tablePanel]
-          : [heatMapGraphic, tablePanel];
-    return panels.filter((panel): panel is JSX.Element => panel !== null);
-  })();
-
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
@@ -543,14 +555,16 @@ export default function HeatMap({ playerName, batterFilter, pitchTypeFilter, bin
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>{orderedPanels}</Box>
+        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {heatMapGraphic}
+          {tablePanel}
+        </Box>
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
-        Inner grid is a fixed 3x3 strike zone; four outer quadrants aggregate all pitches outside
-        the zone and are split by the square's midlines. Percentages reflect the current pitch type
-        filter; cells with no {batterFilter !== 'Both' ? `${batterFilter}-handed` : ''} pitches are
-        dimmed.
+        Heat map shows pitch counts by location: inner 3×3 cells capture the strike zone, while the
+        four outer panels gather pitches thrown outside. Percentages mirror the active pitch-type
+        and handedness filters; locations with no matching pitches are dimmed.
       </Typography>
     </Box>
   );

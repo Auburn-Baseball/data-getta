@@ -10,8 +10,9 @@ from supabase import create_client, Client
 # -----------------------------------------------------------------------------
 # Environment / Supabase
 # -----------------------------------------------------------------------------
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / ".env")
+project_root = Path(__file__).parent.parent.parent
+env = os.getenv('ENV', 'development')
+load_dotenv(project_root / f'.env.{env}')
 
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
@@ -125,10 +126,22 @@ def should_exclude_file(filename: str) -> bool:
 # -----------------------------------------------------------------------------
 PitchKey = Tuple[str, int, str, int]  # (PitcherTeam, Year, Pitcher, ZoneId)
 
-PITCH_COLUMNS = [
-    "Count_FourSeam", "Count_Sinker", "Count_Slider", "Count_Curveball",
-    "Count_Changeup", "Count_Cutter", "Count_Splitter", "Count_Other"
+PITCH_KEYS = [
+    "FourSeam",
+    "Sinker",
+    "Slider",
+    "Curveball",
+    "Changeup",
+    "Cutter",
+    "Splitter",
+    "Other",
 ]
+
+PITCH_COLUMNS = [f"Count_{k}" for k in PITCH_KEYS]
+SIDE_PITCH_COLUMNS = {
+    side: [f"Count_{side}_{k}" for k in PITCH_KEYS] for side in ("L", "R")
+}
+ALL_PITCH_COLUMNS = PITCH_COLUMNS + SIDE_PITCH_COLUMNS["L"] + SIDE_PITCH_COLUMNS["R"]
 
 def empty_row(team: str, year: int, pitcher: str, meta: dict) -> dict:
     base = {
@@ -143,17 +156,9 @@ def empty_row(team: str, year: int, pitcher: str, meta: dict) -> dict:
         "OuterLabel": str(meta["OuterLabel"]),
         "ZoneVersion": ZONE_VERSION,
         "TotalPitchCount": 0,
-        "Count_FourSeam": 0,
-        "Count_Sinker": 0,
-        "Count_Slider": 0,
-        "Count_Curveball": 0,
-        "Count_Changeup": 0,
-        "Count_Cutter": 0,
-        "Count_Splitter": 0,
-        "Count_Other": 0,
-        "Count_L": 0,
-        "Count_R": 0,
     }
+    for col in ALL_PITCH_COLUMNS:
+        base[col] = 0
     return base
 
 def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey, dict]:
@@ -191,19 +196,18 @@ def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey,
         # totals
         rec["TotalPitchCount"] += 1
 
-        # pitch type counter
+        # pitch type counter (overall + side split)
         pt = norm_pitch_type(str(r.get("AutoPitchType", "")))
-        col = f"Count_{pt}"
-        if col not in PITCH_COLUMNS:
-            col = "Count_Other"
-        rec[col] += 1
+        if pt not in PITCH_KEYS:
+            pt = "Other"
+
+        overall_col = f"Count_{pt}"
+        rec[overall_col] += 1
 
         # batter side counter (default to 'R' if unknown to satisfy DB CHECK)
         side = norm_side(str(r.get("BatterSide", "")))
-        if side == "L":
-            rec["Count_L"] += 1
-        else:
-            rec["Count_R"] += 1
+        side_col = f"Count_{side}_{pt}" if pt in PITCH_KEYS else f"Count_{side}_Other"
+        rec[side_col] += 1
 
     return out
 
@@ -227,10 +231,8 @@ def process_csv_folder(csv_folder_path: str, year: int = 2025) -> Dict[PitchKey,
             if k in all_bins:
                 dst = all_bins[k]
                 dst["TotalPitchCount"] += v["TotalPitchCount"]
-                for c in PITCH_COLUMNS:
+                for c in ALL_PITCH_COLUMNS:
                     dst[c] += v[c]
-                dst["Count_L"] += v["Count_L"]
-                dst["Count_R"] += v["Count_R"]
             else:
                 all_bins[k] = v
     return all_bins

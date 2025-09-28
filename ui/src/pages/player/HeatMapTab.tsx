@@ -2,9 +2,8 @@ import Box from '@mui/material/Box';
 import { supabase } from '@/utils/supabase/client';
 import HeatMap from '@/components/player/HeatMap/HeatMap';
 import { useState, useEffect } from 'react';
-import type { MouseEvent } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { CircularProgress, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { CircularProgress, Typography } from '@mui/material';
 
 export type ZoneBin = {
   zoneId: number; // 1..13 (1..9 inner; 10..13 outer)
@@ -26,9 +25,23 @@ export type ZoneBin = {
   Count_Splitter: number;
   Count_Other: number;
 
-  // handedness
-  Count_L: number;
-  Count_R: number;
+  // handedness split per pitch type
+  Count_L_FourSeam: number;
+  Count_L_Sinker: number;
+  Count_L_Slider: number;
+  Count_L_Curveball: number;
+  Count_L_Changeup: number;
+  Count_L_Cutter: number;
+  Count_L_Splitter: number;
+  Count_L_Other: number;
+  Count_R_FourSeam: number;
+  Count_R_Sinker: number;
+  Count_R_Slider: number;
+  Count_R_Curveball: number;
+  Count_R_Changeup: number;
+  Count_R_Cutter: number;
+  Count_R_Splitter: number;
+  Count_R_Other: number;
 };
 
 export default function HeatMapTab() {
@@ -65,7 +78,6 @@ export default function HeatMapTab() {
       try {
         setLoading(true);
         setError(null);
-
         const { data, error } = await supabase
           .from('PitcherPitchBins')
           .select(
@@ -73,7 +85,8 @@ export default function HeatMapTab() {
             ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
             TotalPitchCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
-            Count_L, Count_R
+            Count_L_FourSeam, Count_L_Sinker, Count_L_Slider, Count_L_Curveball, Count_L_Changeup, Count_L_Cutter, Count_L_Splitter, Count_L_Other,
+            Count_R_FourSeam, Count_R_Sinker, Count_R_Slider, Count_R_Curveball, Count_R_Changeup, Count_R_Cutter, Count_R_Splitter, Count_R_Other
           `,
           )
           .eq('Pitcher', decodedPlayerName)
@@ -81,7 +94,6 @@ export default function HeatMapTab() {
           .eq('PitcherTeam', team);
 
         if (error) throw error;
-
         const formatted: ZoneBin[] = (data ?? []).map((r: any) => ({
           zoneId: Number(r.ZoneId),
           inZone: !!r.InZone,
@@ -98,8 +110,22 @@ export default function HeatMapTab() {
           Count_Cutter: Number(r.Count_Cutter) || 0,
           Count_Splitter: Number(r.Count_Splitter) || 0,
           Count_Other: Number(r.Count_Other) || 0,
-          Count_L: Number(r.Count_L) || 0,
-          Count_R: Number(r.Count_R) || 0,
+          Count_L_FourSeam: Number(r.Count_L_FourSeam) || 0,
+          Count_L_Sinker: Number(r.Count_L_Sinker) || 0,
+          Count_L_Slider: Number(r.Count_L_Slider) || 0,
+          Count_L_Curveball: Number(r.Count_L_Curveball) || 0,
+          Count_L_Changeup: Number(r.Count_L_Changeup) || 0,
+          Count_L_Cutter: Number(r.Count_L_Cutter) || 0,
+          Count_L_Splitter: Number(r.Count_L_Splitter) || 0,
+          Count_L_Other: Number(r.Count_L_Other) || 0,
+          Count_R_FourSeam: Number(r.Count_R_FourSeam) || 0,
+          Count_R_Sinker: Number(r.Count_R_Sinker) || 0,
+          Count_R_Slider: Number(r.Count_R_Slider) || 0,
+          Count_R_Curveball: Number(r.Count_R_Curveball) || 0,
+          Count_R_Changeup: Number(r.Count_R_Changeup) || 0,
+          Count_R_Cutter: Number(r.Count_R_Cutter) || 0,
+          Count_R_Splitter: Number(r.Count_R_Splitter) || 0,
+          Count_R_Other: Number(r.Count_R_Other) || 0,
         }));
 
         setBins(formatted);
@@ -132,8 +158,8 @@ export default function HeatMapTab() {
     );
   }
 
-  const handleBatterChange = (_event: MouseEvent<HTMLElement>, next: 'Both' | 'L' | 'R' | null) => {
-    if (!next || next === batter) return;
+  const handleBatterChange = (next: 'Both' | 'L' | 'R') => {
+    if (next === batter) return;
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('batter', next);
     setSearchParams(nextParams);
@@ -151,30 +177,12 @@ export default function HeatMapTab() {
         gap: 3,
       }}
     >
-      <ToggleButtonGroup
-        value={batter}
-        exclusive
-        onChange={handleBatterChange}
-        size="small"
-        sx={{
-          borderRadius: 2,
-          '& .MuiToggleButton-root': {
-            textTransform: 'none',
-            fontWeight: 600,
-            minWidth: 72,
-          },
-        }}
-      >
-        <ToggleButton value="Both">Both</ToggleButton>
-        <ToggleButton value="L">Left</ToggleButton>
-        <ToggleButton value="R">Right</ToggleButton>
-      </ToggleButtonGroup>
-
       <HeatMap
         playerName={decodedPlayerName}
         batterFilter={batter}
         pitchTypeFilter={pitchType}
         bins={bins}
+        onBatterFilterChange={handleBatterChange}
       />
     </Box>
   );
