@@ -42,10 +42,6 @@ export default function TeamPage() {
     fetchTeam();
   }, [trackmanAbbreviation]);
 
-  if (playerParam) {
-    return <PlayerPage />;
-  }
-
   if (loading) return <div>Loading...</div>;
   if (!team) return <div>Team not found</div>;
 
