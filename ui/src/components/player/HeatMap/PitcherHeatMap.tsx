@@ -1,9 +1,11 @@
 ﻿import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import BaseHeatMap from '@/components/shared/heatmap/BaseHeatMap';
-import { PITCH_TYPES, type PitchKey } from '@/components/shared/heatmap/constants';
-import { buildZoneMap, zoneValuesArray } from '@/components/shared/heatmap/zoneHelpers';
+import BaseHeatMap from '@/components/player/HeatMap/BaseHeatMap';
+import { PITCH_TYPES, type PitchKey } from '@/components/player/HeatMap/constants';
+import { buildZoneMap, zoneValuesArray } from '@/components/player/HeatMap/zoneHelpers';
 import type { PitcherPitchBinsTable } from '@/types/schemas';
+import { HEATMAP_ZONE_DESCRIPTION, ensureRows, selectedPitchLabel, toNumeric } from './utils';
+import { useHeatMapSelections } from './useHeatMapSelections';
 
 type BatterFilter = 'Both' | 'L' | 'R';
 type Side = 'L' | 'R';
@@ -21,8 +23,6 @@ type ZoneBin = {
   totalPitchCount: number;
 } & Record<CountField, number>;
 
-const EMPTY_PITCHER_ROWS: PitcherPitchBinsTable[] = [];
-
 const makeZeroCounts = (): Record<CountField, number> => {
   const counts = {} as Record<CountField, number>;
   PITCH_TYPES.forEach(({ key }) => {
@@ -34,11 +34,6 @@ const makeZeroCounts = (): Record<CountField, number> => {
 };
 
 type RawCountKey = `${'Count' | 'Count_L' | 'Count_R'}_${PitchKey}`;
-
-const toNumeric = (value: unknown): number => {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-};
 
 const normalizePitcherBin = (bin: PitcherPitchBinsTable): ZoneBin => {
   const record = bin as Record<RawCountKey, unknown>;
@@ -68,17 +63,14 @@ const normalizePitcherBin = (bin: PitcherPitchBinsTable): ZoneBin => {
 
 export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[] }) {
   const [batterFilter, setBatterFilter] = useState<BatterFilter>('Both');
-  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
-  const [selectedPitchKey, setSelectedPitchKey] = useState<PitchKey | null>(null);
 
-  const sourceBins = data ?? EMPTY_PITCHER_ROWS;
-  const pitcherName = sourceBins[0]?.Pitcher ?? 'Pitcher';
+  const sourceRows = ensureRows(data);
+  const pitcherName = sourceRows[0]?.Pitcher ?? 'Pitcher';
 
-  const normalizedBins = useMemo(() => sourceBins.map(normalizePitcherBin), [sourceBins]);
-
+  const normalizedRows = useMemo(() => sourceRows.map(normalizePitcherBin), [sourceRows]);
   const zoneMap = useMemo(
     () =>
-      buildZoneMap<ZoneBin>(normalizedBins, (meta) => ({
+      buildZoneMap<ZoneBin>(normalizedRows, (meta) => ({
         zoneId: meta.zoneId,
         inZone: meta.inZone,
         zoneRow: meta.zoneRow,
@@ -88,40 +80,21 @@ export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[]
         totalPitchCount: 0,
         ...makeZeroCounts(),
       })),
-    [normalizedBins],
+    [normalizedRows],
   );
+
   const cells = useMemo(() => zoneValuesArray(zoneMap), [zoneMap]);
 
-  const handleZoneSelect = useCallback((zoneId: number) => {
-    setSelectedZoneId((prev) => {
-      const next = prev === zoneId ? null : zoneId;
-      if (next !== null) {
-        setSelectedPitchKey(null);
-      }
-      return next;
-    });
-  }, []);
-
-  const handlePitchSelect = useCallback((pitchKey: PitchKey) => {
-    setSelectedPitchKey((prev) => {
-      const next = prev === pitchKey ? null : pitchKey;
-      if (next !== null) {
-        setSelectedZoneId(null);
-      }
-      return next;
-    });
-  }, []);
-
-  const activeCells = useMemo(() => {
-    if (!selectedZoneId) return cells;
-    const selected = zoneMap.get(selectedZoneId);
-    return selected ? [selected] : cells;
-  }, [cells, selectedZoneId, zoneMap]);
-
-  const resolvedPitchKey = useMemo<PitchKey | null>(() => {
-    if (selectedZoneId) return null;
-    return selectedPitchKey;
-  }, [selectedPitchKey, selectedZoneId]);
+  const {
+    selectedZoneId,
+    selectedPitchKey,
+    resolvedPitchKey,
+    activeCells,
+    onZoneSelect,
+    onPitchSelect,
+    clearSelections,
+    hasSelection,
+  } = useHeatMapSelections(zoneMap, cells);
 
   const resolvedSide: Side | null = batterFilter === 'Both' ? null : batterFilter;
 
@@ -148,6 +121,8 @@ export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[]
     [countForPitch, resolvedPitchKey, resolvedSide, totalForSide],
   );
 
+  const colorValues = useMemo(() => cells.map((zone) => zoneValue(zone)), [cells, zoneValue]);
+
   const pitchSummary = useMemo(
     () =>
       PITCH_TYPES.map((def) => {
@@ -167,110 +142,12 @@ export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[]
 
   const valueAccessor = useCallback((zone: ZoneBin) => zoneValue(zone), [zoneValue]);
 
-  const selectedPitchLabel = useMemo(() => {
-    if (!selectedPitchKey) return 'All pitches';
-    return PITCH_TYPES.find((def) => def.key === selectedPitchKey)?.label ?? selectedPitchKey;
-  }, [selectedPitchKey]);
-
-  const tablePanel = (
-    <Box
-      key="table"
-      sx={{
-        minWidth: 220,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        textAlign: 'left',
-      }}
-    >
-      <ToggleButtonGroup
-        value={batterFilter}
-        exclusive
-        onChange={(_event, next) => {
-          if (!next || next === batterFilter) return;
-          setBatterFilter(next);
-          setSelectedZoneId(null);
-          setSelectedPitchKey(null);
-        }}
-        size="small"
-        sx={{ mt: 1, mb: 1, display: 'flex', width: '100%' }}
-      >
-        <ToggleButton value="Both" sx={{ flex: 1 }}>
-          Both
-        </ToggleButton>
-        <ToggleButton value="L" sx={{ flex: 1 }}>
-          Left
-        </ToggleButton>
-        <ToggleButton value="R" sx={{ flex: 1 }}>
-          Right
-        </ToggleButton>
-      </ToggleButtonGroup>
-
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pl: 1.5,
-          pr: 1.5,
-          mb: 1,
-        }}
-      >
-        <Box>
-          <Typography variant="subtitle1" fontWeight={600}>
-            Pitch Counts
-          </Typography>
-          <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.5 }}>
-            Total: {Math.round(totalPitchDisplay).toLocaleString()}
-          </Typography>
-        </Box>
-        {(selectedZoneId || selectedPitchKey) && (
-          <Typography
-            variant="body2"
-            onClick={() => {
-              setSelectedZoneId(null);
-              setSelectedPitchKey(null);
-            }}
-            sx={{ color: '#1d4ed8', cursor: 'pointer', userSelect: 'none', fontWeight: 500 }}
-          >
-            Clear
-          </Typography>
-        )}
-      </Box>
-
-      {pitchSummary.map(({ key, label, total }) => {
-        const isActive = resolvedPitchKey === key;
-        return (
-          <Box
-            key={key}
-            onClick={() => handlePitchSelect(key)}
-            sx={{
-              py: 0.75,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid rgba(0,0,0,0.08)',
-              cursor: 'pointer',
-              backgroundColor: isActive ? 'rgba(30, 64, 175, 0.12)' : 'transparent',
-              transition: 'background-color 120ms ease',
-            }}
-          >
-            <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ pl: 1.5 }}>
-              {label}
-            </Typography>
-            <Typography variant="body2" fontWeight={isActive ? 700 : 600} sx={{ pr: 1.5 }}>
-              {total.toLocaleString()}
-            </Typography>
-          </Box>
-        );
-      })}
-    </Box>
-  );
+  const headerPitchLabel = selectedPitchLabel(selectedPitchKey);
 
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Pitch Heat Map - {pitcherName} ({batterFilter} batters, {selectedPitchLabel})
+        Pitch Heat Map - {pitcherName} ({batterFilter} batters, {headerPitchLabel})
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
@@ -278,18 +155,113 @@ export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[]
           <BaseHeatMap
             zoneMap={zoneMap}
             selectedZoneId={selectedZoneId}
-            onZoneClick={handleZoneSelect}
+            onZoneClick={onZoneSelect}
             valueAccessor={valueAccessor}
+            colorValues={colorValues}
             ariaLabel="Pitcher heat map"
           />
-          {tablePanel}
+
+          <Box
+            sx={{
+              minWidth: 220,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              textAlign: 'left',
+            }}
+          >
+            <ToggleButtonGroup
+              value={batterFilter}
+              exclusive
+              onChange={(_event, next) => {
+                if (!next || next === batterFilter) return;
+                setBatterFilter(next);
+                clearSelections();
+              }}
+              size="small"
+              sx={{ mt: 1, mb: 1, display: 'flex', width: '100%' }}
+            >
+              <ToggleButton value="Both" sx={{ flex: 1 }}>
+                Both
+              </ToggleButton>
+              <ToggleButton value="L" sx={{ flex: 1 }}>
+                Left
+              </ToggleButton>
+              <ToggleButton value="R" sx={{ flex: 1 }}>
+                Right
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                pl: 1.5,
+                pr: 1.5,
+                mb: 1,
+              }}
+            >
+              <Box sx={{ width: '100%' }}>
+                <Box
+                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Pitch Counts
+                  </Typography>
+                  {hasSelection && (
+                    <Typography
+                      variant="body2"
+                      onClick={clearSelections}
+                      sx={{
+                        color: '#1d4ed8',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Clear
+                    </Typography>
+                  )}
+                </Box>
+                <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.5 }}>
+                  Total: {Math.round(totalPitchDisplay).toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
+
+            {pitchSummary.map(({ key, label, total }) => {
+              const isActive = resolvedPitchKey === key;
+              return (
+                <Box
+                  key={key}
+                  onClick={() => onPitchSelect(key)}
+                  sx={{
+                    py: 0.75,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid rgba(0,0,0,0.08)',
+                    cursor: 'pointer',
+                    backgroundColor: isActive ? 'rgba(30, 64, 175, 0.12)' : 'transparent',
+                    transition: 'background-color 120ms ease',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ pl: 1.5 }}>
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={isActive ? 700 : 600} sx={{ pr: 1.5 }}>
+                    {total.toLocaleString()}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
-        Heat map shows pitch counts by location: inner 3×3 cells capture the strike zone, while the
-        four outer panels gather pitches thrown outside. Percentages mirror the active pitch-type
-        and handedness filters; areas with no matching pitches still render with a zero total.
+        {HEATMAP_ZONE_DESCRIPTION}
       </Typography>
     </Box>
   );

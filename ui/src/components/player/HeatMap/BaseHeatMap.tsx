@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+﻿import { Box } from '@mui/material';
 import * as d3 from 'd3';
 import { useMemo } from 'react';
 import type { BaseZone } from './zoneHelpers';
@@ -18,6 +18,7 @@ export type BaseHeatMapProps<T extends BaseZone> = {
   ariaLabel?: string;
   innerOpacity?: number;
   outerOpacity?: number;
+  colorValues?: number[];
 };
 
 function defaultValueFormatter(value: number): string {
@@ -40,13 +41,20 @@ export function BaseHeatMap<T extends BaseZone>({
   layoutHeight = DEFAULT_LAYOUT_SIZE,
   ariaLabel = 'heat map',
   innerOpacity = 1,
-  outerOpacity = 0.9,
+  outerOpacity = 1,
+  colorValues,
 }: BaseHeatMapProps<T>) {
   const cells = useMemo(() => Array.from(zoneMap.values()), [zoneMap]);
 
+  const valueSamples = useMemo(
+    () =>
+      colorValues && colorValues.length ? colorValues : cells.map((zone) => valueAccessor(zone)),
+    [cells, colorValues, valueAccessor],
+  );
+
   const values = useMemo(() => cells.map((zone) => valueAccessor(zone)), [cells, valueAccessor]);
 
-  const maxValue = useMemo(() => Math.max(1, ...values), [values]);
+  const maxValue = useMemo(() => Math.max(1, ...valueSamples), [valueSamples]);
   const totalValue = useMemo(
     () =>
       Math.max(
@@ -67,7 +75,7 @@ export function BaseHeatMap<T extends BaseZone>({
     [maxValue],
   );
 
-  const margin = { top: 16, right: 16, bottom: 28, left: 16 };
+  const margin = { top: 9, right: 9, bottom: 9, left: 9 };
   const outerSize = Math.min(
     layoutWidth - margin.left - margin.right,
     layoutHeight - margin.top - margin.bottom,
@@ -127,8 +135,7 @@ export function BaseHeatMap<T extends BaseZone>({
         {OUTER_LABELS.map((label) => {
           const zoneId = OUTER_ID[label];
           const zone = getZone(zoneId);
-          if (!zone) return null;
-          const value = valueAccessor(zone);
+          const value = zone ? valueAccessor(zone) : 0;
           const rect = outerRectFor(label);
           const pos = outerTextPosition(label, rect);
           const pct = percentageFormatter(value, totalValue);
@@ -151,7 +158,7 @@ export function BaseHeatMap<T extends BaseZone>({
                 y={pos.y}
                 fill="#000"
                 textAnchor="middle"
-                fontWeight={600}
+                fontWeight={isSelected ? 700 : 600}
                 fontSize={14}
               >
                 {pct}
@@ -162,6 +169,7 @@ export function BaseHeatMap<T extends BaseZone>({
                 fill="#000"
                 textAnchor="middle"
                 fontSize={13}
+                fontWeight={isSelected ? 600 : 500}
                 opacity={0.9}
               >
                 {valueFormatter(value)}
@@ -233,7 +241,7 @@ export function BaseHeatMap<T extends BaseZone>({
                   y={y + h / 2 - 6}
                   fill="#000"
                   textAnchor="middle"
-                  fontWeight={600}
+                  fontWeight={isSelected ? 700 : 600}
                   fontSize={14}
                 >
                   {pct}
@@ -244,6 +252,7 @@ export function BaseHeatMap<T extends BaseZone>({
                   fill="#000"
                   textAnchor="middle"
                   fontSize={13}
+                  fontWeight={isSelected ? 600 : 500}
                   opacity={0.9}
                 >
                   {valueFormatter(value)}

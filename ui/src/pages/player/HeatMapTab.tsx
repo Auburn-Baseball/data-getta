@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 import { supabase } from '@/utils/supabase/client';
 import PitcherHeatMap from '@/components/player/HeatMap/PitcherHeatMap';
-import BatterHeatMap, { BatterZoneSummary } from '@/components/player/HeatMap/BatterHeatMap';
+import BatterHeatMap from '@/components/player/HeatMap/BatterHeatMap';
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { CircularProgress, Typography } from '@mui/material';
@@ -30,7 +30,6 @@ export default function HeatMapTab() {
   const [pitcherLoading, setPitcherLoading] = useState(true);
   const [batterLoading, setBatterLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [batterError, setBatterError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBins() {
@@ -80,8 +79,6 @@ export default function HeatMapTab() {
     async function fetchBatterBins() {
       try {
         setBatterLoading(true);
-        setBatterError(null);
-
         const { data, error } = await supabase
           .from('BatterPitchBins')
           .select(
@@ -102,7 +99,6 @@ export default function HeatMapTab() {
         setBatterBins(data);
       } catch (e: any) {
         console.error('Error fetching batter bins:', e);
-        setBatterError(e.message || 'Failed to load batter pitch data');
       } finally {
         setBatterLoading(false);
       }
@@ -132,23 +128,17 @@ export default function HeatMapTab() {
       }}
     >
       {!!pitcherBins.length && <PitcherHeatMap data={pitcherBins} />}
-      {!pitcherBins.length && (
-        <Typography variant="body1" color="text.secondary">
-          No pitcher heat-map data available.
-        </Typography>
-      )}
-
       {!!batterBins.length && <BatterHeatMap data={batterBins} />}
-      {!batterBins.length && (
-        <Typography variant="body1" color="text.secondary">
-          No batter heat-map data available.
-        </Typography>
-      )}
 
-      {batterError && (
-        <Typography variant="body2" color="#d32f2f">
-          {batterError}
-        </Typography>
+      {!pitcherBins.length && !batterBins.length && (
+        <>
+          <Typography variant="body1" color="text.secondary">
+            No pitcher heat-map data available.
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            No batter heat-map data available.
+          </Typography>
+        </>
       )}
     </Box>
   );

@@ -1,9 +1,11 @@
 ﻿import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import BaseHeatMap from '@/components/shared/heatmap/BaseHeatMap';
-import { PITCH_TYPES, type PitchKey } from '@/components/shared/heatmap/constants';
-import { buildZoneMap, zoneValuesArray } from '@/components/shared/heatmap/zoneHelpers';
+import BaseHeatMap from '@/components/player/HeatMap/BaseHeatMap';
+import { PITCH_TYPES, type PitchKey } from '@/components/player/HeatMap/constants';
+import { buildZoneMap, zoneValuesArray } from '@/components/player/HeatMap/zoneHelpers';
 import type { BatterPitchBinsTable } from '@/types/schemas';
+import { HEATMAP_ZONE_DESCRIPTION, ensureRows, selectedPitchLabel, toNumeric } from './utils';
+import { useHeatMapSelections } from './useHeatMapSelections';
 
 type Side = 'Swing' | 'Contact';
 
@@ -18,13 +20,11 @@ export type BatterZoneSummary = {
   zoneRow: number;
   zoneCol: number;
   zoneCell: number;
-  outerLabel: 'NA' | 'OTL' | 'OTR' | 'OBL' | 'OBR';
+  outerLabel: 'NA' | 'OTL' | 'OTR' | 'OBR' | 'OBL';
   totalPitchCount: number;
   totalSwingCount: number;
   totalHitCount: number;
 } & Record<MetricField, number>;
-
-const EMPTY_BATTER_ROWS: BatterPitchBinsTable[] = [];
 
 const makeZeroCounts = (): Record<MetricField, number> => {
   const counts = {} as Record<MetricField, number>;
@@ -37,11 +37,6 @@ const makeZeroCounts = (): Record<MetricField, number> => {
 };
 
 type RawCountKey = `Count_${PitchKey}` | `SwingCount_${PitchKey}` | `HitCount_${PitchKey}`;
-
-const toNumeric = (value: unknown): number => {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-};
 
 const normalizeBatterBin = (bin: BatterPitchBinsTable): BatterZoneSummary => {
   const record = bin as Record<RawCountKey, unknown>;
@@ -73,14 +68,11 @@ const normalizeBatterBin = (bin: BatterPitchBinsTable): BatterZoneSummary => {
 
 export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }) {
   const [view, setView] = useState<Side>('Swing');
-  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
-  const [selectedPitchKey, setSelectedPitchKey] = useState<PitchKey | null>(null);
 
-  const sourceRows = data ?? EMPTY_BATTER_ROWS;
+  const sourceRows = ensureRows(data);
   const batterName = sourceRows[0]?.Batter ?? 'Batter';
 
   const normalizedRows = useMemo(() => sourceRows.map(normalizeBatterBin), [sourceRows]);
-
   const zoneMap = useMemo(
     () =>
       buildZoneMap<BatterZoneSummary>(normalizedRows, (meta) => ({
@@ -100,16 +92,16 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
 
   const cells = useMemo(() => zoneValuesArray(zoneMap), [zoneMap]);
 
-  const resolvedPitchKey = useMemo<PitchKey | null>(() => {
-    if (selectedZoneId) return null;
-    return selectedPitchKey;
-  }, [selectedPitchKey, selectedZoneId]);
-
-  const activeCells = useMemo(() => {
-    if (!selectedZoneId) return cells;
-    const selected = zoneMap.get(selectedZoneId);
-    return selected ? [selected] : cells;
-  }, [cells, selectedZoneId, zoneMap]);
+  const {
+    selectedZoneId,
+    selectedPitchKey,
+    resolvedPitchKey,
+    activeCells,
+    onZoneSelect,
+    onPitchSelect,
+    clearSelections,
+    hasSelection,
+  } = useHeatMapSelections(zoneMap, cells);
 
   const countForPitch = useCallback(
     (zone: BatterZoneSummary, key: PitchKey, metric: Side | 'Pitch') => {
@@ -134,6 +126,8 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
     [countForPitch, resolvedPitchKey, view],
   );
 
+  const colorValues = useMemo(() => cells.map((zone) => zoneValue(zone)), [cells, zoneValue]);
+
   const pitchSummary = useMemo(
     () =>
       PITCH_TYPES.map((def) => {
@@ -155,39 +149,18 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
     [pitchSummary, view],
   );
 
-  const onZoneClick = useCallback((zoneId: number) => {
-    setSelectedZoneId((prev) => {
-      const next = prev === zoneId ? null : zoneId;
-      if (next !== null) {
-        setSelectedPitchKey(null);
-      }
-      return next;
-    });
-  }, []);
-
-  const onPitchClick = useCallback((key: PitchKey) => {
-    setSelectedPitchKey((prev) => {
-      const next = prev === key ? null : key;
-      if (next !== null) {
-        setSelectedZoneId(null);
-      }
-      return next;
-    });
-  }, []);
-
   const valueAccessor = useCallback((zone: BatterZoneSummary) => zoneValue(zone), [zoneValue]);
 
-  const selectedPitchLabel = useMemo(() => {
-    if (!selectedPitchKey) return 'All pitches';
-    return PITCH_TYPES.find((def) => def.key === selectedPitchKey)?.label ?? selectedPitchKey;
-  }, [selectedPitchKey]);
-
+  const headerPitchLabel = selectedPitchLabel(selectedPitchKey);
   const viewLabel = view === 'Swing' ? 'Swing view' : 'Contact view';
+  const footerCopy =
+    'Toggle between swing frequency and contact success to explore tendencies. ' +
+    HEATMAP_ZONE_DESCRIPTION;
 
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Batter Heat Map - {batterName} ({viewLabel}, {selectedPitchLabel})
+        Batter Heat Map ({viewLabel}, {headerPitchLabel})
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
@@ -195,8 +168,9 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
           <BaseHeatMap
             zoneMap={zoneMap}
             selectedZoneId={selectedZoneId}
-            onZoneClick={onZoneClick}
+            onZoneClick={onZoneSelect}
             valueAccessor={valueAccessor}
+            colorValues={colorValues}
             ariaLabel="Batter heat map"
           />
 
@@ -233,9 +207,27 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
               }}
             >
               <Box sx={{ width: '100%' }}>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Pitch Counts
-                </Typography>
+                <Box
+                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Pitch Counts
+                  </Typography>
+                  {hasSelection && (
+                    <Typography
+                      variant="body2"
+                      onClick={clearSelections}
+                      sx={{
+                        color: '#1d4ed8',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Clear
+                    </Typography>
+                  )}
+                </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                   <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.5 }}>
                     {view === 'Swing' ? 'Pitches' : 'Swings'}:{' '}
@@ -247,18 +239,6 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
                   </Typography>
                 </Box>
               </Box>
-              {(selectedZoneId || selectedPitchKey) && (
-                <Typography
-                  variant="body2"
-                  onClick={() => {
-                    setSelectedZoneId(null);
-                    setSelectedPitchKey(null);
-                  }}
-                  sx={{ color: '#1d4ed8', cursor: 'pointer', userSelect: 'none', fontWeight: 500 }}
-                >
-                  Clear
-                </Typography>
-              )}
             </Box>
 
             {pitchSummary.map(({ key, label, pitches, swings, hits }) => {
@@ -276,7 +256,7 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
               return (
                 <Box
                   key={key}
-                  onClick={() => onPitchClick(key)}
+                  onClick={() => onPitchSelect(key)}
                   sx={{
                     py: 0.75,
                     px: 1.5,
@@ -289,7 +269,7 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
                     transition: 'background-color 120ms ease',
                   }}
                 >
-                  <Typography variant="body2" fontWeight={isActive ? 600 : 500}>
+                  <Typography variant="body2" fontWeight={isActive ? 600 : 500} sx={{ mb: -0.5 }}>
                     {label}
                   </Typography>
                   <Box
@@ -315,9 +295,7 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
-        Toggle between swing frequency and contact success to explore where {batterName} chases or
-        squares up pitches. Cells respect the current view and any pitch selection; areas with no
-        matching swings or contact still render with a zero total.
+        {footerCopy}
       </Typography>
     </Box>
   );
