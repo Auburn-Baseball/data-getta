@@ -1,17 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useParams, useLocation, useNavigate, Outlet } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
 import { PlayersTable } from '@/types/schemas';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
+import ModelTabs from '@/components/player/ModelTabs';
+import PlayerInfo from '@/components/player/PlayerInfo';
 
 export default function PlayerPage() {
-  const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
-  const [searchParams] = useSearchParams();
-  const playerName = searchParams.get('player');
+  const { trackmanAbbreviation, playerName } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+  }>();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [player, setPlayer] = useState<PlayersTable | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Handle stats redirect - changed to use year instead of date range
+  useEffect(() => {
+    if (trackmanAbbreviation && playerName) {
+      const playerPath = `/team/${trackmanAbbreviation}/player/${playerName}`;
+
+      if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
+        // Use the current year (2025) instead of date range
+        navigate(`${playerPath}/stats/2025`, { replace: true });
+      }
+    }
+  }, [location.pathname, trackmanAbbreviation, playerName, navigate]);
 
   useEffect(() => {
     async function fetchPlayer() {
@@ -19,7 +35,9 @@ export default function PlayerPage() {
 
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        const decodedPlayerName = decodeURIComponent(playerName);
+        const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
+        console.log(decodedPlayerName);
+        setLoading(true);
 
         const { data, error } = await supabase
           .from('Players')
@@ -27,11 +45,11 @@ export default function PlayerPage() {
           .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
           .eq('Name', decodedPlayerName)
           .eq('Year', 2025)
-          .maybeSingle()
-          .overrideTypes<PlayersTable, { merge: false }>();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') throw error;
-        // setPlayer(data || null);
+        if (error) throw error;
+        console.log('Fetched player data:', data);
+        setPlayer(data);
       } catch (error) {
         console.error('Error fetching player:', error);
       } finally {
@@ -42,19 +60,16 @@ export default function PlayerPage() {
     fetchPlayer();
   }, [trackmanAbbreviation, playerName]);
 
-  if (loading || !playerName) {
-    return <Box>Loading...</Box>;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  if (!playerName || !player) {
+    console.log('Player not found:', { trackmanAbbreviation, playerName, player });
+    return <div>Player not found</div>;
   }
 
   const decodedTeamName = decodeURIComponent(trackmanAbbreviation || '');
   const decodedPlayerName = decodeURIComponent(playerName);
-
-  // Format player name for display
-  const formatPlayerName = (name: string) => {
-    const nameParts = name.includes(',') ? name.split(', ') : name.split(' ');
-
-    return nameParts.length > 1 ? `${nameParts[1]} ${nameParts[0]}` : name;
-  };
 
   return (
     <Box>
@@ -66,23 +81,12 @@ export default function PlayerPage() {
           marginTop: '4px',
         }}
       >
-        {/* TODO: Add ModelTabs component */}
-        <Typography variant="h6">Player Tabs (TODO: ModelTabs component)</Typography>
+        <ModelTabs team={decodedTeamName} player={decodedPlayerName} />
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        {/* TODO: Add PlayerInfo component */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" fontWeight={700}>
-            {formatPlayerName(decodedPlayerName)}
-          </Typography>
-          <Typography variant="h6" color="text.secondary">
-            {decodedTeamName}
-          </Typography>
-        </Box>
-
-        {/* Children content will go here */}
-        <Typography variant="body1">Player content will be added here...</Typography>
+        <PlayerInfo name={player.Name} team={player.TeamTrackmanAbbreviation} />
+        <Outlet />
       </Box>
     </Box>
   );
