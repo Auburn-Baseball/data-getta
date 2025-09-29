@@ -9,9 +9,15 @@ const PAGE_SIZE = 1000;
 
 export default function TeamPerformancePage() {
   const [params] = useSearchParams();
+
   const year = useMemo(() => {
     const y = params.get('year');
     return y === '2024' || y === '2025' ? y : '2025';
+  }, [params]);
+
+  const mode = useMemo<'overall' | 'wl'>(() => {
+    const m = (params.get('mode') || 'overall').toLowerCase();
+    return m === 'wl' ? 'wl' : 'overall';
   }, [params]);
 
   const [rows, setRows] = useState<Row[]>([]);
@@ -25,16 +31,16 @@ export default function TeamPerformancePage() {
       setLoading(true);
       setErr(null);
 
+      // We still fetch the base data (so switching back to Overall is instant).
       let all: any[] = [];
       let from = 0;
 
-      // get total count first (and first page)
       const first = await supabase
         .from('team_performance')
         .select('team,label,raw_value,percentile', { count: 'exact' })
         .eq('year', Number(year))
-        .order('team', { ascending: true })     // <-- order by team first
-        .order('label', { ascending: true })    // then label
+        .order('team', { ascending: true })
+        .order('label', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
 
       if (first.error) {
@@ -46,7 +52,6 @@ export default function TeamPerformancePage() {
       all = (first.data ?? []);
       const total = first.count ?? all.length;
 
-      // page through remaining rows if needed
       from += PAGE_SIZE;
       while (!cancelled && from < total) {
         const { data, error } = await supabase
@@ -68,7 +73,6 @@ export default function TeamPerformancePage() {
 
       if (cancelled) return;
 
-      // cast numeric strings → numbers
       const casted = all.map((r: any) => ({
         team: r.team,
         label: r.label,
@@ -78,22 +82,26 @@ export default function TeamPerformancePage() {
 
       setRows(casted);
       setLoading(false);
-
-      // Optional sanity logs
-      console.log(`Fetched ${casted.length} rows for year ${year}`);
-      const byTeam = casted.reduce((m, r) => (m[r.team] = (m[r.team] || 0) + 1, m), {} as Record<string, number>);
-      console.log('Rows per team (should be ~9 each):', byTeam);
     }
 
     fetchAll();
     return () => { cancelled = true; };
   }, [year]);
 
+  // If mode is W/L (no data yet), pass empty rows to show the empty state
+  const rowsToShow = mode === 'wl' ? [] : rows;
+
   return (
-    <Box sx={{ bgcolor: '#0b2341', color: 'white', minHeight: '100vh', px: 4, py: 4 }}>
+    <Box sx={{ bgcolor: 'white', color: 'white', minHeight: '100vh', px: 4, py: 4 }}>
       {loading && <p>Loading team performance…</p>}
       {err && <p style={{ color: 'salmon' }}>{err}</p>}
-      {!loading && !err && <TeamPercent year={year} rows={rows} />}
+      {!loading && !err && (
+        <TeamPercent
+          year={year}
+          rows={rowsToShow}
+          mode={mode}
+        />
+      )}
     </Box>
   );
 }
