@@ -1,31 +1,27 @@
-import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+﻿import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import BaseHeatMap from '@/components/shared/heatmap/BaseHeatMap';
 import { PITCH_TYPES, type PitchKey } from '@/components/shared/heatmap/constants';
 import { buildZoneMap, zoneValuesArray } from '@/components/shared/heatmap/zoneHelpers';
-import type { ZoneBin } from '@/pages/player/HeatMapTab';
+import type { PitcherPitchBinsTable } from '@/types/schemas';
 
-type Props = {
-  playerName: string;
-  batterFilter: 'Both' | 'L' | 'R';
-  pitchTypeFilter:
-    | 'All'
-    | 'FourSeam'
-    | 'Sinker'
-    | 'Slider'
-    | 'Curveball'
-    | 'Changeup'
-    | 'Cutter'
-    | 'Splitter'
-    | 'Other';
-  bins: ZoneBin[];
-  onBatterFilterChange?: (next: 'Both' | 'L' | 'R') => void;
-};
-
+type BatterFilter = 'Both' | 'L' | 'R';
 type Side = 'L' | 'R';
 type PitchCountField = `Count_${PitchKey}`;
 type SidePitchCountField = `Count_${Side}_${PitchKey}`;
 type CountField = PitchCountField | SidePitchCountField;
+
+type ZoneBin = {
+  zoneId: number;
+  inZone: boolean;
+  zoneRow: number;
+  zoneCol: number;
+  zoneCell: number;
+  outerLabel: 'NA' | 'OTL' | 'OTR' | 'OBL' | 'OBR';
+  totalPitchCount: number;
+} & Record<CountField, number>;
+
+const EMPTY_PITCHER_ROWS: PitcherPitchBinsTable[] = [];
 
 const makeZeroCounts = (): Record<CountField, number> => {
   const counts = {} as Record<CountField, number>;
@@ -37,19 +33,52 @@ const makeZeroCounts = (): Record<CountField, number> => {
   return counts;
 };
 
-export default function PitcherHeatMap({
-  playerName,
-  batterFilter,
-  pitchTypeFilter,
-  bins,
-  onBatterFilterChange,
-}: Props) {
+type RawCountKey = `${'Count' | 'Count_L' | 'Count_R'}_${PitchKey}`;
+
+const toNumeric = (value: unknown): number => {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const normalizePitcherBin = (bin: PitcherPitchBinsTable): ZoneBin => {
+  const record = bin as Record<RawCountKey, unknown>;
+  const normalized: ZoneBin = {
+    zoneId: toNumeric(bin.ZoneId),
+    inZone: Boolean(bin.InZone),
+    zoneRow: toNumeric(bin.ZoneRow ?? 0),
+    zoneCol: toNumeric(bin.ZoneCol ?? 0),
+    zoneCell: toNumeric(bin.ZoneCell ?? 0),
+    outerLabel: (bin.OuterLabel ?? 'NA') as ZoneBin['outerLabel'],
+    totalPitchCount: toNumeric(bin.TotalPitchCount),
+    ...makeZeroCounts(),
+  };
+
+  PITCH_TYPES.forEach(({ key }) => {
+    const totalKey = `Count_${key}` as RawCountKey;
+    const leftKey = `Count_L_${key}` as RawCountKey;
+    const rightKey = `Count_R_${key}` as RawCountKey;
+
+    normalized[`Count_${key}` as PitchCountField] = toNumeric(record[totalKey]);
+    normalized[`Count_L_${key}` as SidePitchCountField] = toNumeric(record[leftKey]);
+    normalized[`Count_R_${key}` as SidePitchCountField] = toNumeric(record[rightKey]);
+  });
+
+  return normalized;
+};
+
+export default function PitcherHeatMap({ data }: { data: PitcherPitchBinsTable[] }) {
+  const [batterFilter, setBatterFilter] = useState<BatterFilter>('Both');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedPitchKey, setSelectedPitchKey] = useState<PitchKey | null>(null);
 
+  const sourceBins = data ?? EMPTY_PITCHER_ROWS;
+  const pitcherName = sourceBins[0]?.Pitcher ?? 'Pitcher';
+
+  const normalizedBins = useMemo(() => sourceBins.map(normalizePitcherBin), [sourceBins]);
+
   const zoneMap = useMemo(
     () =>
-      buildZoneMap<ZoneBin>(bins, (meta) => ({
+      buildZoneMap<ZoneBin>(normalizedBins, (meta) => ({
         zoneId: meta.zoneId,
         inZone: meta.inZone,
         zoneRow: meta.zoneRow,
@@ -59,9 +88,8 @@ export default function PitcherHeatMap({
         totalPitchCount: 0,
         ...makeZeroCounts(),
       })),
-    [bins],
+    [normalizedBins],
   );
-
   const cells = useMemo(() => zoneValuesArray(zoneMap), [zoneMap]);
 
   const handleZoneSelect = useCallback((zoneId: number) => {
@@ -92,10 +120,8 @@ export default function PitcherHeatMap({
 
   const resolvedPitchKey = useMemo<PitchKey | null>(() => {
     if (selectedZoneId) return null;
-    if (selectedPitchKey) return selectedPitchKey;
-    if (pitchTypeFilter === 'All') return null;
-    return pitchTypeFilter as PitchKey;
-  }, [pitchTypeFilter, selectedPitchKey, selectedZoneId]);
+    return selectedPitchKey;
+  }, [selectedPitchKey, selectedZoneId]);
 
   const resolvedSide: Side | null = batterFilter === 'Both' ? null : batterFilter;
 
@@ -141,6 +167,11 @@ export default function PitcherHeatMap({
 
   const valueAccessor = useCallback((zone: ZoneBin) => zoneValue(zone), [zoneValue]);
 
+  const selectedPitchLabel = useMemo(() => {
+    if (!selectedPitchKey) return 'All pitches';
+    return PITCH_TYPES.find((def) => def.key === selectedPitchKey)?.label ?? selectedPitchKey;
+  }, [selectedPitchKey]);
+
   const tablePanel = (
     <Box
       key="table"
@@ -157,10 +188,11 @@ export default function PitcherHeatMap({
         exclusive
         onChange={(_event, next) => {
           if (!next || next === batterFilter) return;
-          onBatterFilterChange?.(next);
+          setBatterFilter(next);
+          setSelectedZoneId(null);
+          setSelectedPitchKey(null);
         }}
         size="small"
-        disabled={!onBatterFilterChange}
         sx={{ mt: 1, mb: 1, display: 'flex', width: '100%' }}
       >
         <ToggleButton value="Both" sx={{ flex: 1 }}>
@@ -238,8 +270,7 @@ export default function PitcherHeatMap({
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Pitch Heat Map {`(${batterFilter} batters)`}
-        {pitchTypeFilter !== 'All' ? `- ${pitchTypeFilter}` : ''}
+        Pitch Heat Map - {pitcherName} ({batterFilter} batters, {selectedPitchLabel})
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>

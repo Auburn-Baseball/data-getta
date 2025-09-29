@@ -1,14 +1,16 @@
-import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+﻿import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import BaseHeatMap from '@/components/shared/heatmap/BaseHeatMap';
 import { PITCH_TYPES, type PitchKey } from '@/components/shared/heatmap/constants';
 import { buildZoneMap, zoneValuesArray } from '@/components/shared/heatmap/zoneHelpers';
+import type { BatterPitchBinsTable } from '@/types/schemas';
 
 type Side = 'Swing' | 'Contact';
 
-type PitchCounts<TPrefix extends string> = {
-  [K in (typeof PITCH_TYPES)[number]['key'] as `${TPrefix}_${K}`]: number;
-};
+type CountField = `Count_${PitchKey}`;
+type SwingField = `SwingCount_${PitchKey}`;
+type HitField = `HitCount_${PitchKey}`;
+type MetricField = CountField | SwingField | HitField;
 
 export type BatterZoneSummary = {
   zoneId: number;
@@ -20,43 +22,68 @@ export type BatterZoneSummary = {
   totalPitchCount: number;
   totalSwingCount: number;
   totalHitCount: number;
-} & PitchCounts<'Count'> &
-  PitchCounts<'SwingCount'> &
-  PitchCounts<'HitCount'>;
+} & Record<MetricField, number>;
 
-type Props = {
-  batterName: string;
-  pitchTypeFilter:
-    | 'All'
-    | 'FourSeam'
-    | 'Sinker'
-    | 'Slider'
-    | 'Curveball'
-    | 'Changeup'
-    | 'Cutter'
-    | 'Splitter'
-    | 'Other';
-  bins: BatterZoneSummary[];
-};
+const EMPTY_BATTER_ROWS: BatterPitchBinsTable[] = [];
 
-const makeZeroCounts = (): Record<string, number> => {
-  const counts: Record<string, number> = {};
+const makeZeroCounts = (): Record<MetricField, number> => {
+  const counts = {} as Record<MetricField, number>;
   PITCH_TYPES.forEach(({ key }) => {
-    counts[`Count_${key}`] = 0;
-    counts[`SwingCount_${key}`] = 0;
-    counts[`HitCount_${key}`] = 0;
+    counts[`Count_${key}` as CountField] = 0;
+    counts[`SwingCount_${key}` as SwingField] = 0;
+    counts[`HitCount_${key}` as HitField] = 0;
   });
   return counts;
 };
 
-export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Props) {
+type RawCountKey = `Count_${PitchKey}` | `SwingCount_${PitchKey}` | `HitCount_${PitchKey}`;
+
+const toNumeric = (value: unknown): number => {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const normalizeBatterBin = (bin: BatterPitchBinsTable): BatterZoneSummary => {
+  const record = bin as Record<RawCountKey, unknown>;
+  const normalized: BatterZoneSummary = {
+    zoneId: toNumeric(bin.ZoneId),
+    inZone: Boolean(bin.InZone),
+    zoneRow: toNumeric(bin.ZoneRow ?? 0),
+    zoneCol: toNumeric(bin.ZoneCol ?? 0),
+    zoneCell: toNumeric(bin.ZoneCell ?? 0),
+    outerLabel: (bin.OuterLabel ?? 'NA') as BatterZoneSummary['outerLabel'],
+    totalPitchCount: toNumeric(bin.TotalPitchCount),
+    totalSwingCount: toNumeric(bin.TotalSwingCount),
+    totalHitCount: toNumeric(bin.TotalHitCount),
+    ...makeZeroCounts(),
+  };
+
+  PITCH_TYPES.forEach(({ key }) => {
+    const countKey = `Count_${key}` as RawCountKey;
+    const swingKey = `SwingCount_${key}` as RawCountKey;
+    const hitKey = `HitCount_${key}` as RawCountKey;
+
+    normalized[`Count_${key}` as CountField] = toNumeric(record[countKey]);
+    normalized[`SwingCount_${key}` as SwingField] = toNumeric(record[swingKey]);
+    normalized[`HitCount_${key}` as HitField] = toNumeric(record[hitKey]);
+  });
+
+  return normalized;
+};
+
+export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }) {
   const [view, setView] = useState<Side>('Swing');
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [selectedPitchKey, setSelectedPitchKey] = useState<PitchKey | null>(null);
 
+  const sourceRows = data ?? EMPTY_BATTER_ROWS;
+  const batterName = sourceRows[0]?.Batter ?? 'Batter';
+
+  const normalizedRows = useMemo(() => sourceRows.map(normalizeBatterBin), [sourceRows]);
+
   const zoneMap = useMemo(
     () =>
-      buildZoneMap<BatterZoneSummary>(bins, (meta) => ({
+      buildZoneMap<BatterZoneSummary>(normalizedRows, (meta) => ({
         zoneId: meta.zoneId,
         inZone: meta.inZone,
         zoneRow: meta.zoneRow,
@@ -68,16 +95,15 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
         totalHitCount: 0,
         ...makeZeroCounts(),
       })),
-    [bins],
+    [normalizedRows],
   );
 
   const cells = useMemo(() => zoneValuesArray(zoneMap), [zoneMap]);
 
   const resolvedPitchKey = useMemo<PitchKey | null>(() => {
-    if (selectedPitchKey) return selectedPitchKey;
-    if (pitchTypeFilter === 'All') return null;
-    return pitchTypeFilter as PitchKey;
-  }, [pitchTypeFilter, selectedPitchKey]);
+    if (selectedZoneId) return null;
+    return selectedPitchKey;
+  }, [selectedPitchKey, selectedZoneId]);
 
   const activeCells = useMemo(() => {
     if (!selectedZoneId) return cells;
@@ -89,10 +115,10 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
     (zone: BatterZoneSummary, key: PitchKey, metric: Side | 'Pitch') => {
       const column =
         metric === 'Pitch'
-          ? (`Count_${key}` as const)
+          ? (`Count_${key}` as CountField)
           : metric === 'Swing'
-            ? (`SwingCount_${key}` as const)
-            : (`HitCount_${key}` as const);
+            ? (`SwingCount_${key}` as SwingField)
+            : (`HitCount_${key}` as HitField);
       return Number(zone[column] ?? 0);
     },
     [],
@@ -101,9 +127,7 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
   const zoneValue = useCallback(
     (zone: BatterZoneSummary) => {
       if (!resolvedPitchKey) {
-        if (view === 'Swing') return zone.totalSwingCount;
-        if (view === 'Contact') return zone.totalHitCount;
-        return zone.totalPitchCount;
+        return view === 'Swing' ? zone.totalSwingCount : zone.totalHitCount;
       }
       return countForPitch(zone, resolvedPitchKey, view);
     },
@@ -119,6 +143,11 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
         return { ...def, pitches, swings, hits };
       }),
     [activeCells, countForPitch],
+  );
+
+  const totalPrimary = useMemo(
+    () => pitchSummary.reduce((sum, row) => sum + (view === 'Swing' ? row.pitches : row.swings), 0),
+    [pitchSummary, view],
   );
 
   const totalDisplay = useMemo(
@@ -148,10 +177,17 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
 
   const valueAccessor = useCallback((zone: BatterZoneSummary) => zoneValue(zone), [zoneValue]);
 
+  const selectedPitchLabel = useMemo(() => {
+    if (!selectedPitchKey) return 'All pitches';
+    return PITCH_TYPES.find((def) => def.key === selectedPitchKey)?.label ?? selectedPitchKey;
+  }, [selectedPitchKey]);
+
+  const viewLabel = view === 'Swing' ? 'Swing view' : 'Contact view';
+
   return (
     <Box sx={{ textAlign: 'center', width: '100%' }}>
       <Typography variant="h5" fontWeight={600} mt={2}>
-        Batter Heat Map - {batterName} {pitchTypeFilter !== 'All' ? `- ${pitchTypeFilter}` : ''}
+        Batter Heat Map - {batterName} ({viewLabel}, {selectedPitchLabel})
       </Typography>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
@@ -203,12 +239,7 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                   <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.5 }}>
                     {view === 'Swing' ? 'Pitches' : 'Swings'}:{' '}
-                    {Math.round(
-                      pitchSummary.reduce(
-                        (sum, row) => sum + (view === 'Swing' ? row.pitches : row.swings),
-                        0,
-                      ),
-                    ).toLocaleString()}
+                    {Math.round(totalPrimary).toLocaleString()}
                   </Typography>
                   <Typography variant="subtitle2" fontWeight={500} sx={{ mt: -0.5 }}>
                     {view === 'Swing' ? 'Swings' : 'Contact'}:{' '}
@@ -285,7 +316,7 @@ export default function BatterHeatMap({ batterName, pitchTypeFilter, bins }: Pro
 
       <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.85 }}>
         Toggle between swing frequency and contact success to explore where {batterName} chases or
-        squares up pitches. Cells reflect the active view and pitch-type filter; areas with no
+        squares up pitches. Cells respect the current view and any pitch selection; areas with no
         matching swings or contact still render with a zero total.
       </Typography>
     </Box>

@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router';
 
 import BatterHeatMap from '@/components/player/HeatMap/BatterHeatMap';
 import { supabase } from '@/utils/supabase/client';
+import { PitchType } from '@/types/types';
 
 export type BatterZoneBin = {
   zoneId: number;
@@ -60,16 +61,7 @@ export default function BatterHeatMapTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const pitchType = (searchParams.get('pitch') || 'All') as
-    | 'All'
-    | 'FourSeam'
-    | 'Sinker'
-    | 'Slider'
-    | 'Curveball'
-    | 'Changeup'
-    | 'Cutter'
-    | 'Splitter'
-    | 'Other';
+  const pitchType = (searchParams.get('pitch') || 'All') as PitchType;
 
   useEffect(() => {
     async function fetchBins() {
