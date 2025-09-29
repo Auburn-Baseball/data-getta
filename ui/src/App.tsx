@@ -12,6 +12,7 @@ import HeatMapTab from '@/pages/player/HeatMapTab';
 import RequireAuth from '@/utils/supabase/requireauth';
 import PublicOnly from '@/utils/supabase/publiconly';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import TeamPerformancePage from '@/pages/TeamPerformancePage';
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="batting" element={<BattingTab />} />
               <Route path="pitching" element={<PitchingTab />} />
             </Route>
+            <Route path="teamperformance" element={<TeamPerformancePage />} />
           </Route>
         </Route>
       </Routes>

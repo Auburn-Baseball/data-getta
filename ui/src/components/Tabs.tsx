@@ -6,6 +6,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
 import GroupsIcon from '@mui/icons-material/Groups';
+import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { common } from '@mui/material/colors';
 import { Theme } from '@/utils/theme';
@@ -65,6 +66,25 @@ export default function Tabs() {
           </ListItemIcon>
           <ListItemText sx={{ '& .MuiTypography-root': { fontWeight: 'bold' }, flexGrow: 0 }}>
             Teams
+          </ListItemText>
+        </ListItemButton>
+      </ListItem>
+
+      <ListItem disablePadding sx={{ pb: 2 }}>
+        <ListItemButton
+          component={RouterLink}
+          to="/teamperformance"
+          sx={{
+            gap: 2,
+            justifyContent: 'center',
+            ':hover': { bgcolor: Theme.palette.primary.light },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 'auto' }}>
+            <LeaderboardIcon sx={{ color: common.white }} />
+          </ListItemIcon>
+          <ListItemText sx={{ '& .MuiTypography-root': { fontWeight: 'bold' }, flexGrow: 0 }}>
+            Team Performance
           </ListItemText>
         </ListItemButton>
       </ListItem>
