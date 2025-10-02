@@ -111,7 +111,6 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             pitch_stats = {
                 "Pitcher": pitcher_name,
                 "PitcherTeam": pitcher_team,
-                "Year": 2025,
                 "total_pitches": total_pitches,
                 "curveball_count": curveball_count,
                 "fourseam_count": fourseam_count,
@@ -166,7 +165,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"PitchCounts")
-                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Year")
+                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Date")
                     .execute()
                 )
 
@@ -186,7 +185,6 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"PitchCounts")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
         total_pitchers = count_result.count
