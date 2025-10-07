@@ -25,20 +25,56 @@ const columns: GridColDef[] = [
   },
   {
     field: 'games',
-    headerName: 'Games',
-    description: 'Games',
-    width: 80,
-  },
-  {
-    field: 'plate_appearances',
-    headerName: 'PA',
-    description: 'Plate Appearances',
+    headerName: 'GP',
+    description: 'Games Played',
     width: 80,
   },
   {
     field: 'at_bats',
     headerName: 'AB',
     description: 'At Bats',
+    width: 80,
+  },
+  {
+    field: 'hits',
+    headerName: 'H',
+    description: 'Hits',
+    width: 80,
+  },
+  {
+    field: 'doubles',
+    headerName: '2B',
+    description: 'Doubles',
+    width: 80,
+  },
+  {
+    field: 'triples',
+    headerName: '3B',
+    description: 'Triples',
+    width: 80,
+  },
+  {
+    field: 'homeruns',
+    headerName: 'HR',
+    description: 'Homeruns',
+    width: 80,
+  },
+  {
+    field: 'total_bases',
+    headerName: 'TB',
+    description: 'Total Bases',
+    width: 80,
+  },
+  {
+    field: 'walks',
+    headerName: 'BB',
+    description: 'Walks',
+    width: 80,
+  },
+  {
+    field: 'strikeouts',
+    headerName: 'SO',
+    description: 'Strikeouts',
     width: 80,
   },
   {
@@ -55,60 +91,6 @@ const columns: GridColDef[] = [
       }
       return Number(value).toFixed(3).replace(/^0/, '');
     },
-  },
-  {
-    field: 'hits',
-    headerName: 'H',
-    description: 'Hits',
-    width: 80,
-  },
-  {
-    field: 'strikes',
-    headerName: 'Strikes',
-    description: 'Strikes',
-    width: 80,
-  },
-  {
-    field: 'walks',
-    headerName: 'BB',
-    description: 'Walks',
-    width: 80,
-  },
-  {
-    field: 'strikeouts',
-    headerName: 'K',
-    description: 'Strikeouts',
-    width: 80,
-  },
-  {
-    field: 'homeruns',
-    headerName: 'HR',
-    description: 'Homeruns',
-    width: 80,
-  },
-  {
-    field: 'extra_base_hits',
-    headerName: 'XBH',
-    description: 'Extra Base Hits',
-    width: 80,
-  },
-  {
-    field: 'sacrifice',
-    headerName: 'S',
-    description: 'Sacrifice',
-    width: 80,
-  },
-  {
-    field: 'hit_by_pitch',
-    headerName: 'HBP',
-    description: 'Hit by Pitch',
-    width: 80,
-  },
-  {
-    field: 'total_bases',
-    headerName: 'TB',
-    description: 'Total Bases',
-    width: 80,
   },
   {
     field: 'on_base_percentage',
@@ -147,30 +129,6 @@ const columns: GridColDef[] = [
     },
   },
   {
-    field: 'chase_percentage',
-    headerName: 'CHASE',
-    description: 'Chase Percentage',
-    width: 80,
-    valueGetter: (value) => {
-      if (value === null || value === undefined) {
-        return '0%';
-      }
-      return `${Number((value * 100).toFixed(0))}%`;
-    },
-  },
-  {
-    field: 'in_zone_whiff_percentage',
-    headerName: 'IZW',
-    description: 'In Zone Whiff Percentage',
-    width: 80,
-    valueGetter: (value) => {
-      if (value === null || value === undefined) {
-        return '0%';
-      }
-      return `${Number((value * 100).toFixed(0))}%`;
-    },
-  },
-  {
     field: 'isolated_power',
     headerName: 'ISO',
     description: 'Isolated Power',
@@ -180,30 +138,6 @@ const columns: GridColDef[] = [
         return '.000';
       }
       return Number(value).toFixed(3).replace(/^0/, '');
-    },
-  },
-  {
-    field: 'k_percentage',
-    headerName: 'K%',
-    description: 'K Percentage',
-    width: 80,
-    valueGetter: (value) => {
-      if (value === null || value === undefined) {
-        return '0%';
-      }
-      return `${Number((value * 100).toFixed(0))}%`;
-    },
-  },
-  {
-    field: 'base_on_ball_percentage',
-    headerName: 'BoB',
-    description: 'Base on Ball Percentage',
-    width: 80,
-    valueGetter: (value) => {
-      if (value === null || value === undefined) {
-        return '0%';
-      }
-      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
 ];

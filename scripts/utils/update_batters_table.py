@@ -149,6 +149,15 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
+            # Calculate singles
+            singles = len(group[group["PlayResult"] == "Single"])
+
+            # Calculate doubles
+            doubles = len(group[group["PlayResult"] == "Double"])
+
+            # Calculate triples
+            triples = len(group[group["PlayResult"] == "Triple"])
+
             # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
 
@@ -269,6 +278,9 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "strikes": strikes,
                 "walks": walks,
                 "strikeouts": strikeouts,
+                "singles": singles,
+                "doubles": doubles,
+                "triples": triples,
                 "homeruns": homeruns,
                 "extra_base_hits": extra_base_hits,
                 "plate_appearances": plate_appearances,
