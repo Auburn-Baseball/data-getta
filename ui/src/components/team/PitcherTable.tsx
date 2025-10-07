@@ -69,7 +69,7 @@ const columns: GridColDef[] = [
   {
     field: 'total_out_of_zone_pitches',
     headerName: 'OoZ',
-    description: 'Total Out of Zone Pitches',
+    description: 'Out of Zone Percentage',
     width: 80,
     valueGetter: (value, row) => {
       const pitches = row?.pitches;
@@ -82,7 +82,7 @@ const columns: GridColDef[] = [
   {
     field: 'misses_in_zone',
     headerName: 'MiZ',
-    description: 'Misses in Zone',
+    description: 'Misses in Zone Percentage',
     width: 80,
     valueGetter: (value, row) => {
       const pitches = row?.pitches;
@@ -95,7 +95,7 @@ const columns: GridColDef[] = [
   {
     field: 'swings_in_zone',
     headerName: 'SiZ',
-    description: 'Swings in Zone',
+    description: 'Swings in Zone Percentage',
     width: 80,
     valueGetter: (value, row) => {
       const pitches = row?.pitches;

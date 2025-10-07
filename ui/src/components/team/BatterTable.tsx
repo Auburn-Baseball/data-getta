@@ -26,7 +26,7 @@ const columns: GridColDef[] = [
   {
     field: 'games',
     headerName: 'Games',
-    description: 'Games',
+    description: 'Games Played',
     width: 80,
   },
   {
@@ -95,7 +95,7 @@ const columns: GridColDef[] = [
   {
     field: 'sacrifice',
     headerName: 'S',
-    description: 'Sacrifice',
+    description: 'Sacrifices',
     width: 80,
   },
   {
