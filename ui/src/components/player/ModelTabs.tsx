@@ -37,15 +37,20 @@ export default function ModelTabs({ team, player }: { team: string; player: stri
         flexWrap: 'wrap',
       }}
     >
-      <Link href={`${baseURL}/stats`} name="Stats" fontWeight={600} underline={statsUnderline} />
       <Link
-        href={`${baseURL}/heat-map`}
+        href={`${baseURL}/stats/2025`}
+        name="Stats"
+        fontWeight={600}
+        underline={statsUnderline}
+      />
+      <Link
+        href={`${baseURL}/heat-map/2025`}
         name="Heat Maps"
         fontWeight={600}
         underline={heatMapUnderline}
       />
       <Link
-        href={`${baseURL}/percentiles`}
+        href={`${baseURL}/percentiles/2025`}
         name="Percentiles"
         fontWeight={600}
         underline={percentilesUnderline}

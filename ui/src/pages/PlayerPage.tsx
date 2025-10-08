@@ -1,17 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useParams, useLocation, useNavigate, Outlet } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
 import { PlayersTable } from '@/types/schemas';
 import Box from '@mui/material/Box';
 import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
-import { Outlet } from 'react-router';
 
 export default function PlayerPage() {
-  const { trackmanAbbreviation, playerName } = useParams<{ trackmanAbbreviation: string, playerName: string }>();
+  const { trackmanAbbreviation, playerName } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+  }>();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [player, setPlayer] = useState<PlayersTable | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Handle stats redirect - changed to use year instead of date range
+  useEffect(() => {
+    if (trackmanAbbreviation && playerName) {
+      const playerPath = `/team/${trackmanAbbreviation}/player/${playerName}`;
+
+      if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
+        // Use the current year (2025) instead of date range
+        navigate(`${playerPath}/stats/2025`, { replace: true });
+      }
+    }
+  }, [location.pathname, trackmanAbbreviation, playerName, navigate]);
 
   useEffect(() => {
     async function fetchPlayer() {
@@ -19,8 +35,10 @@ export default function PlayerPage() {
 
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        const decodedPlayerName = decodeURIComponent(playerName).split("_").join(", ");
+        const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
         console.log(decodedPlayerName);
+        setLoading(true);
+
         const { data, error } = await supabase
           .from('Players')
           .select('*')

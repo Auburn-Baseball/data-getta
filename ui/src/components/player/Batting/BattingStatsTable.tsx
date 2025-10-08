@@ -1,4 +1,4 @@
-import { batter_stats_forTable } from '@/utils/types';
+import { BatterStatsTable } from '@/types/schemas';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -6,80 +6,126 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import { useRouter, useParams } from 'next/navigation';
-import { MenuItem, Select, FormControl, InputLabel, SelectChangeEvent } from '@mui/material';
+import {
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+  CircularProgress,
+} from '@mui/material';
 import { useState, useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import { supabase } from '@/utils/supabase/client';
+import { useNavigate, useParams } from 'react-router';
 
 export default function BattingStatsTable({
-  player,
   teamName,
   playerName,
-  startDate,
-  endDate,
+  year,
 }: {
-  player: batter_stats_forTable[];
-  teamName: string | undefined; // Team identifier (optional).
-  playerName: string | undefined; // Batter name (optional).
-  startDate: string | undefined; // Stats start date.
-  endDate: string | undefined; // Stats end date.
+  teamName: string | undefined;
+  playerName: string | undefined;
+  year: string | number | undefined;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const params = useParams();
-  // Retrieve team name from URL params or default to "AUB_TIG"
-  const teamParam = Array.isArray(params.teamName)
-    ? params.teamName[0]
-    : params.teamName || 'AUB_TIG';
 
-  // Check if player data exists to conditionally render the practice data dropdown.
-  const hasPracticePage = player.length > 0;
+  const [player, setPlayer] = useState<BatterStatsTable[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize selectedDataType state with teamParam value.
+  const teamParam = params.teamName || 'NULL';
   const [selectedDataType, setSelectedDataType] = useState<string>(teamParam);
 
-  // Sync the selected data type with URL parameter changes.
+  // Default to current year if not specified
+  const safeYear = year || 2025;
+
+  // Format the player name to match database format (replace underscores with commas)
+  const formattedPlayerName = playerName?.replace('_', ', ');
+
+  // Debug the props being used
   useEffect(() => {
-    const newTeam = Array.isArray(params.teamName)
-      ? params.teamName[0]
-      : params.teamName || 'AUB_TIG';
+    console.log('BattingStatsTable props:', {
+      teamName,
+      playerName,
+      formattedPlayerName,
+      year: safeYear,
+    });
+  }, [teamName, playerName, formattedPlayerName, safeYear]);
+
+  useEffect(() => {
+    async function fetchBatterStats() {
+      // Always set loading to false even if we return early
+      if (!formattedPlayerName || !teamName) {
+        console.log('Missing required props:', { formattedPlayerName, teamName });
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        console.log('Fetching batter stats with:', {
+          Batter: formattedPlayerName,
+          BatterTeam: teamName,
+          Year: safeYear,
+        });
+
+        const { data, error } = await supabase
+          .from('BatterStats')
+          .select('*')
+          .eq('Batter', formattedPlayerName)
+          .eq('BatterTeam', teamName)
+          .eq('Year', safeYear)
+          .overrideTypes<BatterStatsTable[], { merge: false }>();
+
+        if (error) throw error;
+
+        console.log('Batter stats fetched:', data);
+        setPlayer(data || []);
+      } catch (err) {
+        console.error('Error fetching batter stats:', err);
+        setError('Failed to load batter stats');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchBatterStats();
+  }, [formattedPlayerName, teamName, safeYear]);
+
+  useEffect(() => {
+    const newTeam = params.teamName || 'NULL';
     setSelectedDataType(newTeam);
   }, [params.teamName]);
 
-  // Create safe URL parameters using defaults if necessary.
   const safePlayerName = encodeURIComponent(
     playerName || (player.length > 0 ? player[0].Batter : 'unknown-player'),
   );
-  const safeStartDate = startDate || '2024-02-16';
 
-  // Calculate tomorrow's date for the default end date using local time zone.
-  const today = new Date();
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const safeEndDate = endDate || tomorrow.toISOString().split('T')[0];
+  const hasPracticePage = player.length > 0;
 
-  /**
-   * Handle navigation when a new team is selected.
-   * Validates the team name before navigating.
-   */
   const handleNavigation = (newTeamName: string) => {
     if (!newTeamName || !['AUB_TIG', 'AUB_PRC'].includes(newTeamName)) {
       alert('Invalid team selected.');
       return;
     }
-    router.push(
-      `/team/${newTeamName}/player/${safePlayerName}/stats/${safeStartDate}/${safeEndDate}`,
-    );
+    navigate(`/team/${newTeamName}/player/${safePlayerName}/stats/${safeYear}`);
   };
 
-  /**
-   * Processes the dropdown change event.
-   * Updates local state and triggers navigation.
-   */
   const handleSelectChange = (event: SelectChangeEvent<string>) => {
     const newValue = event.target.value;
     setSelectedDataType(newValue);
     handleNavigation(newValue);
   };
+
+  // Add loading state monitoring
+  useEffect(() => {
+    console.log('Loading state:', loading, 'Player data length:', player.length);
+  }, [loading, player]);
 
   return (
     <Paper elevation={3} sx={{ paddingX: 2, paddingY: 2, width: '100%', overflowX: 'auto' }}>
@@ -88,7 +134,7 @@ export default function BattingStatsTable({
         Standard NCAA Batting Stats
       </Divider>
       {hasPracticePage && ['AUB_TIG', 'AUB_PRC'].includes(selectedDataType) && (
-        // Render dropdown only for teams with practice data.
+        // Render dropdown only for teams with practice data
         <FormControl fullWidth sx={{ marginBottom: '1rem' }}>
           <InputLabel id="data-type-select-label">Data Type</InputLabel>
           <Select
@@ -170,9 +216,21 @@ export default function BattingStatsTable({
             </TableRow>
           </TableHead>
           <TableBody>
-            {player.length > 0 ? (
+            {loading ? (
               <TableRow>
-                {/* Render batter statistics; note: formatting AVG, OBP, SLG, OPS for readability */}
+                <TableCell colSpan={12} sx={{ textAlign: 'center', padding: 2 }}>
+                  <CircularProgress size={24} />
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={12} sx={{ textAlign: 'center', color: 'error.main' }}>
+                  {error}
+                </TableCell>
+              </TableRow>
+            ) : player.length > 0 ? (
+              <TableRow>
+                {/* Render batter statistics with proper formatting */}
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].games}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].plate_appearances}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].at_bats}</TableCell>
@@ -182,18 +240,26 @@ export default function BattingStatsTable({
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].strikeouts}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].hit_by_pitch}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].batting_average === 1
-                    ? player[0].batting_average.toFixed(3)
-                    : player[0].batting_average.toFixed(3).replace(/^0/, '')}
+                  {player[0].batting_average === null
+                    ? '.000'
+                    : player[0].batting_average === 1
+                      ? player[0].batting_average.toFixed(3)
+                      : player[0].batting_average.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].on_base_percentage.toFixed(3).replace(/^0/, '')}
+                  {player[0].on_base_percentage === null
+                    ? '.000'
+                    : player[0].on_base_percentage.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].slugging_percentage.toFixed(3).replace(/^0/, '')}
+                  {player[0].slugging_percentage === null
+                    ? '.000'
+                    : player[0].slugging_percentage.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].onbase_plus_slugging.toFixed(3).replace(/^0/, '')}
+                  {player[0].onbase_plus_slugging === null
+                    ? '.000'
+                    : player[0].onbase_plus_slugging.toFixed(3).replace(/^0/, '')}
                 </TableCell>
               </TableRow>
             ) : (

@@ -26,7 +26,7 @@ const columns: GridColDef[] = [
   {
     field: 'games',
     headerName: 'Games',
-    description: 'Games',
+    description: 'Games Played',
     width: 80,
   },
   {
@@ -46,6 +46,15 @@ const columns: GridColDef[] = [
     headerName: 'AVG',
     description: 'Batting Average',
     width: 80,
+    valueGetter: (value) => {
+      if (value === null || value === undefined) {
+        return '.000';
+      }
+      if (value === 1) {
+        return Number(value).toFixed(3);
+      }
+      return Number(value).toFixed(3).replace(/^0/, '');
+    },
   },
   {
     field: 'hits',
@@ -86,7 +95,7 @@ const columns: GridColDef[] = [
   {
     field: 'sacrifice',
     headerName: 'S',
-    description: 'Sacrifice',
+    description: 'Sacrifices',
     width: 80,
   },
   {
@@ -106,18 +115,36 @@ const columns: GridColDef[] = [
     headerName: 'OBP',
     description: 'On Base Percentage',
     width: 80,
+    valueGetter: (value) => {
+      if (value === null || value === undefined) {
+        return '.000';
+      }
+      return Number(value).toFixed(3).replace(/^0/, '');
+    },
   },
   {
     field: 'slugging_percentage',
     headerName: 'SLUG',
     description: 'Slugging Percentage',
     width: 80,
+    valueGetter: (value) => {
+      if (value === null || value === undefined) {
+        return '.000';
+      }
+      return Number(value).toFixed(3).replace(/^0/, '');
+    },
   },
   {
     field: 'onbase_plus_slugging',
     headerName: 'OPS',
     description: 'On Base Plus Slugging',
     width: 80,
+    valueGetter: (value) => {
+      if (value === null || value === undefined) {
+        return '.000';
+      }
+      return Number(value).toFixed(3).replace(/^0/, '');
+    },
   },
   {
     field: 'chase_percentage',
@@ -125,11 +152,10 @@ const columns: GridColDef[] = [
     description: 'Chase Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -138,11 +164,10 @@ const columns: GridColDef[] = [
     description: 'In Zone Whiff Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -150,6 +175,12 @@ const columns: GridColDef[] = [
     headerName: 'ISO',
     description: 'Isolated Power',
     width: 80,
+    valueGetter: (value) => {
+      if (value === null || value === undefined) {
+        return '.000';
+      }
+      return Number(value).toFixed(3).replace(/^0/, '');
+    },
   },
   {
     field: 'k_percentage',
@@ -157,11 +188,10 @@ const columns: GridColDef[] = [
     description: 'K Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -170,11 +200,10 @@ const columns: GridColDef[] = [
     description: 'Base on Ball Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
 ];

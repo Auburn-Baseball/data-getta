@@ -69,20 +69,41 @@ const columns: GridColDef[] = [
   {
     field: 'total_out_of_zone_pitches',
     headerName: 'OoZ',
-    description: 'Total Out of Zone Pitches',
+    description: 'Out of Zone Percentage',
     width: 80,
+    valueGetter: (value, row) => {
+      const pitches = row?.pitches;
+      if (value === null || value === undefined || !pitches) {
+        return '0%';
+      }
+      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
+    },
   },
   {
     field: 'misses_in_zone',
     headerName: 'MiZ',
-    description: 'Misses in Zone',
+    description: 'Misses in Zone Percentage',
     width: 80,
+    valueGetter: (value, row) => {
+      const pitches = row?.pitches;
+      if (value === null || value === undefined || !pitches) {
+        return '0%';
+      }
+      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
+    },
   },
   {
     field: 'swings_in_zone',
     headerName: 'SiZ',
-    description: 'Swings in Zone',
+    description: 'Swings in Zone Percentage',
     width: 80,
+    valueGetter: (value, row) => {
+      const pitches = row?.pitches;
+      if (value === null || value === undefined || !pitches) {
+        return '0%';
+      }
+      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
+    },
   },
   {
     field: 'total_num_chases',
@@ -96,11 +117,10 @@ const columns: GridColDef[] = [
     description: 'In Zone Whiff Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -109,11 +129,10 @@ const columns: GridColDef[] = [
     description: 'Chase Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -122,11 +141,10 @@ const columns: GridColDef[] = [
     description: 'K Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
   {
@@ -135,11 +153,10 @@ const columns: GridColDef[] = [
     description: 'Base on Ball Percentage',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0%';
       }
+      return `${Number((value * 100).toFixed(0))}%`;
     },
   },
 ];

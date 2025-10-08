@@ -1,78 +1,145 @@
-import Box from "@mui/material/Box";
-import { prisma } from "@/utils/db";
-import HeatMap from "@/player/components/HeatMap/HeatMap";
+import Box from '@mui/material/Box';
+import { supabase } from '@/utils/supabase/client';
+import PitcherHeatMap from '@/components/player/HeatMap/PitcherHeatMap';
+import BatterHeatMap from '@/components/player/HeatMap/BatterHeatMap';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router';
+import { CircularProgress, Typography } from '@mui/material';
+import { PitcherPitchBinsTable, BatterPitchBinsTable } from '@/types/schemas';
 
-type Params = Promise<{ teamName: string; playerName: string }>;
-type SearchParams = Promise<{ year?: string; pitch?: string; batter?: string }>;
+export default function HeatMapTab() {
+  const { trackmanAbbreviation, playerName, year } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+    year: string;
+  }>();
 
-export default async function Page(props: {
-  params: Promise<Params>;
-  searchParams: Promise<SearchParams>;
-}) {
-  const params = await props.params;
-  const searchParams = await props.searchParams;
+  if (!trackmanAbbreviation || !playerName || !year) {
+    return (
+      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
+        <strong>Error!</strong>
+      </Typography>
+    );
+  }
 
+  const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
+  const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
 
-  const decodedPlayerName = decodeURIComponent(params.playerName);
-  const year = searchParams.year === "2025" ? "2025" : "2024"; // fallback to 2024
-  const pitchType = searchParams.pitch || "";
-  const batter = searchParams.batter || "Both"; // default to both
+  const [pitcherBins, setPitcherBins] = useState<PitcherPitchBinsTable[]>([]);
+  const [batterBins, setBatterBins] = useState<BatterPitchBinsTable[]>([]);
+  const [pitcherLoading, setPitcherLoading] = useState(true);
+  const [batterLoading, setBatterLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Use year-specific table
-  const pTableName = `trackman_pitcher_${year}`;
-  const bTableName = `trackman_batter_${year}`;
+  useEffect(() => {
+    async function fetchBins() {
+      try {
+        setPitcherLoading(true);
+        setError(null);
+        const { data, error } = await supabase
+          .from('PitcherPitchBins')
+          .select(
+            `
+            ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
+            TotalPitchCount,
+            Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
+            Count_L_FourSeam, Count_L_Sinker, Count_L_Slider, Count_L_Curveball, Count_L_Changeup, Count_L_Cutter, Count_L_Splitter, Count_L_Other,
+            Count_R_FourSeam, Count_R_Sinker, Count_R_Slider, Count_R_Curveball, Count_R_Changeup, Count_R_Cutter, Count_R_Splitter, Count_R_Other
+          `,
+          )
+          .eq('Pitcher', decodedPlayerName)
+          .eq('Year', Number(year))
+          .eq('PitcherTeam', decodedTrackmanAbbreviation)
+          .overrideTypes<PitcherPitchBinsTable[], { merge: false }>();
 
-  let query = `
-  SELECT 
-    tp."PlateLocSide" AS x,
-    tp."PlateLocHeight" AS y,
-    tb."BatterSide" AS "batterSide",
-    COALESCE(tp."TaggedPitchType", tp."AutoPitchType") AS "pitchType",
-    tp."AutoPitchType"
-  FROM trackman_pitcher tp
-  LEFT JOIN trackman_metadata tm
-    ON tp."PitchUID" = tm."PitchUID"
-  LEFT JOIN  trackman_batter tb
-    ON tp."PitchUID" = tb."PitchUID"
-  WHERE tp."Pitcher" = $1
-    AND tm."UTCDate" IS NOT NULL
-    AND tm."UTCDate" BETWEEN '${year}-01-01' AND '${year}-12-31'
-    ${pitchType ? `AND COALESCE(tp."TaggedPitchType", tp."AutoPitchType") = $2` : ''}
-    ${batter !== 'Both' ? `AND tb."BatterSide" = $${pitchType ? 3 : 2}` : ''}
-  `;
+        if (error) throw error;
+        setPitcherBins(data);
+      } catch (e: any) {
+        console.error('Error fetching bins:', e);
+        setError(e.message || 'Failed to load binned pitch data');
+      } finally {
+        setPitcherLoading(false);
+      }
+    }
 
-  const args = [decodedPlayerName];
+    fetchBins();
+  }, [decodedPlayerName, year, decodedTrackmanAbbreviation]);
 
-  if (pitchType) args.push(pitchType);
-  if (batter !== 'Both') args.push(batter);
+  if (error) {
+    return (
+      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
+        <strong>Error!</strong>
+        <br />
+        {error}
+      </Typography>
+    );
+  }
 
-  const raw = (await prisma.$queryRawUnsafe(query, ...args)) as any[];
+  useEffect(() => {
+    async function fetchBatterBins() {
+      try {
+        setBatterLoading(true);
+        const { data, error } = await supabase
+          .from('BatterPitchBins')
+          .select(
+            `
+            ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
+            TotalPitchCount, TotalSwingCount, TotalHitCount,
+            Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
+            SwingCount_FourSeam, SwingCount_Sinker, SwingCount_Slider, SwingCount_Curveball, SwingCount_Changeup, SwingCount_Cutter, SwingCount_Splitter, SwingCount_Other,
+            HitCount_FourSeam, HitCount_Sinker, HitCount_Slider, HitCount_Curveball, HitCount_Changeup, HitCount_Cutter, HitCount_Splitter, HitCount_Other
+          `,
+          )
+          .eq('Batter', decodedPlayerName)
+          .eq('Year', Number(year))
+          .eq('BatterTeam', decodedTrackmanAbbreviation)
+          .overrideTypes<BatterPitchBinsTable[], { merge: false }>();
 
+        if (error) throw error;
+        setBatterBins(data);
+      } catch (e: any) {
+        console.error('Error fetching batter bins:', e);
+      } finally {
+        setBatterLoading(false);
+      }
+    }
 
-  const pitches = raw.map((p) => ({
-    x: Number(p.x),
-    y: Number(p.y),
-    pitchType: p.pitchType,       // TaggedPitchType
-    batterSide: p.batterSide,
+    fetchBatterBins();
+  }, [decodedPlayerName, year, decodedTrackmanAbbreviation]);
 
-  }));
-  console.log("Passing to HeatMap:", pitches.length, "pitches");
+  if (pitcherLoading || batterLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: '4rem' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box
       sx={{
-        width: "100%",
-        display: "flex",
-        justifyContent: "center",
-        padding: "2rem 0",
-        minHeight: "100vh",
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        py: '2rem',
+        minHeight: '100vh',
+        gap: 3,
       }}
     >
-      <HeatMap
-        playerName={decodedPlayerName}
-        batterFilter={batter}
-        pitches={pitches}
-      />
+      {!!pitcherBins.length && <PitcherHeatMap data={pitcherBins} />}
+      {!!batterBins.length && <BatterHeatMap data={batterBins} />}
+
+      {!pitcherBins.length && !batterBins.length && (
+        <>
+          <Typography variant="body1" color="text.secondary">
+            No pitcher heat-map data available.
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            No batter heat-map data available.
+          </Typography>
+        </>
+      )}
     </Box>
   );
 }
