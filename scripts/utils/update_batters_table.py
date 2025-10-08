@@ -275,13 +275,13 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
 
                 total_exit_velo = group[
-                    (group["PitchCall"] != "FoulBallNotFieldable") &
+                    (group["PitchCall"] == "InPlay") &
                     (group["ExitSpeed"].notna())
                 ]["ExitSpeed"].sum()
 
                 # Optional: also count how many batted balls were included
                 batted_ball_count = group[
-                    (group["PitchCall"] != "FoulBallNotFieldable") &
+                    (group["PitchCall"] == "InPlay") &
                     (group["ExitSpeed"].notna())
                 ].shape[0]
             else:
