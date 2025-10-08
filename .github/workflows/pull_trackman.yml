@@ -44,4 +44,4 @@ jobs:
           START_DATE=$(date -d '7 days ago' +%Y%m%d)
           END_DATE=$(date -d 'today' +%Y%m%d)
           echo "Running script from $START_DATE to $END_DATE"
-          python scripts/process_all_data.py --date_flag "$START_DATE - $END_DATE"
+          python scripts/process_all_data.py --date-range "$START_DATE-$END_DATE"
