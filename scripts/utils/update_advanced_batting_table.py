@@ -7,7 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
-from file_date import CSVFilenameParser
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
