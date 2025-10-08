@@ -41,6 +41,9 @@ export interface BatterStatsTable {
   chase_percentage: number | null;
   in_zone_whiff_percentage: number | null;
   games: number | null;
+  k_per: number | null;
+  bb_per: number | null;
+  avg_exit_velo: number | null;
 }
 
 export interface PitcherStatsTable {
