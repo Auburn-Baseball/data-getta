@@ -3,8 +3,8 @@ name: Pull TrackMan CSVs and Process
 on:
   # At 2:00 AM CDT
   
-  # schedule:
-    # - cron: "0 7 * * *"
+  schedule:
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
@@ -38,6 +38,10 @@ jobs:
           echo "VITE_SUPABASE_PROJECT_URL=${{ secrets.VITE_SUPABASE_PROJECT_URL }}" >> $GITHUB_ENV
           echo "VITE_SUPABASE_API_KEY=${{ secrets.VITE_SUPABASE_API_KEY }}" >> $GITHUB_ENV
 
-      # Step 5: Run FTP download script
+      # Step 5: Run FTP download script for last 7 days
       - name: Pull TrackMan CSVs
-        run: python scripts/process_all_data.py
+        run: |
+          START_DATE=$(date -d '7 days ago' +%Y%m%d)
+          END_DATE=$(date -d 'today' +%Y%m%d)
+          echo "Running script from $START_DATE to $END_DATE"
+          python scripts/process_all_data.py --date_flag "$START_DATE - $END_DATE"
