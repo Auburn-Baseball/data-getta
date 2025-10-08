@@ -241,24 +241,24 @@ export default function BattingStatsTable({
                 <TableCell sx={{ textAlign: 'center' }}>{player[0].hit_by_pitch}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   {player[0].batting_average === null
-                    ? '-'
+                    ? '.000'
                     : player[0].batting_average === 1
                       ? player[0].batting_average.toFixed(3)
                       : player[0].batting_average.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   {player[0].on_base_percentage === null
-                    ? '-'
+                    ? '.000'
                     : player[0].on_base_percentage.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   {player[0].slugging_percentage === null
-                    ? '-'
+                    ? '.000'
                     : player[0].slugging_percentage.toFixed(3).replace(/^0/, '')}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
                   {player[0].onbase_plus_slugging === null
-                    ? '-'
+                    ? '.000'
                     : player[0].onbase_plus_slugging.toFixed(3).replace(/^0/, '')}
                 </TableCell>
               </TableRow>
