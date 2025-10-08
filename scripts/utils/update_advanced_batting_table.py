@@ -121,13 +121,6 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 walks / plate_appearances if plate_appearances > 0 else None
             )
 
-            # Get unique games from this file - store as a set for later merging
-            unique_games = (
-                set(group["GameUID"].dropna().unique())
-                if "GameUID" in group.columns
-                else set()
-            )
-
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
@@ -137,8 +130,6 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "avg_exit_velo": round(avg_exit_velo, 1) if avg_exit_velo is not None else None,
                 "k_per": round(k_percentage, 3) if k_percentage is not None else None,
                 "bb_per": round(bb_percentage, 3) if bb_percentage is not None else None,
-                "unique_games": unique_games,  # Store the set of unique games
-                "games": len(unique_games),  # This will be recalculated later
             }
 
             batters_dict[key] = batter_stats
@@ -199,11 +190,6 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     new_walks = (new_stats.get("bb_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_bb_per = (existing_walks + new_walks) / combined_plate_app if combined_plate_app > 0 else None
     
-    # Combine unique games
-    existing_games = set(existing_stats.get("unique_games", [])) if existing_stats.get("unique_games") else set()
-    new_games = new_stats.get("unique_games", set())
-    combined_games = existing_games.union(new_games)
-    
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
@@ -213,66 +199,65 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "avg_exit_velo": round(combined_avg_exit_velo, 1) if combined_avg_exit_velo is not None else None,
         "k_per": round(combined_k_per, 3) if combined_k_per is not None else None,
         "bb_per": round(combined_bb_per, 3) if combined_bb_per is not None else None,
-        "unique_games": list(combined_games),
-        "games": len(combined_games),
     }
 
-
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
-    """Upload advanced batting statistics to Supabase with proper upsert logic"""
+    """Upload advanced batting statistics to Supabase"""
     if not batters_dict:
         print("No advanced batting stats to upload")
         return
 
     try:
-        # Process each batter individually to handle existing records
-        for key, new_stats in batters_dict.items():
-            batter_name, batter_team, year = key
-            
-            # Get existing stats
-            existing_stats = get_existing_advanced_batting_stats(batter_name, batter_team, year)
-            
-            # Combine stats if existing record found
-            if existing_stats:
-                combined_stats = combine_advanced_batting_stats(existing_stats, new_stats)
-                print(f"Updating existing record for {batter_name} ({batter_team})")
-            else:
-                combined_stats = new_stats
-                print(f"Creating new record for {batter_name} ({batter_team})")
-            
-            # Remove unique_games from the data before uploading
-            clean_stats = {k: v for k, v in combined_stats.items() if k != "unique_games"}
-            
+        # Convert dictionary values to list and ensure JSON serializable
+        batter_data = []
+        for batter_dict in batters_dict.values():
+            # Remove the unique_games set before uploading (it's not needed in the DB)
+            clean_dict = {k: v for k, v in batter_dict.items() if k != "unique_games"}
+
             # Convert to JSON and back to ensure all numpy types are converted
-            json_str = json.dumps(clean_stats, cls=NumpyEncoder)
+            json_str = json.dumps(clean_dict, cls=NumpyEncoder)
             clean_batter = json.loads(json_str)
-            
+            batter_data.append(clean_batter)
+
+        print(f"Preparing to upload {len(batter_data)} advanced batting stats...")
+
+        # Insert data in batches to avoid request size limits
+        batch_size = 100
+        total_inserted = 0
+
+        for i in range(0, len(batter_data), batch_size):
+            batch = batter_data[i : i + batch_size]
+
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table("AdvancedBattingStats")
-                    .upsert(clean_batter, on_conflict="Batter,BatterTeam,Year")
+                    supabase.table(f"AdvancedBattingStats")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
                     .execute()
                 )
-                print(f"Successfully processed {batter_name} ({batter_team})")
-                
-            except Exception as upload_error:
-                print(f"Error uploading {batter_name} ({batter_team}): {upload_error}")
+
+                total_inserted += len(batch)
+                print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
+
+            except Exception as batch_error:
+                print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
+                # Print first record of failed batch for debugging
+                if batch:
+                    print(f"Sample record from failed batch: {batch[0]}")
                 continue
 
-        print(f"Successfully processed {len(batters_dict)} advanced batting records")
+        print(f"Successfully processed {total_inserted} batter records")
 
-        # Get final count for the year being processed
-        # Note: This will show count for the most recent year processed
-        # For a more accurate count, you might want to pass the year as a parameter
+        # Get final count
         count_result = (
-            supabase.table("AdvancedBattingStats")
+            supabase.table(f"AdvancedBattingStats")
             .select("*", count="exact")
+            .eq("Year", 2025)
             .execute()
         )
 
         total_batters = count_result.count
-        print(f"Total advanced batting records in database: {total_batters}")
+        print(f"Total 2025 batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
