@@ -232,7 +232,7 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     }
 
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
-    """Upload advanced batting statistics to Supabase"""
+    """Upload advanced batting statistics to Supabase and compute scaled percentile ranks"""
     if not batters_dict:
         print("No advanced batting stats to upload")
         return
@@ -241,71 +241,47 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         # Convert dictionary values to list and ensure JSON serializable
         batter_data = []
         for batter_dict in batters_dict.values():
-            # Remove the unique_games set before uploading (it's not needed in the DB)
             clean_dict = {k: v for k, v in batter_dict.items() if k != "unique_games"}
-
-            # Convert to JSON and back to ensure all numpy types are converted
             json_str = json.dumps(clean_dict, cls=NumpyEncoder)
             clean_batter = json.loads(json_str)
             batter_data.append(clean_batter)
 
         print(f"Preparing to upload {len(batter_data)} advanced batting stats...")
 
-        # Insert data in batches to avoid request size limits
+        # Upload initial data in batches
         batch_size = 100
         total_inserted = 0
 
         for i in range(0, len(batter_data), batch_size):
             batch = batter_data[i : i + batch_size]
-
             try:
-                # Use upsert to handle conflicts based on primary key
-                result = (
-                    supabase.table(f"AdvancedBattingStats")
-                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
-                    .execute()
-                )
-
+                supabase.table("AdvancedBattingStats").upsert(
+                    batch, on_conflict="Batter,BatterTeam,Year"
+                ).execute()
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
-
             except Exception as batch_error:
                 print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
-                # Print first record of failed batch for debugging
                 if batch:
-                    print(f"Sample record from failed batch: {batch[0]}")
+                    print(f"Sample record: {batch[0]}")
                 continue
 
         print(f"Successfully processed {total_inserted} batter records")
 
-        # Get final count
-        count_result = (
-            supabase.table(f"AdvancedBattingStats")
-            .select("*", count="exact")
-            .eq("Year", 2025)
-            .execute()
-        )
-
-        total_batters = count_result.count
-        print(f"Total 2025 batters in database: {total_batters}")
-
         # ================================================
-        # NEW SECTION: Compute and update percentile ranks (per year)
+        # Compute 1-99 scaled percentile ranks
         # ================================================
-        print("Fetching all batter records to compute percentile ranks...")
+        print("Fetching all batter records to compute scaled percentile ranks...")
 
         all_records = []
-        batch_size = 1000
         offset = 0
+        batch_size = 1000
 
-        # Fetch all records in batches
         while True:
-            result = (
-                supabase.table("AdvancedBattingStats")
-                .select("Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per")
-                .range(offset, offset + batch_size - 1)
-                .execute()
-            )
+            result = supabase.table("AdvancedBattingStats").select(
+                "Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per"
+            ).range(offset, offset + batch_size - 1).execute()
+            
             data = result.data
             if not data:
                 break
@@ -317,45 +293,47 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             print("No records found to rank.")
             return
 
-        # Convert to DataFrame
-        df = pd.DataFrame(all_records)
-
-        # Only consider numeric columns for ranking
+        df = pd.DataFrame(all_records).dropna(subset=["Year"])
         rank_columns = ["avg_exit_velo", "k_per", "bb_per", "la_sweet_spot_per", "hard_hit_per"]
-        df = df.dropna(subset=["Year"])  # Ensure Year is valid
 
-        if df.empty:
-            print("No valid records found to rank.")
-            return
+        # Corrected ranking function
+        def scale_to_1_99(series):
+            """
+            Scale a pandas Series to 1-99 based on min and max of the series.
+            """
+            series = series.copy()
+            mask = series.notna()
+            if mask.sum() == 0:
+                return pd.Series([None] * len(series), index=series.index)
+            
+            min_val = series[mask].min()
+            max_val = series[mask].max()
+            
+            if min_val == max_val:
+                # All values equal → assign 99
+                scaled = pd.Series([99.0] * mask.sum(), index=series[mask].index)
+            else:
+                scaled = 1 + (series[mask] - min_val) / (max_val - min_val) * 98
+            
+            result = pd.Series([None] * len(series), index=series.index)
+            result[mask] = scaled.round(3)
+            return result
 
-        print("Computing percentile ranks per year...")
 
-        # For each year, compute percentile ranks for each metric
+        print("Computing scaled percentile ranks per year...")
+
         ranked_dfs = []
         for year, group in df.groupby("Year"):
             temp = group.copy()
             for col in rank_columns:
-                # Skip if column has no non-null values
-                if temp[col].notnull().sum() == 0:
-                    temp[f"{col}_rank"] = None
-                    continue
-
-                # Determine ascending direction:
-                # For k_per (lower is better) → ascending=True
-                # For others (higher is better) → ascending=False
                 ascending = True if col == "k_per" else False
-
-                temp[f"{col}_rank"] = (
-                    temp[col].rank(method="max", ascending=ascending, pct=True) * 100
-                ).round(3)
+                temp[f"{col}_rank"] = scale_to_1_99(temp[col])
             ranked_dfs.append(temp)
 
-        # Combine back into one DataFrame
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
+        print("Computed all scaled percentile ranks by year.")
 
-        print("Computed all percentile ranks by year.")
-
-        # Prepare data for batch updates
+        # Prepare data for Supabase
         update_cols = [
             "Batter",
             "BatterTeam",
@@ -368,36 +346,30 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         ]
         update_data = ranked_df[update_cols].to_dict(orient="records")
 
-        # Push updates back to Supabase
-        print("Uploading percentile rank updates to Supabase...")
+        # Sanitize NaN / inf values
+        for record in update_data:
+            for key, value in record.items():
+                if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+                    record[key] = None
 
+        # Upload ranks in batches
+        print("Uploading scaled percentile rank updates to Supabase...")
         total_updated = 0
         for i in range(0, len(update_data), batch_size):
             batch = update_data[i : i + batch_size]
-
-            # Sanitize NaN / inf values
-            for record in batch:
-                for key, value in record.items():
-                    if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
-                        record[key] = None
-
             try:
-                result = (
-                    supabase.table("AdvancedBattingStats")
-                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
-                    .execute()
-                )
+                supabase.table("AdvancedBattingStats").upsert(
+                    batch, on_conflict="Batter,BatterTeam,Year"
+                ).execute()
                 total_updated += len(batch)
                 print(f"Updated rank batch {i//batch_size + 1}: {len(batch)} records")
             except Exception as update_err:
                 print(f"Error updating batch {i//batch_size + 1}: {update_err}")
                 if batch:
-                    print(f"Sample record from failed batch: {batch[0]}")
+                    print(f"Sample record: {batch[0]}")
                 continue
 
-        print(f"Successfully updated percentile ranks for {total_updated} records across all years.")
-
-
+        print(f"Successfully updated scaled percentile ranks for {total_updated} records across all years.")
 
     except Exception as e:
         print(f"Supabase error: {e}")
