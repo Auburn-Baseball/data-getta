@@ -290,9 +290,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         print(f"Total 2025 batters in database: {total_batters}")
 
         # ================================================
-        # NEW SECTION: Compute and update avg_exit_velo_rank (per year)
+        # NEW SECTION: Compute and update percentile ranks (per year)
         # ================================================
-        print("Fetching all batter records to compute avg_exit_velo_rank...")
+        print("Fetching all batter records to compute percentile ranks...")
 
         all_records = []
         batch_size = 1000
@@ -302,7 +302,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         while True:
             result = (
                 supabase.table("AdvancedBattingStats")
-                .select("Batter,BatterTeam,Year,avg_exit_velo")
+                .select("Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per")
                 .range(offset, offset + batch_size - 1)
                 .execute()
             )
@@ -320,33 +320,67 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         # Convert to DataFrame
         df = pd.DataFrame(all_records)
 
-        # Filter out null avg_exit_velo
-        df = df[df["avg_exit_velo"].notnull()].copy()
+        # Only consider numeric columns for ranking
+        rank_columns = ["avg_exit_velo", "k_per", "bb_per", "la_sweet_spot_per", "hard_hit_per"]
+        df = df.dropna(subset=["Year"])  # Ensure Year is valid
 
         if df.empty:
-            print("No valid avg_exit_velo values found to rank.")
+            print("No valid records found to rank.")
             return
 
-        print("Computing avg_exit_velo_rank per year...")
+        print("Computing percentile ranks per year...")
 
-        # Compute rank per year (CUME_DIST per year)
-        df["avg_exit_velo_rank"] = (
-            df.groupby("Year")["avg_exit_velo"]
-            .rank(method="max", ascending=False, pct=True) * 100
-        )
-        df["avg_exit_velo_rank"] = df["avg_exit_velo_rank"].round(3)
+        # For each year, compute percentile ranks for each metric
+        ranked_dfs = []
+        for year, group in df.groupby("Year"):
+            temp = group.copy()
+            for col in rank_columns:
+                # Skip if column has no non-null values
+                if temp[col].notnull().sum() == 0:
+                    temp[f"{col}_rank"] = None
+                    continue
 
-        print("Computed avg_exit_velo_rank for all batters by year.")
+                # Determine ascending direction:
+                # For k_per (lower is better) → ascending=True
+                # For others (higher is better) → ascending=False
+                ascending = True if col == "k_per" else False
+
+                temp[f"{col}_rank"] = (
+                    temp[col].rank(method="max", ascending=ascending, pct=True) * 100
+                ).round(3)
+            ranked_dfs.append(temp)
+
+        # Combine back into one DataFrame
+        ranked_df = pd.concat(ranked_dfs, ignore_index=True)
+
+        print("Computed all percentile ranks by year.")
 
         # Prepare data for batch updates
-        update_data = df[["Batter", "BatterTeam", "Year", "avg_exit_velo_rank"]].to_dict(orient="records")
+        update_cols = [
+            "Batter",
+            "BatterTeam",
+            "Year",
+            "avg_exit_velo_rank",
+            "k_per_rank",
+            "bb_per_rank",
+            "la_sweet_spot_per_rank",
+            "hard_hit_per_rank",
+        ]
+        update_data = ranked_df[update_cols].to_dict(orient="records")
 
         # Push updates back to Supabase
-        print("Uploading avg_exit_velo_rank updates to Supabase...")
+        print("Uploading percentile rank updates to Supabase...")
 
         total_updated = 0
         for i in range(0, len(update_data), batch_size):
             batch = update_data[i : i + batch_size]
+
+            # Sanitize NaN / inf values
+            for record in batch:
+                for key, value in record.items():
+                    if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+                        record[key] = None
+
             try:
                 result = (
                     supabase.table("AdvancedBattingStats")
@@ -361,7 +395,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                     print(f"Sample record from failed batch: {batch[0]}")
                 continue
 
-        print(f"Successfully updated avg_exit_velo_rank for {total_updated} records across all years.")
+        print(f"Successfully updated percentile ranks for {total_updated} records across all years.")
+
+
 
     except Exception as e:
         print(f"Supabase error: {e}")
