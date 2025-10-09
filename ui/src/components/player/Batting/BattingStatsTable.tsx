@@ -209,63 +209,6 @@ export default function BattingStatsTable({
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Advanced Batting Stats Table */}
-      <Divider textAlign="center" sx={{ mt: 4, mb: 2 }}>
-        Advanced Batter Stats
-      </Divider>
-
-      <TableContainer>
-        <Table sx={{ minWidth: 400 }} size="small">
-          <TableHead>
-            <TableRow>
-              {['EV', 'K %', 'BB %'].map((header) => (
-                <TableCell
-                  key={header}
-                  sx={{ fontWeight: 'bold', textAlign: 'center', width: 80 }}
-                >
-                  <Tooltip title={header} arrow>
-                    <span>{header}</span>
-                  </Tooltip>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center', padding: 2 }}>
-                  <CircularProgress size={24} />
-                </TableCell>
-              </TableRow>
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center', color: 'error.main' }}>
-                  {error}
-                </TableCell>
-              </TableRow>
-            ) : advancedStats.length > 0 ? (
-              <TableRow>
-                <TableCell sx={{ textAlign: 'center' }}>
-                  {advancedStats[0].avg_exit_velo?.toFixed(1) ?? '-'}
-                </TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>
-                  {advancedStats[0].k_per?.toFixed(1) ?? '-'}
-                </TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>
-                  {advancedStats[0].bb_per?.toFixed(1) ?? '-'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center' }}>
-                  No Data Available
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
     </Paper>
   );
 }

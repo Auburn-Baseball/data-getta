@@ -15,6 +15,8 @@ export interface AdvancedBattingStats {
   avg_exit_velo: number | null;
   k_per: number | null;
   bb_per: number | null;
+  la_sweet_spot_per?: number | null;
+  hard_hit_per?: number | null;
   Batter: string;
   BatterTeam: string;
   Year: number;
@@ -86,18 +88,28 @@ export default function AdvancedBattingStatsTable({
                   <span>BB %</span>
                 </Tooltip>
               </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                <Tooltip title="LA Sweet Spot % (Launch Angle 8-32°)" arrow placement="top">
+                  <span>LA Sweet Spot %</span>
+                </Tooltip>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                <Tooltip title="Hard Hit % (Exit Velo ≥ 95 mph)" arrow placement="top">
+                  <span>Hard Hit %</span>
+                </Tooltip>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center', padding: 2 }}>
+                <TableCell colSpan={5} sx={{ textAlign: 'center', padding: 2 }}>
                   <CircularProgress size={24} />
                 </TableCell>
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center', color: 'error.main' }}>
+                <TableCell colSpan={5} sx={{ textAlign: 'center', color: 'error.main' }}>
                   {error}
                 </TableCell>
               </TableRow>
@@ -106,10 +118,12 @@ export default function AdvancedBattingStatsTable({
                 <TableCell sx={{ textAlign: 'center' }}>{stats[0].avg_exit_velo ?? '-'}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{stats[0].k_per !== null ? `${(stats[0].k_per * 100).toFixed(1)}%` : '-'}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{stats[0].bb_per !== null ? `${(stats[0].bb_per * 100).toFixed(1)}%` : '-'}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{typeof stats[0].la_sweet_spot_per === 'number' ? `${(stats[0].la_sweet_spot_per * 100).toFixed(1)}%` : '-'}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{typeof stats[0].hard_hit_per === 'number' ? `${(stats[0].hard_hit_per * 100).toFixed(1)}%` : '-'}</TableCell>
               </TableRow>
             ) : (
               <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: 'center' }}>
+                <TableCell colSpan={5} sx={{ textAlign: 'center' }}>
                   No Data Available
                 </TableCell>
               </TableRow>
