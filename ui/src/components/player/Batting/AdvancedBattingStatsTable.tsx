@@ -1,136 +1,151 @@
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import Divider from '@mui/material/Divider';
-import Tooltip from '@mui/material/Tooltip';
-import CircularProgress from '@mui/material/CircularProgress';
-import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase/client';
+import React, { useEffect, useState } from "react";
+import StatBar from "@/components/player/StatBar";
+import { useParams } from "react-router";
+import { supabase } from "@/utils/supabase/client";
 
-export interface AdvancedBattingStats {
-  avg_exit_velo: number | null;
-  k_per: number | null;
-  bb_per: number | null;
-  la_sweet_spot_per?: number | null;
-  hard_hit_per?: number | null;
-  Batter: string;
-  BatterTeam: string;
-  Year: number;
-}
+const boxStyle: React.CSSProperties = {
+  flex: 1,
+  minHeight: "400px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  margin: "0 12px",
+};
 
-export default function AdvancedBattingStatsTable({
-  teamName,
-  playerName,
-  year,
-}: {
-  teamName: string | undefined;
-  playerName: string | undefined;
-  year: string | number | undefined;
-}) {
-  const [stats, setStats] = useState<AdvancedBattingStats[]>([]);
+const advancedStatKeys = [
+  { key: "avg_exit_velo", label: "EV" },
+  { key: "k_per", label: "K%" },
+  { key: "bb_per", label: "BB%" },
+  { key: "la_sweet_spot_per", label: "LA Sweet Spot %" },
+  { key: "hard_hit_per", label: "Hard Hit %" },
+];
+
+const PercentilesTab: React.FC = () => {
+  const { trackmanAbbreviation, playerName, year } = useParams<{
+    trackmanAbbreviation: string;
+    playerName: string;
+    year: string;
+  }>();
+
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const safeYear = typeof year === 'string' ? parseInt(year) : year || 2025;
-  const formattedPlayerName = playerName?.replace('_', ', ');
-
   useEffect(() => {
-    async function fetchAdvancedStats() {
-      if (!formattedPlayerName || !teamName) {
-        setLoading(false);
-        return;
-      }
+    async function fetchStats() {
+      setLoading(true);
+      setError(null);
+
       try {
-        setLoading(true);
-        setError(null);
-        const { data, error } = await supabase
-          .from('AdvancedBattingStats')
-          .select('*')
-          .eq('Batter', formattedPlayerName)
-          .eq('BatterTeam', teamName)
-          .eq('Year', safeYear);
+        const safeYear = year || "2025";
+        const formattedPlayerName = playerName
+          ? decodeURIComponent(playerName).replace("_", ", ")
+          : "";
+        const decodedTeamName = trackmanAbbreviation
+          ? decodeURIComponent(trackmanAbbreviation)
+          : "";
+
+        console.log("Fetching stats for:", formattedPlayerName, decodedTeamName, safeYear);
+
+        const { data: allBatters, error } = await supabase
+          .from("AdvancedBattingStats")
+          .select("*")
+          .eq("BatterTeam", decodedTeamName)
+          .eq("Year", safeYear);
+
         if (error) throw error;
-        setStats(data || []);
-      } catch (err) {
-        setError('Failed to load advanced batting stats');
+
+        const playerStats = allBatters.find(
+          (b: any) => b.Batter === formattedPlayerName
+        );
+
+        console.log("Player stats fetched:", playerStats);
+
+        setStats(playerStats);
+      } catch (err: any) {
+        console.error(err);
+        setError("Failed to load player stats");
       } finally {
         setLoading(false);
       }
     }
-    fetchAdvancedStats();
-  }, [formattedPlayerName, teamName, safeYear]);
+
+    fetchStats();
+  }, [trackmanAbbreviation, playerName, year]);
+
+  // Compute color based on rank
+  const getRankColor = (rank: number): string => {
+    const r = Math.max(0, Math.min(rank, 100));
+
+    const blueRGB = { r: 0, g: 123, b: 255 };
+    const greyRGB = { r: 153, g: 153, b: 153 };
+
+    const t = Math.abs(r - 50) / 50;
+    const rVal = Math.round(greyRGB.r + t * (blueRGB.r - greyRGB.r));
+    const gVal = Math.round(greyRGB.g + t * (blueRGB.g - greyRGB.g));
+    const bVal = Math.round(greyRGB.b + t * (blueRGB.b - greyRGB.b));
+
+    return `rgb(${rVal},${gVal},${bVal})`;
+  };
 
   return (
-    <Paper elevation={3} sx={{ paddingX: 2, paddingY: 2, width: '100%', overflowX: 'auto' }}>
-      <Divider textAlign="center" sx={{ mb: 2 }}>
-        Advanced Batting Stats
-      </Divider>
-      <TableContainer>
-        <Table sx={{ minWidth: 400 }} size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                <Tooltip title="Average Exit Velocity" arrow placement="top">
-                  <span>EV</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                <Tooltip title="Strikeout Percentage" arrow placement="top">
-                  <span>K %</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                <Tooltip title="Walk Percentage" arrow placement="top">
-                  <span>BB %</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                <Tooltip title="LA Sweet Spot % (Launch Angle 8-32°)" arrow placement="top">
-                  <span>LA Sweet Spot %</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                <Tooltip title="Hard Hit % (Exit Velo ≥ 95 mph)" arrow placement="top">
-                  <span>Hard Hit %</span>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} sx={{ textAlign: 'center', padding: 2 }}>
-                  <CircularProgress size={24} />
-                </TableCell>
-              </TableRow>
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={5} sx={{ textAlign: 'center', color: 'error.main' }}>
-                  {error}
-                </TableCell>
-              </TableRow>
-            ) : stats.length > 0 ? (
-              <TableRow>
-                <TableCell sx={{ textAlign: 'center' }}>{stats[0].avg_exit_velo ?? '-'}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{stats[0].k_per !== null ? `${(stats[0].k_per * 100).toFixed(1)}%` : '-'}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{stats[0].bb_per !== null ? `${(stats[0].bb_per * 100).toFixed(1)}%` : '-'}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{typeof stats[0].la_sweet_spot_per === 'number' ? `${(stats[0].la_sweet_spot_per * 100).toFixed(1)}%` : '-'}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{typeof stats[0].hard_hit_per === 'number' ? `${(stats[0].hard_hit_per * 100).toFixed(1)}%` : '-'}</TableCell>
-              </TableRow>
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} sx={{ textAlign: 'center' }}>
-                  No Data Available
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Paper>
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        maxWidth: 1200,
+        margin: "40px auto",
+        gap: 24,
+      }}
+    >
+      <div style={boxStyle}></div>
+      <div style={boxStyle}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
+          <h2 style={{ textAlign: "center", marginBottom: 24 }}>
+            Advanced Stats
+          </h2>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 32 }}>Loading...</div>
+          ) : error ? (
+            <div
+              style={{ color: "#d32f2f", textAlign: "center", padding: 32 }}
+            >
+              {error}
+            </div>
+          ) : stats ? (
+            <div>
+              {advancedStatKeys.map(({ key, label }) => {
+                const rankKey = `${key}_rank`;
+                const rank =
+                  typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
+
+                return (
+                  <StatBar
+                    key={key}
+                    statName={label}
+                    percentile={Math.round(rank)}
+                    color={getRankColor(Math.round(rank))}
+                    statValue={
+                      typeof stats[key] === "number"
+                        ? key.endsWith("per") || key === "k_per" || key === "bb_per"
+                          ? `${(stats[key] * 100).toFixed(1)}%`
+                          : stats[key]
+                        : "-"
+                    }
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: 32 }}>
+              No Data Available
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={boxStyle}></div>
+    </div>
   );
-}
+};
+
+export default PercentilesTab;
