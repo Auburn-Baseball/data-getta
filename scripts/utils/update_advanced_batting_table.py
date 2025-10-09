@@ -319,15 +319,17 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             result[mask] = scaled.round(3)
             return result
 
-
         print("Computing scaled percentile ranks per year...")
 
         ranked_dfs = []
         for year, group in df.groupby("Year"):
             temp = group.copy()
-            for col in rank_columns:
-                ascending = True if col == "k_per" else False
-                temp[f"{col}_rank"] = scale_to_1_99(temp[col])
+            temp["k_per_rank"] = 100 - scale_to_1_99(temp["k_per"])
+            temp["bb_per_rank"] = scale_to_1_99(temp["bb_per"])
+            temp["la_sweet_spot_per_rank"] = scale_to_1_99(temp["la_sweet_spot_per"])
+            temp["hard_hit_per_rank"] = scale_to_1_99(temp["hard_hit_per"])
+            temp["avg_exit_velo_rank"] = scale_to_1_99(temp["avg_exit_velo"])
+
             ranked_dfs.append(temp)
 
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
