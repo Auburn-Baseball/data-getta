@@ -96,6 +96,22 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna())
             ].shape[0]
+            # Calculate LA Sweet Spot (launch angle between 8 and 32 degrees)
+            sweet_spot_balls = group[
+                (group["PitchCall"] == "InPlay") &
+                (group["ExitSpeed"].notna()) &
+                (group["Angle"].notna()) &
+                (group["Angle"] >= 8) & (group["Angle"] <= 32)
+            ].shape[0]
+            la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
+
+            # Calculate hard hit percentage (exit velocity >= 95 mph)
+            hard_hit_balls = group[
+                (group["PitchCall"] == "InPlay") &
+                (group["ExitSpeed"].notna()) &
+                (group["ExitSpeed"] >= 95)
+            ].shape[0]
+            hard_hit_per = (hard_hit_balls / batted_balls) if batted_balls > 0 else None
 
             # Calculate total exit velocity for average
             total_exit_velo = group[
@@ -130,6 +146,8 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "avg_exit_velo": round(avg_exit_velo, 1) if avg_exit_velo is not None else None,
                 "k_per": round(k_percentage, 3) if k_percentage is not None else None,
                 "bb_per": round(bb_percentage, 3) if bb_percentage is not None else None,
+                "la_sweet_spot_per": round(la_sweet_spot_per, 3) if la_sweet_spot_per is not None else None,
+                "hard_hit_per": round(hard_hit_per, 3) if hard_hit_per is not None else None,
             }
 
             batters_dict[key] = batter_stats
@@ -190,6 +208,16 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     new_walks = (new_stats.get("bb_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_bb_per = (existing_walks + new_walks) / combined_plate_app if combined_plate_app > 0 else None
     
+    # Combine LA Sweet Spot %
+    existing_sweet_spot = (existing_stats.get("la_sweet_spot_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
+    new_sweet_spot = (new_stats.get("la_sweet_spot_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
+    combined_sweet_spot_per = (existing_sweet_spot + new_sweet_spot) / combined_batted_balls if combined_batted_balls > 0 else None
+    
+    # Combine Hard Hit %
+    existing_hard_hit = (existing_stats.get("hard_hit_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
+    new_hard_hit = (new_stats.get("hard_hit_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
+    combined_hard_hit_per = (existing_hard_hit + new_hard_hit) / combined_batted_balls if combined_batted_balls > 0 else None
+
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
@@ -199,6 +227,8 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "avg_exit_velo": round(combined_avg_exit_velo, 1) if combined_avg_exit_velo is not None else None,
         "k_per": round(combined_k_per, 3) if combined_k_per is not None else None,
         "bb_per": round(combined_bb_per, 3) if combined_bb_per is not None else None,
+        "la_sweet_spot_per": round(combined_sweet_spot_per, 3) if combined_sweet_spot_per is not None else None,
+        "hard_hit_per": round(combined_hard_hit_per, 3) if combined_hard_hit_per is not None else None,
     }
 
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
