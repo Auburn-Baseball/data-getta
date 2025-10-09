@@ -24,6 +24,10 @@ from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
                    get_players_from_buffer, upload_players_to_supabase )
 
+# Import advanced batting stats
+from utils.update_advanced_batting_table import ( get_advanced_batting_stats_from_buffer, 
+                                                 upload_advanced_batting_to_supabase )
+
 from supabase import create_client, Client
 
 # Setup environment
@@ -86,7 +90,8 @@ def process_local_csv_file(file_path: Path):
             'batters': {},
             'pitchers': {},
             'pitches': {},
-            'players': {}
+            'players': {},
+            'advanced_batting': {}
         }
 
         stats_summary = {}
@@ -142,6 +147,18 @@ def process_local_csv_file(file_path: Path):
             print(f"    ERROR processing player stats: {e}")
             stats_summary['players'] = 0
 
+        # Process Advanced Batting Stats
+        buffer.seek(0)
+        try:
+            print("  - Processing advanced batting stats...")
+            advanced_batting_stats = get_advanced_batting_stats_from_buffer(buffer, filename)
+            all_stats['advanced_batting'].update(advanced_batting_stats)
+            stats_summary['advanced_batting'] = len(advanced_batting_stats)
+            print(f"    Found {len(advanced_batting_stats)} advanced batting records")
+        except Exception as e:
+            print(f"    ERROR processing advanced batting stats: {e}")
+            stats_summary['advanced_batting'] = 0
+
         # Upload to database
         print("\nUploading to database...")
         upload_success = upload_all_stats(all_stats)
@@ -181,6 +198,10 @@ def upload_all_stats(all_stats):
         if all_stats['players']:
             print(f"  - Uploading {len(all_stats['players'])} player records...")
             upload_players_to_supabase(all_stats['players'])
+
+        if all_stats['advanced_batting']:
+            print(f"  - Uploading {len(all_stats['advanced_batting'])} advanced batting records...")
+            upload_advanced_batting_to_supabase(all_stats['advanced_batting'])
 
     except Exception as e:
         print(f"ERROR during upload: {e}")
