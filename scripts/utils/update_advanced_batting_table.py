@@ -297,43 +297,50 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         rank_columns = ["avg_exit_velo", "k_per", "bb_per", "la_sweet_spot_per", "hard_hit_per"]
 
         # Corrected ranking function
-        def scale_to_1_99(series):
+        def rank_and_scale_to_1_99(series, ascending=False):
             """
-            Scale a pandas Series to 1-99 based on min and max of the series.
+            Rank the series with ties sharing the same rank, then apply min-max scaling (1-99).
+            ascending=False means higher values are better.
             """
             series = series.copy()
             mask = series.notna()
             if mask.sum() == 0:
                 return pd.Series([None] * len(series), index=series.index)
             
-            min_val = series[mask].min()
-            max_val = series[mask].max()
+            # Step 1: Rank with ties — same rank for equal values
+            ranks = series[mask].rank(method="min", ascending=ascending)
             
-            if min_val == max_val:
-                # All values equal → assign 99
+            # Step 2: Min-max scale ranks to 1–99
+            min_rank = ranks.min()
+            max_rank = ranks.max()
+            if min_rank == max_rank:
                 scaled = pd.Series([99.0] * mask.sum(), index=series[mask].index)
             else:
-                scaled = 1 + (series[mask] - min_val) / (max_val - min_val) * 98
+                scaled = 1 + (ranks - min_rank) / (max_rank - min_rank) * 98
             
             result = pd.Series([None] * len(series), index=series.index)
             result[mask] = scaled.round(3)
             return result
 
-        print("Computing scaled percentile ranks per year...")
+
+        print("Computing ranked and scaled percentile values per year...")
 
         ranked_dfs = []
         for year, group in df.groupby("Year"):
             temp = group.copy()
-            temp["k_per_rank"] = 100 - scale_to_1_99(temp["k_per"])
-            temp["bb_per_rank"] = scale_to_1_99(temp["bb_per"])
-            temp["la_sweet_spot_per_rank"] = scale_to_1_99(temp["la_sweet_spot_per"])
-            temp["hard_hit_per_rank"] = scale_to_1_99(temp["hard_hit_per"])
-            temp["avg_exit_velo_rank"] = scale_to_1_99(temp["avg_exit_velo"])
+
+            # Higher is better for most metrics, lower is better for k_per
+            temp["avg_exit_velo_rank"] = rank_and_scale_to_1_99(temp["avg_exit_velo"], ascending=True)
+            temp["k_per_rank"] = rank_and_scale_to_1_99(temp["k_per"], ascending=False)
+            temp["bb_per_rank"] = rank_and_scale_to_1_99(temp["bb_per"], ascending=True)
+            temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_99(temp["la_sweet_spot_per"], ascending=True)
+            temp["hard_hit_per_rank"] = rank_and_scale_to_1_99(temp["hard_hit_per"], ascending=True)
 
             ranked_dfs.append(temp)
 
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
-        print("Computed all scaled percentile ranks by year.")
+        print("Computed ranked and scaled percentile values by year.")
+
 
         # Prepare data for Supabase
         update_cols = [
