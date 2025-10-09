@@ -67,54 +67,9 @@ const columns: GridColDef[] = [
     width: 80,
   },
   {
-<<<<<<< HEAD
     field: 'total_strikeouts_pitcher',
     headerName: 'K',
     description: 'Total Strikeouts',
-=======
-    field: 'total_out_of_zone_pitches',
-    headerName: 'OoZ',
-    description: 'Out of Zone Percentage',
-    width: 80,
-    valueGetter: (value, row) => {
-      const pitches = row?.pitches;
-      if (value === null || value === undefined || !pitches) {
-        return '0%';
-      }
-      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
-    },
-  },
-  {
-    field: 'misses_in_zone',
-    headerName: 'MiZ',
-    description: 'Misses in Zone Percentage',
-    width: 80,
-    valueGetter: (value, row) => {
-      const pitches = row?.pitches;
-      if (value === null || value === undefined || !pitches) {
-        return '0%';
-      }
-      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
-    },
-  },
-  {
-    field: 'swings_in_zone',
-    headerName: 'SiZ',
-    description: 'Swings in Zone Percentage',
-    width: 80,
-    valueGetter: (value, row) => {
-      const pitches = row?.pitches;
-      if (value === null || value === undefined || !pitches) {
-        return '0%';
-      }
-      return `${Number(((Number(value) / Number(pitches)) * 100).toFixed(0))}%`;
-    },
-  },
-  {
-    field: 'total_num_chases',
-    headerName: 'Chases',
-    description: 'Total Number of Chases',
->>>>>>> upstream/main
     width: 80,
   },
   {
