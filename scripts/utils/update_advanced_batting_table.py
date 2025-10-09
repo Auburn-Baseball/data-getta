@@ -192,6 +192,34 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 except (ValueError, TypeError):
                     continue
 
+            # Calculate infield slices
+            infield_left_slice = 0
+            infield_lc_slice = 0
+            infield_center_slice = 0
+            infield_rc_slice = 0
+            infield_right_slice = 0
+
+            for _, row in group.iterrows():
+                try:
+                    # Only consider balls with Distance <= 200
+                    distance = float(row["Distance"]) if pd.notna(row["Distance"]) else None
+                    bearing = float(row["Bearing"]) if pd.notna(row["Bearing"]) else None
+
+                    if distance is not None and distance <= 200 and bearing is not None:
+                        # Assign to slices
+                        if 0 <= bearing < 18:
+                            infield_left_slice += 1
+                        elif 18 <= bearing < 36:
+                            infield_lc_slice += 1
+                        elif 36 <= bearing < 54:
+                            infield_center_slice += 1
+                        elif 54 <= bearing < 72:
+                            infield_rc_slice += 1
+                        elif 72 <= bearing <= 90:
+                            infield_right_slice += 1
+                except (ValueError, TypeError):
+                    continue
+
             # Calculate whiff %
             whiff_per = (
                 in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
@@ -219,6 +247,11 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "whiff_per": round(whiff_per, 3) if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": round(chase_per, 3) if chase_per is not None else None,
+                "infield_left_slice": infield_left_slice,
+                "infield_lc_slice": infield_lc_slice,
+                "infield_center_slice": infield_center_slice,
+                "infield_rc_slice": infield_rc_slice,
+                "infield_right_slice": infield_right_slice,
             }
 
             batters_dict[key] = batter_stats
@@ -321,6 +354,11 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "whiff_per": round(combined_whiff_per, 3) if combined_whiff_per is not None else None,
         "out_of_zone_pitches": combined_out_of_zone_pitches,
         "chase_per": round(combined_chase_per, 3) if combined_chase_per is not None else None,
+        "infield_left_slice": None,  # Placeholder for future use
+        "infield_lc_slice": None, # Placeholder for future use
+        "infield_center_slice": None, # Placeholder for future use
+        "infield_rc_slice": None, # Placeholder for future use
+        "infield_right_slice": None, # Placeholder for future use
     }
 
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
@@ -361,7 +399,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         print(f"Successfully processed {total_inserted} batter records")
 
         # ================================================
-        # Compute 1-99 scaled percentile ranks
+        # Compute 1-100 scaled percentile ranks
         # ================================================
         print("Fetching all batter records to compute scaled percentile ranks...")
 
