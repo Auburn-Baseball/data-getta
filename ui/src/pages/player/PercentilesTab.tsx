@@ -20,15 +20,7 @@ const advancedStatKeys = [
   { key: "hard_hit_per", label: "Hard Hit %" },
 ];
 
-// List of keys to invert
-const invertedKeys = [
-  "avg_exit_velo",
-  "k_per",
-  "bb_per",
-  "la_sweet_spot_per",
-  "hard_hit_per",
-];
-
+// Remove inversion; handle null values in display
 const PercentilesTab: React.FC = () => {
   const { trackmanAbbreviation, playerName, year } = useParams<{
     trackmanAbbreviation: string;
@@ -123,12 +115,15 @@ const PercentilesTab: React.FC = () => {
                 let rank =
                   typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
 
-                // Invert if the key is in the invertedKeys list
-                if (invertedKeys.includes(key)) {
-                  rank = 100 - rank;
-                }
-
                 rank = Math.round(rank);
+
+                // Display 0.0 for null values
+                const statValue =
+                  typeof stats[key] === "number"
+                    ? key.endsWith("per") || key === "k_per" || key === "bb_per"
+                      ? `${(stats[key] * 100).toFixed(1)}%`
+                      : stats[key].toFixed(1)
+                    : "0.0";
 
                 return (
                   <StatBar
@@ -136,15 +131,7 @@ const PercentilesTab: React.FC = () => {
                     statName={label}
                     percentile={rank}
                     color={getRankColor(rank)}
-                    statValue={
-                      typeof stats[key] === "number"
-                        ? key.endsWith("per") ||
-                          key === "k_per" ||
-                          key === "bb_per"
-                          ? `${(stats[key] * 100).toFixed(1)}%`
-                          : stats[key]
-                        : "-"
-                    }
+                    statValue={statValue}
                   />
                 );
               })}
