@@ -89,7 +89,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             "TaggedHitType",
         ]
         if not all(col in df.columns for col in required_columns):
-            print(f"Warning: Missing required columns in {file_path}")
+            print(f"Warning: Missing required columns in {filename}")
             return {}
 
         batters_dict = {}
@@ -311,7 +311,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         return batters_dict
 
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {filename}: {e}")
         return {}
 
 
