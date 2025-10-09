@@ -388,9 +388,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         df = pd.DataFrame(all_records).dropna(subset=["Year"])
 
         # Corrected ranking function
-        def rank_and_scale_to_1_99(series, ascending=False):
+        def rank_and_scale_to_1_100(series, ascending=False):
             """
-            Rank the series with ties sharing the same rank, then apply min-max scaling (1-99).
+            Rank the series with ties sharing the same rank, then apply min-max scaling (1–100).
             ascending=False means higher values are better.
             """
             series = series.copy()
@@ -401,17 +401,21 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             # Step 1: Rank with ties — same rank for equal values
             ranks = series[mask].rank(method="min", ascending=ascending)
             
-            # Step 2: Min-max scale ranks to 1–99
+            # Step 2: Min-max scale ranks to 1–100
             min_rank = ranks.min()
             max_rank = ranks.max()
             if min_rank == max_rank:
-                scaled = pd.Series([99.0] * mask.sum(), index=series[mask].index)
+                scaled = pd.Series([100.0] * mask.sum(), index=series[mask].index)
             else:
-                scaled = 1 + (ranks - min_rank) / (max_rank - min_rank) * 98
+                scaled = 1 + (ranks - min_rank) / (max_rank - min_rank) * 99
+            
+            # Step 3: Round down so only top rank gets 100
+            scaled = np.floor(scaled)
             
             result = pd.Series([None] * len(series), index=series.index)
-            result[mask] = scaled.round(3)
+            result[mask] = scaled
             return result
+
 
         print("\nComputing ranked and scaled percentile values per year...")
 
@@ -420,13 +424,13 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             temp = group.copy()
 
             # Higher is better for most metrics, lower is better for k_per
-            temp["avg_exit_velo_rank"] = rank_and_scale_to_1_99(temp["avg_exit_velo"], ascending=True)
-            temp["k_per_rank"] = rank_and_scale_to_1_99(temp["k_per"], ascending=False)
-            temp["bb_per_rank"] = rank_and_scale_to_1_99(temp["bb_per"], ascending=True)
-            temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_99(temp["la_sweet_spot_per"], ascending=True)
-            temp["hard_hit_per_rank"] = rank_and_scale_to_1_99(temp["hard_hit_per"], ascending=True)
-            temp["whiff_per_rank"] = rank_and_scale_to_1_99(temp["whiff_per"], ascending=False)
-            temp["chase_per_rank"] = rank_and_scale_to_1_99(temp["chase_per"], ascending=False)
+            temp["avg_exit_velo_rank"] = rank_and_scale_to_1_100(temp["avg_exit_velo"], ascending=True)
+            temp["k_per_rank"] = rank_and_scale_to_1_100(temp["k_per"], ascending=False)
+            temp["bb_per_rank"] = rank_and_scale_to_1_100(temp["bb_per"], ascending=True)
+            temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_100(temp["la_sweet_spot_per"], ascending=True)
+            temp["hard_hit_per_rank"] = rank_and_scale_to_1_100(temp["hard_hit_per"], ascending=True)
+            temp["whiff_per_rank"] = rank_and_scale_to_1_100(temp["whiff_per"], ascending=False)
+            temp["chase_per_rank"] = rank_and_scale_to_1_100(temp["chase_per"], ascending=False)
 
             ranked_dfs.append(temp)
 
