@@ -26,6 +26,12 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Strike zone constants
+MIN_PLATE_SIDE = -0.86
+MAX_PLATE_SIDE = 0.86
+MAX_PLATE_HEIGHT = 3.55
+MIN_PLATE_HEIGHT = 1.77
+
 # Custom encoder to handle numpy types
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -38,6 +44,18 @@ class NumpyEncoder(json.JSONEncoder):
         elif pd.isna(obj):
             return None
         return super(NumpyEncoder, self).default(obj)
+    
+def is_in_strike_zone(plate_loc_height, plate_loc_side):
+    """Check if pitch is in strike zone"""
+    try:
+        height = float(plate_loc_height)
+        side = float(plate_loc_side)
+        return (
+            MIN_PLATE_HEIGHT <= height <= MAX_PLATE_HEIGHT
+            and MIN_PLATE_SIDE <= side <= MAX_PLATE_SIDE
+        )
+    except (ValueError, TypeError):
+        return False
 
 
 def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
@@ -96,6 +114,7 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna())
             ].shape[0]
+
             # Calculate LA Sweet Spot (launch angle between 8 and 32 degrees)
             sweet_spot_balls = group[
                 (group["PitchCall"] == "InPlay") &
@@ -128,14 +147,26 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
-            # Calculate percentages
+            # Calculate K %
             k_percentage = (
                 strikeouts / plate_appearances if plate_appearances > 0 else None
             )
 
+            # Calculate BB %
             bb_percentage = (
                 walks / plate_appearances if plate_appearances > 0 else None
             )
+
+            # Calculate in-zone pitches
+            in_zone_pitches = group[
+                group.apply(
+                    lambda row: is_in_strike_zone(row.get("PlateLocHeight"), row.get("PlateLocSide")),
+                    axis=1,
+                )
+            ].shape[0]
+
+            # Calculate out-of-zone pitches
+            out_of_zone_pitches = group.shape[0] - in_zone_pitches
 
             batter_stats = {
                 "Batter": batter_name,
@@ -148,6 +179,10 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "bb_per": round(bb_percentage, 3) if bb_percentage is not None else None,
                 "la_sweet_spot_per": round(la_sweet_spot_per, 3) if la_sweet_spot_per is not None else None,
                 "hard_hit_per": round(hard_hit_per, 3) if hard_hit_per is not None else None,
+                "in_zone_pitches": in_zone_pitches,
+                "whiff_per": None,  # Placeholder for future calculation
+                "out_of_zone_pitches": out_of_zone_pitches,
+                "chase_per": None,  # Placeholder for future calculation
             }
 
             batters_dict[key] = batter_stats
@@ -199,11 +234,12 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         total_exit_velo = existing_total_exit_velo + new_total_exit_velo
         combined_avg_exit_velo = total_exit_velo / combined_batted_balls
     
-    # Calculate combined K% and BB%
+    # Combine K%
     existing_strikeouts = (existing_stats.get("k_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
     new_strikeouts = (new_stats.get("k_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_k_per = (existing_strikeouts + new_strikeouts) / combined_plate_app if combined_plate_app > 0 else None
     
+    # Combine BB%
     existing_walks = (existing_stats.get("bb_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
     new_walks = (new_stats.get("bb_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_bb_per = (existing_walks + new_walks) / combined_plate_app if combined_plate_app > 0 else None
@@ -218,6 +254,12 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     new_hard_hit = (new_stats.get("hard_hit_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
     combined_hard_hit_per = (existing_hard_hit + new_hard_hit) / combined_batted_balls if combined_batted_balls > 0 else None
 
+    # Combine in_zone_pitches
+    combined_in_zone_pitches = existing_stats.get("in_zone_pitches", 0) + new_stats.get("in_zone_pitches", 0)
+
+    # Combine out_of_zone_pitches
+    combined_out_of_zone_pitches = existing_stats.get("out_of_zone_pitches", 0) + new_stats.get("out_of_zone_pitches", 0)
+
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
@@ -229,6 +271,10 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "bb_per": round(combined_bb_per, 3) if combined_bb_per is not None else None,
         "la_sweet_spot_per": round(combined_sweet_spot_per, 3) if combined_sweet_spot_per is not None else None,
         "hard_hit_per": round(combined_hard_hit_per, 3) if combined_hard_hit_per is not None else None,
+        "in_zone_pitches": combined_in_zone_pitches,
+        "whiff_per": None,  # Placeholder for future calculation
+        "out_of_zone_pitches": combined_out_of_zone_pitches,
+        "chase_per": None,  # Placeholder for future calculation
     }
 
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
