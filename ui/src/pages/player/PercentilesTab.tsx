@@ -18,9 +18,10 @@ const advancedStatKeys = [
   { key: "bb_per", label: "BB%" },
   { key: "la_sweet_spot_per", label: "LA Sweet Spot %" },
   { key: "hard_hit_per", label: "Hard Hit %" },
+  { key: "whiff_per", label: "Whiff %" },
+  { key: "chase_per", label: "Chase %" },
 ];
 
-// Remove inversion; handle null values in display
 const PercentilesTab: React.FC = () => {
   const { trackmanAbbreviation, playerName, year } = useParams<{
     trackmanAbbreviation: string;
@@ -69,7 +70,6 @@ const PercentilesTab: React.FC = () => {
     fetchStats();
   }, [trackmanAbbreviation, playerName, year]);
 
-  // Helper to compute color based on rank
   const getRankColor = (rank: number): string => {
     const r = Math.max(0, Math.min(rank, 100));
 
@@ -117,7 +117,6 @@ const PercentilesTab: React.FC = () => {
 
                 rank = Math.round(rank);
 
-                // Display 0.0 for null values
                 const statValue =
                   typeof stats[key] === "number"
                     ? key.endsWith("per") || key === "k_per" || key === "bb_per"

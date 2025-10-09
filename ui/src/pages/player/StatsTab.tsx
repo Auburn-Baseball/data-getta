@@ -118,13 +118,6 @@ export default function StatsTab() {
                   year={safeYear}
                 />
               </div>
-              <div style={{ marginTop: 24 }}>
-                <AdvancedBattingStatsTable
-                  teamName={decodedTeamName}
-                  playerName={decodedPlayerName}
-                  year={safeYear}
-                />
-              </div>
             </>
           )}
           {hasPitcherData && (
