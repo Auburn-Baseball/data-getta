@@ -68,8 +68,6 @@ const PercentilesTab: React.FC = () => {
     const r = Math.max(0, Math.min(rank, 100));
 
     // Scale color: 0-50 blue → grey → 50-100 blue
-    // We'll interpolate RGB between blue (#007bff) and grey (#999999) linearly
-    // Use grey at 50, more blue towards edges
     const blueRGB = { r: 0, g: 123, b: 255 };
     const greyRGB = { r: 153, g: 153, b: 153 };
 
@@ -95,7 +93,15 @@ const PercentilesTab: React.FC = () => {
             <div>
               {advancedStatKeys.map(({ key, label }) => {
                 const rankKey = `${key}_rank`;
-                const rank = typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
+                let rank = typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
+
+                // Invert only avg_exit_velo_rank
+                if (key === "avg_exit_velo") {
+                  rank = 100 - rank;
+                }
+
+                // Round rank to 0 decimal places
+                rank = Math.round(rank);
 
                 return (
                   <StatBar
