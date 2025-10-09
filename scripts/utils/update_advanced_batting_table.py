@@ -289,6 +289,80 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         total_batters = count_result.count
         print(f"Total 2025 batters in database: {total_batters}")
 
+        # ================================================
+        # NEW SECTION: Compute and update avg_exit_velo_rank (per year)
+        # ================================================
+        print("Fetching all batter records to compute avg_exit_velo_rank...")
+
+        all_records = []
+        batch_size = 1000
+        offset = 0
+
+        # Fetch all records in batches
+        while True:
+            result = (
+                supabase.table("AdvancedBattingStats")
+                .select("Batter,BatterTeam,Year,avg_exit_velo")
+                .range(offset, offset + batch_size - 1)
+                .execute()
+            )
+            data = result.data
+            if not data:
+                break
+            all_records.extend(data)
+            offset += batch_size
+            print(f"Fetched {len(data)} records (total so far: {len(all_records)})")
+
+        if not all_records:
+            print("No records found to rank.")
+            return
+
+        # Convert to DataFrame
+        df = pd.DataFrame(all_records)
+
+        # Filter out null avg_exit_velo
+        df = df[df["avg_exit_velo"].notnull()].copy()
+
+        if df.empty:
+            print("No valid avg_exit_velo values found to rank.")
+            return
+
+        print("Computing avg_exit_velo_rank per year...")
+
+        # Compute rank per year (CUME_DIST per year)
+        df["avg_exit_velo_rank"] = (
+            df.groupby("Year")["avg_exit_velo"]
+            .rank(method="max", ascending=False, pct=True) * 100
+        )
+        df["avg_exit_velo_rank"] = df["avg_exit_velo_rank"].round(3)
+
+        print("Computed avg_exit_velo_rank for all batters by year.")
+
+        # Prepare data for batch updates
+        update_data = df[["Batter", "BatterTeam", "Year", "avg_exit_velo_rank"]].to_dict(orient="records")
+
+        # Push updates back to Supabase
+        print("Uploading avg_exit_velo_rank updates to Supabase...")
+
+        total_updated = 0
+        for i in range(0, len(update_data), batch_size):
+            batch = update_data[i : i + batch_size]
+            try:
+                result = (
+                    supabase.table("AdvancedBattingStats")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
+                    .execute()
+                )
+                total_updated += len(batch)
+                print(f"Updated rank batch {i//batch_size + 1}: {len(batch)} records")
+            except Exception as update_err:
+                print(f"Error updating batch {i//batch_size + 1}: {update_err}")
+                if batch:
+                    print(f"Sample record from failed batch: {batch[0]}")
+                continue
+
+        print(f"Successfully updated avg_exit_velo_rank for {total_updated} records across all years.")
+
     except Exception as e:
         print(f"Supabase error: {e}")
 
