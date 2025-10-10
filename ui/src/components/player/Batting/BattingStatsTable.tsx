@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { useNavigate, useParams } from 'react-router';
 
 export default function BattingStatsTable({
@@ -74,13 +75,24 @@ export default function BattingStatsTable({
           Year: safeYear,
         });
 
-        const { data, error } = await supabase
-          .from('BatterStats')
-          .select('*')
-          .eq('Batter', formattedPlayerName)
-          .eq('BatterTeam', teamName)
-          .eq('Year', safeYear)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('BatterStats', {
+            select: '*',
+            eq: {
+              Batter: formattedPlayerName,
+              BatterTeam: teamName,
+              Year: safeYear,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('BatterStats')
+              .select('*')
+              .eq('Batter', formattedPlayerName)
+              .eq('BatterTeam', teamName)
+              .eq('Year', safeYear)
+              .overrideTypes<BatterStatsTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
 

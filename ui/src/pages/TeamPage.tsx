@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import TeamInfo from '@/components/team/TeamInfo';
 import TableTabs from '@/components/team/TableTabs';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { TeamsTable } from '@/types/schemas';
 import PlayerPage from '@/pages/PlayerPage';
 
@@ -22,13 +23,24 @@ export default function TeamPage() {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
         console.log('Fetching team:', decodedTrackmanAbbreviation);
 
-        const { data, error } = await supabase
-          .from('Teams')
-          .select('TeamName, TrackmanAbbreviation, Conference')
-          .eq('TrackmanAbbreviation', decodedTrackmanAbbreviation)
-          .eq('Year', 2025) // change this to match the year passed into the page
-          .single()
-          .overrideTypes<TeamsTable, { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('Teams', {
+            select: ['TeamName', 'TrackmanAbbreviation', 'Conference'],
+            eq: {
+              TrackmanAbbreviation: decodedTrackmanAbbreviation,
+              Year: 2025,
+            },
+            single: true,
+          }),
+          query: () =>
+            supabase
+              .from('Teams')
+              .select('TeamName, TrackmanAbbreviation, Conference')
+              .eq('TrackmanAbbreviation', decodedTrackmanAbbreviation)
+              .eq('Year', 2025) // change this to match the year passed into the page
+              .single()
+              .overrideTypes<TeamsTable, { merge: false }>(),
+        });
 
         if (error) throw error;
         setTeam(data);

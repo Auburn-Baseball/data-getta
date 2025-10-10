@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import RosterTable from '@/components/team/RosterTable';
 import { PlayersTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
@@ -17,12 +18,20 @@ export default function RosterTab() {
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
         console.log(decodedTrackmanAbbreviation);
-        const { data, error } = await supabase
-          .from('Players')
-          .select('*')
-          .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
-          .order('Name', { ascending: true })
-          .overrideTypes<PlayersTable[], { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('Players', {
+            select: '*',
+            eq: { TeamTrackmanAbbreviation: decodedTrackmanAbbreviation },
+            order: [{ column: 'Name', ascending: true }],
+          }),
+          query: () =>
+            supabase
+              .from('Players')
+              .select('*')
+              .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
+              .order('Name', { ascending: true })
+              .overrideTypes<PlayersTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
         setPlayers(data || []);

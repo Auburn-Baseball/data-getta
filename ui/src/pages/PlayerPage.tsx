@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Outlet } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { PlayersTable } from '@/types/schemas';
 import Box from '@mui/material/Box';
 import ModelTabs from '@/components/player/ModelTabs';
@@ -39,13 +40,25 @@ export default function PlayerPage() {
         console.log(decodedPlayerName);
         setLoading(true);
 
-        const { data, error } = await supabase
-          .from('Players')
-          .select('*')
-          .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
-          .eq('Name', decodedPlayerName)
-          .eq('Year', 2025)
-          .maybeSingle();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('Players', {
+            select: '*',
+            eq: {
+              TeamTrackmanAbbreviation: decodedTrackmanAbbreviation,
+              Name: decodedPlayerName,
+              Year: 2025,
+            },
+            maybeSingle: true,
+          }),
+          query: () =>
+            supabase
+              .from('Players')
+              .select('*')
+              .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
+              .eq('Name', decodedPlayerName)
+              .eq('Year', 2025)
+              .maybeSingle(),
+        });
 
         if (error) throw error;
         console.log('Fetched player data:', data);

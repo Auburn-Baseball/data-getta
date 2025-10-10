@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { useNavigate, useParams } from 'react-router';
 
 export default function PitchingStatsTable({
@@ -74,13 +75,24 @@ export default function PitchingStatsTable({
           Year: safeYear,
         });
 
-        const { data, error } = await supabase
-          .from('PitcherStats')
-          .select('*')
-          .eq('Pitcher', formattedPlayerName)
-          .eq('PitcherTeam', teamName)
-          .eq('Year', safeYear)
-          .overrideTypes<PitcherStatsTable[], { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('PitcherStats', {
+            select: '*',
+            eq: {
+              Pitcher: formattedPlayerName,
+              PitcherTeam: teamName,
+              Year: safeYear,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('PitcherStats')
+              .select('*')
+              .eq('Pitcher', formattedPlayerName)
+              .eq('PitcherTeam', teamName)
+              .eq('Year', safeYear)
+              .overrideTypes<PitcherStatsTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
 

@@ -17,7 +17,7 @@ export interface PlayersTable {
 export interface BatterStatsTable {
   Batter: string;
   BatterTeam: string;
-  Year: number;
+  Date: string;
   hits: number | null;
   at_bats: number | null;
   strikes: number | null;

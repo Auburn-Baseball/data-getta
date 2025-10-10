@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import PitcherTable from '@/components/team/PitcherTable';
 import PitchSumsTable from '@/components/team/PitchSumsTable';
 import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
@@ -22,20 +23,36 @@ export default function PitchingTab() {
         console.log(decodedTrackmanAbbreviation);
 
         const [pitchersResponse, pitchesResponse] = await Promise.all([
-          supabase
-            .from('PitcherStats')
-            .select('*')
-            .eq('PitcherTeam', decodedTrackmanAbbreviation)
-            .eq('Year', 2025)
-            .order('total_innings_pitched', { ascending: false })
-            .overrideTypes<PitcherStatsTable[], { merge: false }>(),
-          supabase
-            .from('PitchCounts')
-            .select('*')
-            .eq('PitcherTeam', decodedTrackmanAbbreviation)
-            .eq('Year', 2025)
-            .order('total_pitches', { ascending: false })
-            .overrideTypes<PitchCountsTable[], { merge: false }>(),
+          cachedQuery({
+            key: createCacheKey('PitcherStats', {
+              select: '*',
+              eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
+              order: [{ column: 'total_innings_pitched', ascending: false }],
+            }),
+            query: () =>
+              supabase
+                .from('PitcherStats')
+                .select('*')
+                .eq('PitcherTeam', decodedTrackmanAbbreviation)
+                .eq('Year', 2025)
+                .order('total_innings_pitched', { ascending: false })
+                .overrideTypes<PitcherStatsTable[], { merge: false }>(),
+          }),
+          cachedQuery({
+            key: createCacheKey('PitchCounts', {
+              select: '*',
+              eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
+              order: [{ column: 'total_pitches', ascending: false }],
+            }),
+            query: () =>
+              supabase
+                .from('PitchCounts')
+                .select('*')
+                .eq('PitcherTeam', decodedTrackmanAbbreviation)
+                .eq('Year', 2025)
+                .order('total_pitches', { ascending: false })
+                .overrideTypes<PitchCountsTable[], { merge: false }>(),
+          }),
         ]);
 
         if (pitchersResponse.error) throw pitchersResponse.error;

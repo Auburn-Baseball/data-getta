@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import BatterTable from '@/components/team/BatterTable';
 import { BatterStatsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
@@ -17,11 +18,18 @@ export default function BattingTab() {
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
 
-        const { data, error } = await supabase
-          .from('BatterStats')
-          .select('*')
-          .eq('BatterTeam', decodedTrackmanAbbreviation)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('BatterStats', {
+            select: '*',
+            eq: { BatterTeam: decodedTrackmanAbbreviation },
+          }),
+          query: () =>
+            supabase
+              .from('BatterStats')
+              .select('*')
+              .eq('BatterTeam', decodedTrackmanAbbreviation)
+              .overrideTypes<BatterStatsTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
         setBatters(data || []);

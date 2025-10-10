@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import PitcherHeatMap from '@/components/player/HeatMap/PitcherHeatMap';
 import BatterHeatMap from '@/components/player/HeatMap/BatterHeatMap';
 import { useState, useEffect } from 'react';
@@ -36,21 +37,31 @@ export default function HeatMapTab() {
       try {
         setPitcherLoading(true);
         setError(null);
-        const { data, error } = await supabase
-          .from('PitcherPitchBins')
-          .select(
-            `
+        const pitcherSelect = `
             ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
             TotalPitchCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
             Count_L_FourSeam, Count_L_Sinker, Count_L_Slider, Count_L_Curveball, Count_L_Changeup, Count_L_Cutter, Count_L_Splitter, Count_L_Other,
             Count_R_FourSeam, Count_R_Sinker, Count_R_Slider, Count_R_Curveball, Count_R_Changeup, Count_R_Cutter, Count_R_Splitter, Count_R_Other
-          `,
-          )
-          .eq('Pitcher', decodedPlayerName)
-          .eq('Year', Number(year))
-          .eq('PitcherTeam', decodedTrackmanAbbreviation)
-          .overrideTypes<PitcherPitchBinsTable[], { merge: false }>();
+          `.trim();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('PitcherPitchBins', {
+            select: pitcherSelect,
+            eq: {
+              Pitcher: decodedPlayerName,
+              Year: Number(year),
+              PitcherTeam: decodedTrackmanAbbreviation,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('PitcherPitchBins')
+              .select(pitcherSelect)
+              .eq('Pitcher', decodedPlayerName)
+              .eq('Year', Number(year))
+              .eq('PitcherTeam', decodedTrackmanAbbreviation)
+              .overrideTypes<PitcherPitchBinsTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
         setPitcherBins(data);
@@ -79,21 +90,31 @@ export default function HeatMapTab() {
     async function fetchBatterBins() {
       try {
         setBatterLoading(true);
-        const { data, error } = await supabase
-          .from('BatterPitchBins')
-          .select(
-            `
+        const batterSelect = `
             ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
             TotalPitchCount, TotalSwingCount, TotalHitCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
             SwingCount_FourSeam, SwingCount_Sinker, SwingCount_Slider, SwingCount_Curveball, SwingCount_Changeup, SwingCount_Cutter, SwingCount_Splitter, SwingCount_Other,
             HitCount_FourSeam, HitCount_Sinker, HitCount_Slider, HitCount_Curveball, HitCount_Changeup, HitCount_Cutter, HitCount_Splitter, HitCount_Other
-          `,
-          )
-          .eq('Batter', decodedPlayerName)
-          .eq('Year', Number(year))
-          .eq('BatterTeam', decodedTrackmanAbbreviation)
-          .overrideTypes<BatterPitchBinsTable[], { merge: false }>();
+          `.trim();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('BatterPitchBins', {
+            select: batterSelect,
+            eq: {
+              Batter: decodedPlayerName,
+              Year: Number(year),
+              BatterTeam: decodedTrackmanAbbreviation,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('BatterPitchBins')
+              .select(batterSelect)
+              .eq('Batter', decodedPlayerName)
+              .eq('Year', Number(year))
+              .eq('BatterTeam', decodedTrackmanAbbreviation)
+              .overrideTypes<BatterPitchBinsTable[], { merge: false }>(),
+        });
 
         if (error) throw error;
         setBatterBins(data);

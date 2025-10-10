@@ -1,4 +1,5 @@
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { BatterStatsTable, PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import { Typography, Box } from '@mui/material';
 import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
@@ -33,33 +34,66 @@ export default function StatsTab() {
         setLoading(true);
         setError(null);
 
-        const { data: batterData, error: batterError } = await supabase
-          .from('BatterStats')
-          .select('*')
-          .eq('Batter', decodedPlayerName)
-          .eq('BatterTeam', decodedTeamName)
-          .eq('Year', safeYear)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
+        const { data: batterData, error: batterError } = await cachedQuery({
+          key: createCacheKey('BatterStats', {
+            select: '*',
+            eq: {
+              Batter: decodedPlayerName,
+              BatterTeam: decodedTeamName,
+              Year: safeYear,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('BatterStats')
+              .select('*')
+              .eq('Batter', decodedPlayerName)
+              .eq('BatterTeam', decodedTeamName)
+              .eq('Year', safeYear)
+              .overrideTypes<BatterStatsTable[], { merge: false }>(),
+        });
 
         if (batterError) throw batterError;
 
-        const { data: pitcherData, error: pitcherError } = await supabase
-          .from('PitcherStats')
-          .select('*')
-          .eq('Pitcher', decodedPlayerName)
-          .eq('PitcherTeam', decodedTeamName)
-          .eq('Year', safeYear)
-          .overrideTypes<PitcherStatsTable[], { merge: false }>();
+        const { data: pitcherData, error: pitcherError } = await cachedQuery({
+          key: createCacheKey('PitcherStats', {
+            select: '*',
+            eq: {
+              Pitcher: decodedPlayerName,
+              PitcherTeam: decodedTeamName,
+              Year: safeYear,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('PitcherStats')
+              .select('*')
+              .eq('Pitcher', decodedPlayerName)
+              .eq('PitcherTeam', decodedTeamName)
+              .eq('Year', safeYear)
+              .overrideTypes<PitcherStatsTable[], { merge: false }>(),
+        });
 
         if (pitcherError) throw pitcherError;
 
-        const { data: pitchData, error: pitchError } = await supabase
-          .from('PitchCounts')
-          .select('*')
-          .eq('Pitcher', decodedPlayerName)
-          .eq('PitcherTeam', decodedTeamName)
-          .eq('Year', safeYear)
-          .overrideTypes<PitchCountsTable[], { merge: false }>();
+        const { data: pitchData, error: pitchError } = await cachedQuery({
+          key: createCacheKey('PitchCounts', {
+            select: '*',
+            eq: {
+              Pitcher: decodedPlayerName,
+              PitcherTeam: decodedTeamName,
+              Year: safeYear,
+            },
+          }),
+          query: () =>
+            supabase
+              .from('PitchCounts')
+              .select('*')
+              .eq('Pitcher', decodedPlayerName)
+              .eq('PitcherTeam', decodedTeamName)
+              .eq('Year', safeYear)
+              .overrideTypes<PitchCountsTable[], { merge: false }>(),
+        });
 
         if (pitchError) throw pitchError;
 

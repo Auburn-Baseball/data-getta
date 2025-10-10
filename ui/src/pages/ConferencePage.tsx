@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ConferenceTable from '@/components/ConferenceTable';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { TeamsTable } from '@/types/schemas';
 import { ConferenceGroup, ConferenceGroupTeam } from '@/types/types';
 
@@ -17,13 +18,24 @@ export default function ConferencePage() {
       try {
         setLoading(true);
 
-        const { data, error } = await supabase
-          .from('Teams')
-          .select('*')
-          .eq('Year', 2025) // change this to match the year passed into the page
-          .order('Conference', { ascending: true })
-          .order('TeamName', { ascending: true })
-          .overrideTypes<TeamsTable[], { merge: false }>();
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('Teams', {
+            select: '*',
+            eq: { Year: 2025 },
+            order: [
+              { column: 'Conference', ascending: true },
+              { column: 'TeamName', ascending: true },
+            ],
+          }),
+          query: () =>
+            supabase
+              .from('Teams')
+              .select('*')
+              .eq('Year', 2025) // change this to match the year passed into the page
+              .order('Conference', { ascending: true })
+              .order('TeamName', { ascending: true })
+              .overrideTypes<TeamsTable[], { merge: false }>(),
+        });
 
         if (error) {
           throw error;

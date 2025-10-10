@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import Box from '@mui/material/Box';
 import TeamPercent, { Row } from '@/components/team/TeamPercent';
 
@@ -35,13 +36,26 @@ export default function TeamPerformancePage() {
       let all: any[] = [];
       let from = 0;
 
-      const first = await supabase
-        .from('team_performance')
-        .select('team,label,raw_value,percentile', { count: 'exact' })
-        .eq('year', Number(year))
-        .order('team', { ascending: true })
-        .order('label', { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+      const first = await cachedQuery({
+        key: createCacheKey('team_performance', {
+          select: ['team', 'label', 'raw_value', 'percentile'],
+          count: 'exact',
+          eq: { year: Number(year) },
+          order: [
+            { column: 'team', ascending: true },
+            { column: 'label', ascending: true },
+          ],
+          range: [from, from + PAGE_SIZE - 1],
+        }),
+        query: () =>
+          supabase
+            .from('team_performance')
+            .select('team,label,raw_value,percentile', { count: 'exact' })
+            .eq('year', Number(year))
+            .order('team', { ascending: true })
+            .order('label', { ascending: true })
+            .range(from, from + PAGE_SIZE - 1),
+      });
 
       if (first.error) {
         setErr(first.error.message);
@@ -54,13 +68,25 @@ export default function TeamPerformancePage() {
 
       from += PAGE_SIZE;
       while (!cancelled && from < total) {
-        const { data, error } = await supabase
-          .from('team_performance')
-          .select('team,label,raw_value,percentile')
-          .eq('year', Number(year))
-          .order('team', { ascending: true })
-          .order('label', { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
+        const { data, error } = await cachedQuery({
+          key: createCacheKey('team_performance', {
+            select: ['team', 'label', 'raw_value', 'percentile'],
+            eq: { year: Number(year) },
+            order: [
+              { column: 'team', ascending: true },
+              { column: 'label', ascending: true },
+            ],
+            range: [from, from + PAGE_SIZE - 1],
+          }),
+          query: () =>
+            supabase
+              .from('team_performance')
+              .select('team,label,raw_value,percentile')
+              .eq('year', Number(year))
+              .order('team', { ascending: true })
+              .order('label', { ascending: true })
+              .range(from, from + PAGE_SIZE - 1),
+        });
 
         if (error) {
           setErr(error.message);
