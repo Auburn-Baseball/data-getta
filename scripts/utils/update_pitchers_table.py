@@ -146,7 +146,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             decimal_innings = whole_innings + (partial_outs / 3.0)
 
             # Calculate k_per_9
-            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innnings), 1)
+            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1)
 
             # Calculate bb_per_9
             bb_per_9 = round(((total_walks_pitcher * 9.0) / decimal_innings), 1)
