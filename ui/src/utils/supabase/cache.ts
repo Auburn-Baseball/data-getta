@@ -132,14 +132,18 @@ export async function cachedQuery<TResult>({
   if (!forceFresh) {
     const fromMemory = loadFromMemory<TResult>(key);
     if (fromMemory !== null) {
+      console.debug('[cachedQuery] memory hit', { key });
       return fromMemory;
     }
 
     const fromStorage = loadFromStorage<TResult>(key);
     if (fromStorage !== null) {
+      console.debug('[cachedQuery] storage hit', { key });
       return fromStorage;
     }
   }
+
+  console.debug('[cachedQuery] executing', { key, forceFresh });
 
   const result = await query();
   if (shouldCacheResult(result)) {
@@ -148,6 +152,9 @@ export async function cachedQuery<TResult>({
       result: cloneResult(result),
     };
     persistResult(key, entry, persist);
+    console.debug('[cachedQuery] stored result', { key, persisted: persist });
+  } else {
+    console.debug('[cachedQuery] skipped cache store', { key });
   }
 
   return result;

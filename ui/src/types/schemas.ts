@@ -80,6 +80,12 @@ export interface PitchCountsTable {
   games: number | null;
 }
 
+export interface SeasonDatesTable {
+  year: number;
+  season_start: string | null;
+  season_end: string | null;
+}
+
 export interface PitcherPitchBinsTable {
   PitcherTeam: string;
   Year: number;

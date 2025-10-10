@@ -12,6 +12,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
+import { supabase } from '@/utils/supabase/client';
+import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
+import { SeasonDatesTable } from '@/types/schemas';
 
 type SeasonDateRange = {
   year: string;
@@ -24,14 +27,54 @@ export type DateRangeSelection = {
   endDate: string; // YYYY-MM-DD
 };
 
-async function fetchSeasonDateRanges(): Promise<SeasonDateRange[]> {
-  return [
-    { year: '2021', startDate: '2021-03-01', endDate: '2021-10-05' },
-    { year: '2022', startDate: '2022-03-02', endDate: '2022-10-06' },
-    { year: '2023', startDate: '2023-03-01', endDate: '2023-10-04' },
-    { year: '2024', startDate: '2024-03-04', endDate: '2024-10-02' },
-    { year: '2025', startDate: '2025-03-03', endDate: '2025-10-01' },
-  ];
+async function fetchSeasonDateRanges(): Promise<{
+  ranges: SeasonDateRange[];
+  errorMessage?: string;
+}> {
+  const descriptor = {
+    select: ['year', 'season_start', 'season_end'],
+    order: [{ column: 'year', ascending: false }],
+  } as const;
+
+  const { data, error } = await cachedQuery<SeasonDatesTable[]>({
+    key: createCacheKey('SeasonDates', descriptor),
+    forceFresh: true,
+    query: () => {
+      console.debug('[SeasonDateRangeSelect] fetching SeasonDates from Supabase', {
+        descriptor,
+      });
+
+      return supabase
+        .from('SeasonDates')
+        .select('year, season_start, season_end')
+        .order('year', { ascending: false })
+        .returns<SeasonDatesTable[]>();
+    },
+  });
+
+  if (error) {
+    const message = error.message ?? 'Unknown error loading season dates';
+    console.error('Failed to load season date ranges:', error);
+    return { ranges: [], errorMessage: message };
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+
+  const ranges = rows
+    .filter((row) => row.season_start && row.season_end)
+    .map((row) => ({
+      year: String(row.year),
+      startDate: row.season_start as string,
+      endDate: row.season_end as string,
+    }));
+
+  console.debug('SeasonDates query result', { rowCount: rows.length, ranges });
+
+  if (ranges.length === 0) {
+    return { ranges: [], errorMessage: 'No season dates available.' };
+  }
+
+  return { ranges };
 }
 
 type SeasonDateRangeSelectProps = {
@@ -54,27 +97,73 @@ export default function SeasonDateRangeSelect({
     end: null,
   });
   const [isCustomDialogOpen, setCustomDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadSeasonRanges = async () => {
-      const ranges = await fetchSeasonDateRanges();
+      setIsLoading(true);
+      setLoadError(null);
+
+      const { ranges, errorMessage } = await fetchSeasonDateRanges();
       if (!isMounted) return;
+
+      if (ranges.length === 0) {
+        setSeasonOptions([]);
+        setSelectedSeason('');
+        setAppliedSelection('');
+        setActiveRange(null);
+        setCustomRange({ start: null, end: null });
+        setIsLoading(false);
+        if (errorMessage) {
+          setLoadError(errorMessage);
+        }
+        return;
+      }
+
       const sortedRanges = [...ranges].sort((a, b) => Number(b.year) - Number(a.year));
       setSeasonOptions(sortedRanges);
-      if (sortedRanges.length > 0) {
-        const initial = sortedRanges[0];
-        const initialStart = dayjs(initial.startDate);
-        const initialEnd = dayjs(initial.endDate);
-        setSelectedSeason(initial.year);
-        setAppliedSelection(initial.year);
-        setActiveRange({ start: initialStart, end: initialEnd });
-        setCustomRange({ start: initialStart, end: initialEnd });
-        onDateRangeChange({
-          startDate: initialStart.format('YYYY-MM-DD'),
-          endDate: initialEnd.format('YYYY-MM-DD'),
-        });
+
+      const hasInitialSelection = Boolean(startDate && endDate);
+
+      if (hasInitialSelection) {
+        const nextStart = dayjs(startDate as string);
+        const nextEnd = dayjs(endDate as string);
+        const matchedSeason = sortedRanges.find(
+          (option) => option.startDate === startDate && option.endDate === endDate,
+        );
+
+        if (matchedSeason) {
+          setSelectedSeason(matchedSeason.year);
+          setAppliedSelection(matchedSeason.year);
+        } else {
+          setSelectedSeason('custom');
+          setAppliedSelection('custom');
+        }
+
+        setActiveRange({ start: nextStart, end: nextEnd });
+        setCustomRange({ start: nextStart, end: nextEnd });
+        setIsLoading(false);
+        return;
+      }
+
+      const initial = sortedRanges[0];
+      const initialStart = dayjs(initial.startDate);
+      const initialEnd = dayjs(initial.endDate);
+      setSelectedSeason(initial.year);
+      setAppliedSelection(initial.year);
+      setActiveRange({ start: initialStart, end: initialEnd });
+      setCustomRange({ start: initialStart, end: initialEnd });
+      onDateRangeChange({
+        startDate: initial.startDate,
+        endDate: initial.endDate,
+      });
+
+      setIsLoading(false);
+      if (errorMessage) {
+        setLoadError(errorMessage);
       }
     };
 
@@ -83,7 +172,7 @@ export default function SeasonDateRangeSelect({
     return () => {
       isMounted = false;
     };
-  }, [onDateRangeChange]);
+  }, [onDateRangeChange, startDate, endDate]);
 
   useEffect(() => {
     if (!startDate || !endDate) {
@@ -106,7 +195,27 @@ export default function SeasonDateRangeSelect({
       }
       return { start: nextStart, end: nextEnd };
     });
-  }, [startDate, endDate]);
+
+    const matchingSeason = seasonOptions.find(
+      (option) => option.startDate === startDate && option.endDate === endDate,
+    );
+
+    if (matchingSeason) {
+      if (selectedSeason !== matchingSeason.year) {
+        setSelectedSeason(matchingSeason.year);
+      }
+      if (appliedSelection !== matchingSeason.year) {
+        setAppliedSelection(matchingSeason.year);
+      }
+    } else {
+      if (selectedSeason !== 'custom') {
+        setSelectedSeason('custom');
+      }
+      if (appliedSelection !== 'custom') {
+        setAppliedSelection('custom');
+      }
+    }
+  }, [startDate, endDate, seasonOptions, selectedSeason, appliedSelection]);
 
   const handleOptionChange = (event: SelectChangeEvent) => {
     const value = event.target.value as string;
@@ -195,7 +304,12 @@ export default function SeasonDateRangeSelect({
 
   return (
     <>
-      <FormControl size="small" sx={{ ml: 'auto' }} disabled={seasonOptions.length === 0}>
+      <FormControl
+        size="small"
+        sx={{ ml: 'auto' }}
+        disabled={seasonOptions.length === 0 || isLoading}
+        error={Boolean(loadError)}
+      >
         <Select
           value={selectedSeason}
           onChange={handleOptionChange}
@@ -203,20 +317,25 @@ export default function SeasonDateRangeSelect({
           renderValue={renderSelectedValue}
           inputProps={{ 'aria-label': 'Select date range' }}
         >
-          {seasonOptions.length === 0 ? (
+          {isLoading && (
             <MenuItem value="" disabled>
               Loading date ranges...
             </MenuItem>
-          ) : (
+          )}
+          {!isLoading &&
             seasonOptions.map((option) => (
               <MenuItem key={option.year} value={option.year}>
                 {option.year} Season
               </MenuItem>
-            ))
-          )}
+            ))}
           <MenuItem value="custom">Custom Range</MenuItem>
         </Select>
       </FormControl>
+      {loadError && (
+        <Box sx={{ ml: 2, color: 'error.main', fontSize: 12, alignSelf: 'center' }}>
+          {loadError}
+        </Box>
+      )}
       <Dialog open={isCustomDialogOpen} onClose={handleCustomCancel} fullWidth maxWidth="sm">
         <DialogTitle>Select Custom Date Range</DialogTitle>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
