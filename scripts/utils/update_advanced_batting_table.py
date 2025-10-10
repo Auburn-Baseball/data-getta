@@ -207,18 +207,41 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
 
                     if distance is not None and distance <= 200 and bearing is not None:
                         # Assign to slices
-                        if 0 <= bearing < 18:
+                        if -45 <= bearing < -27:
                             infield_left_slice += 1
-                        elif 18 <= bearing < 36:
+                        elif -27 <= bearing < -9:
                             infield_lc_slice += 1
-                        elif 36 <= bearing < 54:
+                        elif -9 <= bearing < 9:
                             infield_center_slice += 1
-                        elif 54 <= bearing < 72:
+                        elif 9 <= bearing < 27:
                             infield_rc_slice += 1
-                        elif 72 <= bearing <= 90:
+                        elif 27 <= bearing <= 45:
                             infield_right_slice += 1
                 except (ValueError, TypeError):
                     continue
+
+            total_infield_batted_balls = (
+                infield_left_slice + infield_lc_slice + 
+                infield_center_slice + infield_rc_slice + 
+                infield_right_slice
+            )
+
+            # Calculate slice %s
+            infield_left_per = (
+                infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            )
+            infield_lc_per = (
+                infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            )
+            infield_center_per = (
+                infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            )
+            infield_rc_per = (
+                infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            )
+            infield_right_per = (
+                infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            )
 
             # Calculate whiff %
             whiff_per = (
@@ -248,10 +271,15 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": round(chase_per, 3) if chase_per is not None else None,
                 "infield_left_slice": infield_left_slice,
+                "infield_left_per": round(infield_left_per, 3) if infield_left_per is not None else None,
                 "infield_lc_slice": infield_lc_slice,
+                "infield_lc_per": round(infield_lc_per, 3) if infield_lc_per is not None else None,
                 "infield_center_slice": infield_center_slice,
+                "infield_center_per": round(infield_center_per, 3) if infield_center_per is not None else None,
                 "infield_rc_slice": infield_rc_slice,
+                "infield_rc_per": round(infield_rc_per, 3) if infield_rc_per is not None else None,
                 "infield_right_slice": infield_right_slice,
+                "infield_right_per": round(infield_right_per, 3) if infield_right_per is not None else None,
             }
 
             batters_dict[key] = batter_stats
@@ -339,6 +367,35 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     new_out_of_zone_swings = (new_stats.get("chase_per", 0) or 0) * (new_stats.get("out_of_zone_pitches", 0) or 0)
     combined_chase_per = (existing_out_of_zone_swings + new_out_of_zone_swings) / combined_out_of_zone_pitches if combined_out_of_zone_pitches > 0 else None
 
+    # Combine infield slices
+    combined_infield_left_slice = existing_stats.get("infield_left_slice", 0) + new_stats.get("infield_left_slice", 0)
+    combined_infield_lc_slice = existing_stats.get("infield_lc_slice", 0) + new_stats.get("infield_lc_slice", 0)
+    combined_infield_center_slice = existing_stats.get("infield_center_slice", 0) + new_stats.get("infield_center_slice", 0)
+    combined_infield_rc_slice = existing_stats.get("infield_rc_slice", 0) + new_stats.get("infield_rc_slice", 0)
+    combined_infield_right_slice = existing_stats.get("infield_right_slice", 0) + new_stats.get("infield_right_slice", 0)
+
+    # Combine infield slice %s
+    total_infield_batted_balls = (
+        combined_infield_left_slice + combined_infield_lc_slice + 
+        combined_infield_center_slice + combined_infield_rc_slice + 
+        combined_infield_right_slice
+    )
+    combined_infield_left_per = (
+        combined_infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    )
+    combined_infield_lc_per = (
+        combined_infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    )
+    combined_infield_center_per = (
+        combined_infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    )
+    combined_infield_rc_per = (
+        combined_infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    )
+    combined_infield_right_per = (
+        combined_infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    )
+
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
@@ -354,11 +411,16 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "whiff_per": round(combined_whiff_per, 3) if combined_whiff_per is not None else None,
         "out_of_zone_pitches": combined_out_of_zone_pitches,
         "chase_per": round(combined_chase_per, 3) if combined_chase_per is not None else None,
-        "infield_left_slice": None,  # Placeholder for future use
-        "infield_lc_slice": None, # Placeholder for future use
-        "infield_center_slice": None, # Placeholder for future use
-        "infield_rc_slice": None, # Placeholder for future use
-        "infield_right_slice": None, # Placeholder for future use
+        "infield_left_slice": combined_infield_left_slice,
+        "infield_left_per": round(combined_infield_left_per, 3) if combined_infield_left_per is not None else None,
+        "infield_lc_slice": combined_infield_lc_slice,
+        "infield_lc_per": round(combined_infield_lc_per, 3) if combined_infield_lc_per is not None else None,
+        "infield_center_slice": combined_infield_center_slice,
+        "infield_center_per": round(combined_infield_center_per, 3) if combined_infield_center_per is not None else None,
+        "infield_rc_slice": combined_infield_rc_slice,
+        "infield_rc_per": round(combined_infield_rc_per, 3) if combined_infield_rc_per is not None else None,
+        "infield_right_slice": combined_infield_right_slice,
+        "infield_right_per": round(combined_infield_right_per, 3) if combined_infield_right_per is not None else None,
     }
 
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
