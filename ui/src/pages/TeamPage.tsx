@@ -6,9 +6,13 @@ import TableTabs from '@/components/team/TableTabs';
 import { supabase } from '@/utils/supabase/client';
 import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { TeamsTable } from '@/types/schemas';
-import PlayerPage from '@/pages/PlayerPage';
 
-export default function TeamPage() {
+type TeamPageProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function TeamPage({ startDate, endDate }: TeamPageProps) {
   const [searchParams] = useSearchParams();
   const playerParam = searchParams.get('player');
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
@@ -29,6 +33,10 @@ export default function TeamPage() {
             eq: {
               TrackmanAbbreviation: decodedTrackmanAbbreviation,
               Year: 2025,
+            },
+            range: {
+              startDate,
+              endDate,
             },
             single: true,
           }),
@@ -52,7 +60,7 @@ export default function TeamPage() {
     }
 
     fetchTeam();
-  }, [trackmanAbbreviation]);
+  }, [trackmanAbbreviation, startDate, endDate]);
 
   if (loading) return <div>Loading...</div>;
   if (!team) return <div>Team not found</div>;

@@ -8,7 +8,12 @@ import { useState, useEffect } from 'react';
 import StatsTableSkeleton from '@/components/player/StatsTableSkeleton';
 import { useParams } from 'react-router';
 
-export default function StatsTab() {
+type StatsTabProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function StatsTab({ startDate, endDate }: StatsTabProps) {
   const { trackmanAbbreviation, playerName, year } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
@@ -42,6 +47,10 @@ export default function StatsTab() {
               BatterTeam: decodedTeamName,
               Year: safeYear,
             },
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -63,6 +72,10 @@ export default function StatsTab() {
               PitcherTeam: decodedTeamName,
               Year: safeYear,
             },
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -83,6 +96,10 @@ export default function StatsTab() {
               Pitcher: decodedPlayerName,
               PitcherTeam: decodedTeamName,
               Year: safeYear,
+            },
+            range: {
+              startDate,
+              endDate,
             },
           }),
           query: () =>
@@ -109,7 +126,7 @@ export default function StatsTab() {
     }
 
     fetchStats();
-  }, [decodedPlayerName, decodedTeamName, safeYear]);
+  }, [decodedPlayerName, decodedTeamName, safeYear, startDate, endDate]);
 
   if (loading) return <StatsTableSkeleton />;
 

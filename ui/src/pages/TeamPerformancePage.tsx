@@ -8,7 +8,12 @@ import TeamPercent, { Row } from '@/components/team/TeamPercent';
 
 const PAGE_SIZE = 1000;
 
-export default function TeamPerformancePage() {
+type TeamPerformancePageProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function TeamPerformancePage({ startDate, endDate }: TeamPerformancePageProps) {
   const [params] = useSearchParams();
 
   const year = useMemo(() => {
@@ -46,6 +51,7 @@ export default function TeamPerformancePage() {
             { column: 'label', ascending: true },
           ],
           range: [from, from + PAGE_SIZE - 1],
+          filterRange: { startDate, endDate },
         }),
         query: () =>
           supabase
@@ -77,6 +83,7 @@ export default function TeamPerformancePage() {
               { column: 'label', ascending: true },
             ],
             range: [from, from + PAGE_SIZE - 1],
+            filterRange: { startDate, endDate },
           }),
           query: () =>
             supabase
@@ -114,7 +121,7 @@ export default function TeamPerformancePage() {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [year, startDate, endDate]);
 
   // If mode is W/L (no data yet), pass empty rows to show the empty state
   const rowsToShow = mode === 'wl' ? [] : rows;

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import LoginPage from '@/pages/LoginPage';
 import ConferencePage from '@/pages/ConferencePage';
@@ -13,10 +14,22 @@ import RequireAuth from '@/utils/supabase/requireauth';
 import PublicOnly from '@/utils/supabase/publiconly';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import TeamPerformancePage from '@/pages/TeamPerformancePage';
+import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+type DateRangeState = {
+  startDate: string | null; // YYYY-MM-DD
+  endDate: string | null; // YYYY-MM-DD
+};
+
 export default function App() {
+  const [dateRange, setDateRange] = useState<DateRangeState>({ startDate: null, endDate: null });
+
+  const handleDateRangeChange = useCallback((range: DateRangeSelection) => {
+    setDateRange({ startDate: range.startDate, endDate: range.endDate });
+  }, []);
+
   return (
     <BrowserRouter basename={basename}>
       <Routes>
@@ -28,20 +41,55 @@ export default function App() {
 
         {/* Auth-only group */}
         <Route element={<RequireAuth />}>
-          <Route element={<AppLayout />}>
-            <Route path="conferences" element={<ConferencePage />} />
-            <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />}>
-              <Route path="stats/:year" element={<StatsTab />} />
-              <Route path="heat-map/:year" element={<HeatMapTab />} />
+          <Route
+            element={<AppLayout dateRange={dateRange} onDateRangeChange={handleDateRangeChange} />}
+          >
+            <Route
+              path="conferences"
+              element={
+                <ConferencePage startDate={dateRange.startDate} endDate={dateRange.endDate} />
+              }
+            />
+            <Route
+              path="team/:trackmanAbbreviation/player/:playerName"
+              element={<PlayerPage startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+            >
+              <Route
+                path="stats/:year"
+                element={<StatsTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+              />
+              <Route
+                path="heat-map/:year"
+                element={<HeatMapTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+              />
               <Route path="percentiles/:year" element={<div>Percentiles Page</div>} />
             </Route>
-            <Route path="team/:trackmanAbbreviation" element={<TeamPage />}>
+            <Route
+              path="team/:trackmanAbbreviation"
+              element={<TeamPage startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+            >
               <Route index element={<Navigate to="roster" replace />} />
-              <Route path="roster" element={<RosterTab />} />
-              <Route path="batting" element={<BattingTab />} />
-              <Route path="pitching" element={<PitchingTab />} />
+              <Route
+                path="roster"
+                element={<RosterTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+              />
+              <Route
+                path="batting"
+                element={<BattingTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+              />
+              <Route
+                path="pitching"
+                element={
+                  <PitchingTab startDate={dateRange.startDate} endDate={dateRange.endDate} />
+                }
+              />
             </Route>
-            <Route path="teamperformance" element={<TeamPerformancePage />} />
+            <Route
+              path="teamperformance"
+              element={
+                <TeamPerformancePage startDate={dateRange.startDate} endDate={dateRange.endDate} />
+              }
+            />
           </Route>
         </Route>
       </Routes>

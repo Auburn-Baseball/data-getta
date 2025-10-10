@@ -6,7 +6,12 @@ import BatterTable from '@/components/team/BatterTable';
 import { BatterStatsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 
-export default function BattingTab() {
+type BattingTabProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function BattingTab({ startDate, endDate }: BattingTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [batters, setBatters] = useState<BatterStatsTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +27,10 @@ export default function BattingTab() {
           key: createCacheKey('BatterStats', {
             select: '*',
             eq: { BatterTeam: decodedTrackmanAbbreviation },
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -41,7 +50,7 @@ export default function BattingTab() {
     }
 
     fetchBatters();
-  }, [trackmanAbbreviation]);
+  }, [trackmanAbbreviation, startDate, endDate]);
 
   if (loading) return <TableSkeleton />;
   return <BatterTable players={batters} />;

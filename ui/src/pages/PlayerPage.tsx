@@ -7,7 +7,12 @@ import Box from '@mui/material/Box';
 import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
 
-export default function PlayerPage() {
+type PlayerPageProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
   const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
@@ -49,6 +54,10 @@ export default function PlayerPage() {
               Year: 2025,
             },
             maybeSingle: true,
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -71,7 +80,7 @@ export default function PlayerPage() {
     }
 
     fetchPlayer();
-  }, [trackmanAbbreviation, playerName]);
+  }, [trackmanAbbreviation, playerName, startDate, endDate]);
 
   if (loading) {
     return <div>Loading...</div>;

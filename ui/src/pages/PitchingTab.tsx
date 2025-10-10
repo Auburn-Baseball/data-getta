@@ -8,7 +8,12 @@ import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 import Box from '@mui/material/Box';
 
-export default function PitchingTab() {
+type PitchingTabProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [pitchers, setPitchers] = useState<PitcherStatsTable[]>([]);
   const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
@@ -28,6 +33,10 @@ export default function PitchingTab() {
               select: '*',
               eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
               order: [{ column: 'total_innings_pitched', ascending: false }],
+              range: {
+                startDate,
+                endDate,
+              },
             }),
             query: () =>
               supabase
@@ -43,6 +52,10 @@ export default function PitchingTab() {
               select: '*',
               eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
               order: [{ column: 'total_pitches', ascending: false }],
+              range: {
+                startDate,
+                endDate,
+              },
             }),
             query: () =>
               supabase
@@ -68,7 +81,7 @@ export default function PitchingTab() {
     }
 
     fetchPitchers();
-  }, [trackmanAbbreviation]);
+  }, [trackmanAbbreviation, startDate, endDate]);
 
   if (loading) return <TableSkeleton />;
 

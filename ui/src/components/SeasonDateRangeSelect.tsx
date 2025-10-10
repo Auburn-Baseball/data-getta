@@ -19,6 +19,11 @@ type SeasonDateRange = {
   endDate: string;
 };
 
+export type DateRangeSelection = {
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+};
+
 async function fetchSeasonDateRanges(): Promise<SeasonDateRange[]> {
   return [
     { year: '2021', startDate: '2021-03-01', endDate: '2021-10-05' },
@@ -29,7 +34,17 @@ async function fetchSeasonDateRanges(): Promise<SeasonDateRange[]> {
   ];
 }
 
-export default function SeasonDateRangeSelect() {
+type SeasonDateRangeSelectProps = {
+  startDate: string | null;
+  endDate: string | null;
+  onDateRangeChange: (range: DateRangeSelection) => void;
+};
+
+export default function SeasonDateRangeSelect({
+  startDate,
+  endDate,
+  onDateRangeChange,
+}: SeasonDateRangeSelectProps) {
   const [seasonOptions, setSeasonOptions] = useState<SeasonDateRange[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<string>('');
   const [appliedSelection, setAppliedSelection] = useState<string>('');
@@ -56,6 +71,10 @@ export default function SeasonDateRangeSelect() {
         setAppliedSelection(initial.year);
         setActiveRange({ start: initialStart, end: initialEnd });
         setCustomRange({ start: initialStart, end: initialEnd });
+        onDateRangeChange({
+          startDate: initialStart.format('YYYY-MM-DD'),
+          endDate: initialEnd.format('YYYY-MM-DD'),
+        });
       }
     };
 
@@ -64,7 +83,30 @@ export default function SeasonDateRangeSelect() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [onDateRangeChange]);
+
+  useEffect(() => {
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    const nextStart = dayjs(startDate);
+    const nextEnd = dayjs(endDate);
+
+    setActiveRange((prev) => {
+      if (prev && prev.start.isSame(nextStart, 'day') && prev.end.isSame(nextEnd, 'day')) {
+        return prev;
+      }
+      return { start: nextStart, end: nextEnd };
+    });
+
+    setCustomRange((prev) => {
+      if (prev?.start?.isSame(nextStart, 'day') && prev?.end?.isSame(nextEnd, 'day')) {
+        return prev;
+      }
+      return { start: nextStart, end: nextEnd };
+    });
+  }, [startDate, endDate]);
 
   const handleOptionChange = (event: SelectChangeEvent) => {
     const value = event.target.value as string;
@@ -87,6 +129,10 @@ export default function SeasonDateRangeSelect() {
       const end = dayjs(nextRange.endDate);
       setActiveRange({ start, end });
       setCustomRange({ start, end });
+      onDateRangeChange({
+        startDate: start.format('YYYY-MM-DD'),
+        endDate: end.format('YYYY-MM-DD'),
+      });
     }
   };
 
@@ -113,6 +159,10 @@ export default function SeasonDateRangeSelect() {
     setAppliedSelection('custom');
     setSelectedSeason('custom');
     setCustomDialogOpen(false);
+    onDateRangeChange({
+      startDate: start.format('YYYY-MM-DD'),
+      endDate: end.format('YYYY-MM-DD'),
+    });
   };
 
   const renderSelectedValue = (selected: unknown) => {

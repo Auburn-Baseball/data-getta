@@ -6,7 +6,12 @@ import RosterTable from '@/components/team/RosterTable';
 import { PlayersTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 
-export default function RosterTab() {
+type RosterTabProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function RosterTab({ startDate, endDate }: RosterTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [players, setPlayers] = useState<PlayersTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,10 @@ export default function RosterTab() {
             select: '*',
             eq: { TeamTrackmanAbbreviation: decodedTrackmanAbbreviation },
             order: [{ column: 'Name', ascending: true }],
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -43,7 +52,7 @@ export default function RosterTab() {
     }
 
     fetchRoster();
-  }, [trackmanAbbreviation]);
+  }, [trackmanAbbreviation, startDate, endDate]);
 
   if (loading) return <TableSkeleton />;
   return <RosterTable players={players} />;

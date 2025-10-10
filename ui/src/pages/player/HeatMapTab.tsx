@@ -8,7 +8,12 @@ import { useParams } from 'react-router';
 import { CircularProgress, Typography } from '@mui/material';
 import { PitcherPitchBinsTable, BatterPitchBinsTable } from '@/types/schemas';
 
-export default function HeatMapTab() {
+type HeatMapTabProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
   const { trackmanAbbreviation, playerName, year } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
@@ -52,6 +57,10 @@ export default function HeatMapTab() {
               Year: Number(year),
               PitcherTeam: decodedTrackmanAbbreviation,
             },
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -74,7 +83,7 @@ export default function HeatMapTab() {
     }
 
     fetchBins();
-  }, [decodedPlayerName, year, decodedTrackmanAbbreviation]);
+  }, [decodedPlayerName, year, decodedTrackmanAbbreviation, startDate, endDate]);
 
   if (error) {
     return (
@@ -105,6 +114,10 @@ export default function HeatMapTab() {
               Year: Number(year),
               BatterTeam: decodedTrackmanAbbreviation,
             },
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -126,7 +139,7 @@ export default function HeatMapTab() {
     }
 
     fetchBatterBins();
-  }, [decodedPlayerName, year, decodedTrackmanAbbreviation]);
+  }, [decodedPlayerName, year, decodedTrackmanAbbreviation, startDate, endDate]);
 
   if (pitcherLoading || batterLoading) {
     return (

@@ -4,9 +4,23 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import { common } from '@mui/material/colors';
 import { Theme } from '@/utils/theme';
-import SeasonDateRangeSelect from '@/components/SeasonDateRangeSelect';
+import SeasonDateRangeSelect, { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
 
-export default function TopBar({ drawerToggle, width }: { drawerToggle: any; width: number }) {
+type TopBarProps = {
+  drawerToggle: () => void;
+  width: number;
+  startDate: string | null;
+  endDate: string | null;
+  onDateRangeChange: (range: DateRangeSelection) => void;
+};
+
+export default function TopBar({
+  drawerToggle,
+  width,
+  startDate,
+  endDate,
+  onDateRangeChange,
+}: TopBarProps) {
   return (
     <AppBar
       component="header"
@@ -28,7 +42,11 @@ export default function TopBar({ drawerToggle, width }: { drawerToggle: any; wid
         >
           <MenuIcon />
         </IconButton>
-        <SeasonDateRangeSelect />
+        <SeasonDateRangeSelect
+          startDate={startDate}
+          endDate={endDate}
+          onDateRangeChange={onDateRangeChange}
+        />
       </Toolbar>
     </AppBar>
   );

@@ -8,7 +8,12 @@ import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { TeamsTable } from '@/types/schemas';
 import { ConferenceGroup, ConferenceGroupTeam } from '@/types/types';
 
-export default function ConferencePage() {
+type ConferencePageProps = {
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export default function ConferencePage({ startDate, endDate }: ConferencePageProps) {
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +31,10 @@ export default function ConferencePage() {
               { column: 'Conference', ascending: true },
               { column: 'TeamName', ascending: true },
             ],
+            range: {
+              startDate,
+              endDate,
+            },
           }),
           query: () =>
             supabase
@@ -71,7 +80,7 @@ export default function ConferencePage() {
     };
 
     fetchData();
-  }, []);
+  }, [startDate, endDate]);
 
   if (loading) {
     return (

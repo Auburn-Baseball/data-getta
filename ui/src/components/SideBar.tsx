@@ -4,8 +4,16 @@ import Box from '@mui/material/Box';
 import TopBar from '@/components/TopBar';
 import MobileSideBar from '@/components/MobileSideBar';
 import DesktopSideBar from '@/components/DesktopSideBar';
+import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
 
-export default function SideBar({ width }: { width: number }) {
+type SideBarProps = {
+  width: number;
+  startDate: string | null;
+  endDate: string | null;
+  onDateRangeChange: (range: DateRangeSelection) => void;
+};
+
+export default function SideBar({ width, startDate, endDate, onDateRangeChange }: SideBarProps) {
   const drawerWidth = width;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -21,13 +29,19 @@ export default function SideBar({ width }: { width: number }) {
 
   const handleDrawerToggle = () => {
     if (!isClosing) {
-      setMobileOpen(!mobileOpen);
+      setMobileOpen((prev) => !prev);
     }
   };
 
   return (
     <>
-      <TopBar drawerToggle={handleDrawerToggle} width={drawerWidth} />
+      <TopBar
+        drawerToggle={handleDrawerToggle}
+        width={drawerWidth}
+        startDate={startDate}
+        endDate={endDate}
+        onDateRangeChange={onDateRangeChange}
+      />
 
       <Box component="nav" sx={{ width: { lg: drawerWidth } }}>
         <MobileSideBar
