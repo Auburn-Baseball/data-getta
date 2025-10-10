@@ -146,13 +146,13 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             decimal_innings = whole_innings + (partial_outs / 3.0)
 
             # Calculate k_per_9
-            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1)
+            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
 
             # Calculate bb_per_9
-            bb_per_9 = round(((total_walks_pitcher * 9.0) / decimal_innings), 1)
+            bb_per_9 = round(((total_walks_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
 
             # Calculate WHIP
-            whip = round(((total_walks_pitcher + hits) / decimal_innings), 2)
+            whip = round(((total_walks_pitcher + hits) / decimal_innings), 2) if decimal_innings > 0 else None
 
             # Calculate batters faced (unique plate appearances)
             if "GameUID" in group.columns:
