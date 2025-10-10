@@ -31,7 +31,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
 
         # Check if required columns exist
         if "Pitcher" not in df.columns and "Batter" not in df.columns:
-            print(f"Warning: No Pitcher or Batter columns found in {file_path}")
+            print(f"Warning: No Pitcher or Batter columns found in {filename}")
             return {}
 
         players_dict = {}
@@ -89,7 +89,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
         return players_dict
 
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {filename}: {e}")
         return {}
 
 
