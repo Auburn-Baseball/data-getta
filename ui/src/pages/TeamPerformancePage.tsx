@@ -63,7 +63,7 @@ export default function TeamPerformancePage() {
         return;
       }
 
-      all = (first.data ?? []);
+      all = first.data ?? [];
       const total = first.count ?? all.length;
 
       from += PAGE_SIZE;
@@ -111,7 +111,9 @@ export default function TeamPerformancePage() {
     }
 
     fetchAll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [year]);
 
   // If mode is W/L (no data yet), pass empty rows to show the empty state
@@ -121,13 +123,7 @@ export default function TeamPerformancePage() {
     <Box sx={{ bgcolor: 'white', color: 'white', minHeight: '100vh', px: 4, py: 4 }}>
       {loading && <p>Loading team performance…</p>}
       {err && <p style={{ color: 'salmon' }}>{err}</p>}
-      {!loading && !err && (
-        <TeamPercent
-          year={year}
-          rows={rowsToShow}
-          mode={mode}
-        />
-      )}
+      {!loading && !err && <TeamPercent year={year} rows={rowsToShow} mode={mode} />}
     </Box>
   );
 }

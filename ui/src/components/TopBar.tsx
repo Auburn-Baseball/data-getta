@@ -4,6 +4,7 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import { common } from '@mui/material/colors';
 import { Theme } from '@/utils/theme';
+import SeasonDateRangeSelect from '@/components/SeasonDateRangeSelect';
 
 export default function TopBar({ drawerToggle, width }: { drawerToggle: any; width: number }) {
   return (
@@ -16,7 +17,7 @@ export default function TopBar({ drawerToggle, width }: { drawerToggle: any; wid
         backgroundColor: common.white,
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ display: 'flex' }}>
         <IconButton
           onClick={drawerToggle}
           sx={{
@@ -27,6 +28,7 @@ export default function TopBar({ drawerToggle, width }: { drawerToggle: any; wid
         >
           <MenuIcon />
         </IconButton>
+        <SeasonDateRangeSelect />
       </Toolbar>
     </AppBar>
   );

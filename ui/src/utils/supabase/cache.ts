@@ -5,10 +5,7 @@ const CACHE_VERSION = 'v1';
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 type CacheKeyPrimitive = string | number | boolean | null;
-export type CacheKeyInput =
-  | CacheKeyPrimitive
-  | CacheKeyInput[]
-  | { [key: string]: CacheKeyInput };
+export type CacheKeyInput = CacheKeyPrimitive | CacheKeyInput[] | { [key: string]: CacheKeyInput };
 
 interface CacheEntry<TResult> {
   timestamp: number;
@@ -20,11 +17,9 @@ const memoryCache = new Map<string, CacheEntry<unknown>>();
 const hasWindowStorage = (): boolean =>
   typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
-const toStorageKey = (key: string): string =>
-  `${CACHE_NAMESPACE}:${CACHE_VERSION}:${key}`;
+const toStorageKey = (key: string): string => `${CACHE_NAMESPACE}:${CACHE_VERSION}:${key}`; // e.g. "supabase-query-cache:v1:{key}"
 
-const isExpired = (timestamp: number): boolean =>
-  Date.now() - timestamp > CACHE_TTL_MS;
+const isExpired = (timestamp: number): boolean => Date.now() - timestamp > CACHE_TTL_MS;
 
 const cloneResult = <T>(value: T): T => {
   if (value === null || typeof value !== 'object') {
@@ -111,12 +106,8 @@ const stableStringify = (value: CacheKeyInput): string => {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(',')}]`;
   }
-  const entries = Object.entries(value).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-  return `{${entries
-    .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`)
-    .join(',')}}`;
+  const entries = Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(',')}}`;
 };
 
 export const createCacheKey = (
