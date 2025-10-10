@@ -81,27 +81,50 @@ class DatabaseProcessedFilesTracker:
         identifier = f"{remote_path}|{file_size}|{last_modified}"
         return hashlib.md5(identifier.encode()).hexdigest()
 
-    def _load_all_processed_hashes(self):
-        """ ---------------------------------------------------------------
+    def _load_all_processed_hashes(self, batch_size=1000):
+        """
+        ---------------------------------------------------------------
         Load all processed file hashes into memory cache for fast lookups.
-        ------------------------------------------------------------------- """
+        Handles Supabase row limits by fetching in batches.
+        -------------------------------------------------------------------
+        """
         if self._cache_loaded:
             return
 
+        self._processed_hashes_cache = set()
         try:
             print("Loading processed files cache from database...")
-            result = self.supabase.table('ProcessedFiles')\
-                .select('file_hash')\
-                .execute()
 
-            self._processed_hashes_cache = set(row['file_hash'] for row in result.data)
+            offset = 0
+            while True:
+                # Fetch a batch of rows
+                result = (
+                    self.supabase.table('ProcessedFiles')
+                    .select('file_hash')
+                    .range(offset, offset + batch_size - 1)  # Supabase uses inclusive range
+                    .execute()
+                )
+
+                data = result.data
+                if not data:
+                    break  # No more rows to fetch
+
+                # Add hashes to cache
+                self._processed_hashes_cache.update(row['file_hash'] for row in data)
+
+                print(f"Loaded batch of {len(data)} rows (total so far: {len(self._processed_hashes_cache)})")
+
+                # Increment offset
+                offset += batch_size
+
             self._cache_loaded = True
-            print(f"Loaded {len(self._processed_hashes_cache)} processed files into cache")
+            print(f"Finished loading {len(self._processed_hashes_cache)} processed files into cache")
 
         except Exception as e:
             print(f"Error loading processed files cache: {e}")
             self._processed_hashes_cache = set()
             self._cache_loaded = True
+
 
     def is_processed(self, remote_path: str, file_size: int = None, last_modified: str = None) -> bool:
         """ ---------------------------------------------------------------

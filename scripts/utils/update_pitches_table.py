@@ -52,7 +52,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             "TaggedPitchType",
         ]
         if not all(col in df.columns for col in required_columns):
-            print(f"Warning: Missing required columns in {file_path}")
+            print(f"Warning: Missing required columns in {filename}")
             return {}
 
         pitchers_dict = {}
@@ -131,7 +131,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         return pitchers_dict
 
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {filename}: {e}")
         return {}
 
 

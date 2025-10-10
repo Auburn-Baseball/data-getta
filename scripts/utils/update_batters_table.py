@@ -149,6 +149,15 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
+            # Calculate singles
+            singles = len(group[group["PlayResult"] == "Single"])
+
+            # Calculate doubles
+            doubles = len(group[group["PlayResult"] == "Double"])
+
+            # Calculate triples
+            triples = len(group[group["PlayResult"] == "Triple"])
+
             # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
 
@@ -260,6 +269,26 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 else set()
             )
 
+            # Calculate total exit velocity
+            if "ExitSpeed" in group.columns:
+                # Convert to numeric (in case it's read as string)
+                group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
+
+                total_exit_velo = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ]["ExitSpeed"].sum()
+
+                # Optional: also count how many batted balls were included
+                batted_ball_count = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ].shape[0]
+            else:
+                total_exit_velo = 0
+                batted_ball_count = 0
+
+
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
@@ -269,12 +298,16 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "strikes": strikes,
                 "walks": walks,
                 "strikeouts": strikeouts,
+                "singles": singles,
+                "doubles": doubles,
+                "triples": triples,
                 "homeruns": homeruns,
                 "extra_base_hits": extra_base_hits,
                 "plate_appearances": plate_appearances,
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
+                "total_exit_velo": round(total_exit_velo, 1),
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
                 else None,

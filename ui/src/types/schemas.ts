@@ -19,6 +19,8 @@ export interface BatterStatsTable {
   BatterTeam: string;
   Year: number;
   hits: number | null;
+  doubles: number | null;
+  triples: number | null;
   at_bats: number | null;
   strikes: number | null;
   walks: number | null;
@@ -39,6 +41,9 @@ export interface BatterStatsTable {
   chase_percentage: number | null;
   in_zone_whiff_percentage: number | null;
   games: number | null;
+  k_per: number | null;
+  bb_per: number | null;
+  avg_exit_velo: number | null;
 }
 
 export interface PitcherStatsTable {

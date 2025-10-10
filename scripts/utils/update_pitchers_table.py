@@ -88,7 +88,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             "Batter",
         ]
         if not all(col in df.columns for col in required_columns):
-            print(f"Warning: Missing required columns in {file_path}")
+            print(f"Warning: Missing required columns in {filename}")
             return {}
 
         pitchers_dict = {}
@@ -113,6 +113,16 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             total_walks_pitcher = len(group[group["KorBB"] == "Walk"])
             pitches = len(group)
 
+            # Calculate hits
+            hits = len(
+                group[
+                    group["PlayResult"].isin(["Single", "Double", "Triple", "HomeRun"])
+                ]
+            )
+
+            # Calculate home runs
+            homeruns = len(group[group["PlayResult"] == "HomeRun"])
+
             # Calculate games started (first batter of first inning with 0-0 count)
             games_started = len(
                 group[
@@ -130,6 +140,19 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             total_innings_pitched = calculate_innings_pitched(
                 strikeouts_for_innings, outs_on_play
             )
+
+            whole_innings = int(total_innings_pitched)
+            partial_outs = round((total_innings_pitched - whole_innings) * 10)
+            decimal_innings = whole_innings + (partial_outs / 3.0)
+
+            # Calculate k_per_9
+            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
+
+            # Calculate bb_per_9
+            bb_per_9 = round(((total_walks_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
+
+            # Calculate WHIP
+            whip = round(((total_walks_pitcher + hits) / decimal_innings), 2) if decimal_innings > 0 else None
 
             # Calculate batters faced (unique plate appearances)
             if "GameUID" in group.columns:
@@ -215,8 +238,13 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
                 "swings_in_zone": 0,  # This requires more complex logic from the SQL
                 "total_num_chases": out_of_zone_swings,
                 "pitches": pitches,
+                "hits": hits,
+                "homeruns": homeruns,
                 "games_started": games_started,
                 "total_innings_pitched": total_innings_pitched,
+                "k_per_9": k_per_9,
+                "bb_per_9": bb_per_9,
+                "whip": whip,
                 "total_batters_faced": total_batters_faced,
                 "k_percentage": round(k_percentage, 3)
                 if k_percentage is not None
@@ -239,7 +267,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
         return pitchers_dict
 
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {filename}: {e}")
         return {}
 
 
