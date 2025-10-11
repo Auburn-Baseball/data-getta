@@ -3,4 +3,5 @@ from .update_pitchers_table import get_pitcher_stats_from_buffer, upload_pitcher
 from .update_pitches_table import get_pitch_counts_from_buffer, upload_pitches_to_supabase
 from .update_players_table import get_players_from_buffer, upload_players_to_supabase
 from .update_advanced_batting_table import get_advanced_batting_stats_from_buffer, upload_advanced_batting_to_supabase
+from .update_trackman_table import get_trackman_data_from_buffer, upload_trackman_to_supabase
 from .file_date import CSVFilenameParser
