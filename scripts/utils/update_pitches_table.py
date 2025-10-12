@@ -111,7 +111,6 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             pitch_stats = {
                 "Pitcher": pitcher_name,
                 "PitcherTeam": pitcher_team,
-                "Year": 2025,
                 "total_pitches": total_pitches,
                 "curveball_count": curveball_count,
                 "fourseam_count": fourseam_count,
@@ -186,11 +185,10 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"PitchCounts")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
         total_pitchers = count_result.count
-        print(f"Total 2025 pitcher pitch counts in database: {total_pitchers}")
+        print(f"Total pitcher pitch counts in database: {total_pitchers}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
