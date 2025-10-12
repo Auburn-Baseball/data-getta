@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -76,6 +77,10 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     """Extract batter statistics from a CSV file in-memory"""
     try:
         df = pd.read_csv(buffer)
+
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -292,7 +297,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
-                "Year": 2025,
+                "Date": game_date,
                 "hits": hits,
                 "at_bats": at_bats,
                 "strikes": strikes,
@@ -379,7 +384,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"BatterStats")
-                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Date")
                     .execute()
                 )
 
@@ -399,12 +404,11 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"BatterStats")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
 
         total_batters = count_result.count
-        print(f"Total 2025 batters in database: {total_batters}")
+        print(f"Total batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

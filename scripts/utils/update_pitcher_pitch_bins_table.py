@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from .file_date import CSVFilenameParser
 
 # -----------------------------------------------------------------------------
 # Environment / Supabase
@@ -143,10 +144,10 @@ SIDE_PITCH_COLUMNS = {
 }
 ALL_PITCH_COLUMNS = PITCH_COLUMNS + SIDE_PITCH_COLUMNS["L"] + SIDE_PITCH_COLUMNS["R"]
 
-def empty_row(team: str, year: int, pitcher: str, meta: dict) -> dict:
+def empty_row(team: str, game_date, pitcher: str, meta: dict) -> dict:
     base = {
         "PitcherTeam": team,
-        "Year": int(year),
+        "Date": game_date,
         "Pitcher": pitcher,
         "ZoneId": int(meta["ZoneId"]),
         "InZone": bool(meta["InZone"]),
@@ -161,8 +162,12 @@ def empty_row(team: str, year: int, pitcher: str, meta: dict) -> dict:
         base[col] = 0
     return base
 
-def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey, dict]:
-    df = pd.read_csv(file_path)
+def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
+    df = pd.read_csv(buffer)
+
+    # Get game date from the filename
+    date_parser = CSVFilenameParser()
+    game_date = str(date_parser.get_date_object(filename))
 
     required = ["Pitcher","PitcherTeam","BatterSide","AutoPitchType","PlateLocSide","PlateLocHeight"]
     if not all(c in df.columns for c in required):
@@ -170,7 +175,7 @@ def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey,
         return {}
 
     df = df.dropna(subset=["Pitcher","PitcherTeam","PlateLocSide","PlateLocHeight"]).copy()
-    df["Year"] = int(default_year)
+    df["Date"] = game_date
 
     out: Dict[PitchKey, dict] = {}
 
@@ -183,14 +188,14 @@ def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey,
 
         meta = classify_13(x, y)
         team = str(r["PitcherTeam"])
-        year = int(default_year)
+        date = game_date
         pitcher = str(r["Pitcher"])
         zone_id = int(meta["ZoneId"])
-        key: PitchKey = (team, year, pitcher, zone_id)
+        key: PitchKey = (team, date, pitcher, zone_id)
 
         rec = out.get(key)
         if rec is None:
-            rec = empty_row(team, year, pitcher, meta)
+            rec = empty_row(team, date, pitcher, meta)
             out[key] = rec
 
         # totals
@@ -211,31 +216,6 @@ def process_csv_file(file_path: str, default_year: int = 2025) -> Dict[PitchKey,
 
     return out
 
-def process_csv_folder(csv_folder_path: str, year: int = 2025) -> Dict[PitchKey, dict]:
-    year_folder = os.path.join(csv_folder_path, str(year))
-    if not os.path.exists(year_folder):
-        print(f"{year} CSV folder not found: {year_folder}")
-        return {}
-
-    files = [f for f in os.listdir(year_folder) if f.endswith(".csv")]
-    files = [f for f in files if not should_exclude_file(f)]
-    print(f"Found {len(files)} {year} CSV files to process")
-
-    all_bins: Dict[PitchKey, dict] = {}
-    for fname in files:
-        fp = os.path.join(year_folder, fname)
-        print(f"Processing: {fname}")
-        part = process_csv_file(fp, default_year=year)
-        # merge
-        for k, v in part.items():
-            if k in all_bins:
-                dst = all_bins[k]
-                dst["TotalPitchCount"] += v["TotalPitchCount"]
-                for c in ALL_PITCH_COLUMNS:
-                    dst[c] += v[c]
-            else:
-                all_bins[k] = v
-    return all_bins
 
 # -----------------------------------------------------------------------------
 # Upload
@@ -248,7 +228,7 @@ class NumpyEncoder(json.JSONEncoder):
         if pd.isna(obj):                    return None
         return super().default(obj)
 
-def upload_bins_to_supabase(bins: Dict[PitchKey, dict]):
+def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
     if not bins:
         print("No bins data to upload")
         return
@@ -262,7 +242,7 @@ def upload_bins_to_supabase(bins: Dict[PitchKey, dict]):
         chunk = payload[i:i+batch]
         try:
             supabase.table("PitcherPitchBins") \
-                .upsert(chunk, on_conflict="PitcherTeam,Year,Pitcher,ZoneId") \
+                .upsert(chunk, on_conflict="PitcherTeam,Date,Pitcher,ZoneId") \
                 .execute()
             total += len(chunk)
             print(f"Uploaded batch {i//batch + 1}: {len(chunk)}")
