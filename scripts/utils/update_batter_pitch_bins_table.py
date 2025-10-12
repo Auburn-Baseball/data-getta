@@ -76,7 +76,7 @@ ALL_TRACKED_COLUMNS = [
     *HIT_COLUMNS,
 ]
 
-BinKey = Tuple[str, str, str, int]  # BatterTeam, GameDate, Batter, ZoneId
+BinKey = Tuple[str, str, str, int]  # BatterTeam, Date, Batter, ZoneId
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -148,7 +148,7 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
 def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
     row: Dict[str, float] = {
         "BatterTeam": team,
-        "GameDate": game_date,
+        "Date": game_date,
         "Batter": batter,
         "ZoneId": int(zone_meta["ZoneId"]),
         "InZone": bool(zone_meta["InZone"]),
@@ -184,7 +184,7 @@ def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str,
         return {}
 
     df = df.dropna(subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]).copy()
-    df["GameDate"] = game_date
+    df["Date"] = game_date
 
     bins: Dict[BinKey, Dict[str, float]] = {}
 
@@ -241,7 +241,7 @@ def upload_batter_pitch_bins(bins: Dict[BinKey, Dict[str, float]]):
         try:
             supabase.table("BatterPitchBins").upsert(
                 chunk,
-                on_conflict="BatterTeam,GameDate,Batter,ZoneId",
+                on_conflict="BatterTeam,Date,Batter,ZoneId",
             ).execute()
             uploaded += len(chunk)
             print(f"Uploaded batch {(start // batch) + 1}: {len(chunk)} records")

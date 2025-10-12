@@ -147,7 +147,7 @@ ALL_PITCH_COLUMNS = PITCH_COLUMNS + SIDE_PITCH_COLUMNS["L"] + SIDE_PITCH_COLUMNS
 def empty_row(team: str, game_date, pitcher: str, meta: dict) -> dict:
     base = {
         "PitcherTeam": team,
-        "GameDate": game_date,
+        "Date": game_date,
         "Pitcher": pitcher,
         "ZoneId": int(meta["ZoneId"]),
         "InZone": bool(meta["InZone"]),
@@ -175,7 +175,7 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
         return {}
 
     df = df.dropna(subset=["Pitcher","PitcherTeam","PlateLocSide","PlateLocHeight"]).copy()
-    df["GameDate"] = game_date
+    df["Date"] = game_date
 
     out: Dict[PitchKey, dict] = {}
 
@@ -242,7 +242,7 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
         chunk = payload[i:i+batch]
         try:
             supabase.table("PitcherPitchBins") \
-                .upsert(chunk, on_conflict="PitcherTeam,GameDate,Pitcher,ZoneId") \
+                .upsert(chunk, on_conflict="PitcherTeam,Date,Pitcher,ZoneId") \
                 .execute()
             total += len(chunk)
             print(f"Uploaded batch {i//batch + 1}: {len(chunk)}")

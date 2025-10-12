@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -76,6 +77,10 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     """Extract batter statistics from a CSV file in-memory"""
     try:
         df = pd.read_csv(buffer)
+
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -292,6 +297,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
+                "Date": game_date,
                 "hits": hits,
                 "at_bats": at_bats,
                 "strikes": strikes,

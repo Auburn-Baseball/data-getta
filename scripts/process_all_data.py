@@ -413,7 +413,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             batter_stats = get_batter_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['batters'].update(batter_stats)
+            upload_batters_to_supabase(batter_stats)
             stats_summary['batters'] = len(batter_stats)
         except Exception as e:
             print(f"Error processing batter stats for {file_info['filename']}: {e}")
@@ -423,7 +423,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitcher_stats = get_pitcher_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['pitchers'].update(pitcher_stats)
+            upload_pitchers_to_supabase(pitcher_stats)
             stats_summary['pitchers'] = len(pitcher_stats)
         except Exception as e:
             print(f"Error processing pitcher stats for {file_info['filename']}: {e}")
@@ -433,7 +433,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitch_stats = get_pitch_counts_from_buffer(buffer, file_info['filename'])
-            all_stats['pitches'].update(pitch_stats)
+            upload_pitches_to_supabase(pitcher_stats)
             stats_summary['pitches'] = len(pitch_stats)
         except Exception as e:
             print(f"Error processing pitch stats for {file_info['filename']}: {e}")
