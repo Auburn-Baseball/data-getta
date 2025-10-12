@@ -433,7 +433,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitch_stats = get_pitch_counts_from_buffer(buffer, file_info['filename'])
-            upload_pitches_to_supabase(pitcher_stats)
+            upload_pitches_to_supabase(pitch_stats)
             stats_summary['pitches'] = len(pitch_stats)
         except Exception as e:
             print(f"Error processing pitch stats for {file_info['filename']}: {e}")
