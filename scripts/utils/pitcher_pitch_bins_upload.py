@@ -1,24 +1,17 @@
 # pitch_bin.py  (13 zones: 3x3 inner + 4 outer quadrants)
-import os, json
-from pathlib import Path
+import json
 from typing import Dict, Tuple
+
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 
 # -----------------------------------------------------------------------------
-# Environment / Supabase
+# Supabase client
 # -----------------------------------------------------------------------------
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("VITE_SUPABASE_PROJECT_URL and VITE_SUPABASE_API_KEY must be set")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------------------------------------------------------
@@ -125,12 +118,7 @@ def classify_13(x: float, y: float):
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col  # 1..9
         return dict(
-            InZone=True,
-            ZoneRow=row,
-            ZoneCol=col,
-            ZoneCell=cell,
-            OuterLabel="NA",
-            ZoneId=cell,
+            InZone=True, ZoneRow=row, ZoneCol=col, ZoneCell=cell, OuterLabel="NA", ZoneId=cell
         )
     # outside -> quadrant
     if y > MID_Y:
@@ -138,12 +126,7 @@ def classify_13(x: float, y: float):
     else:
         label = "OBL" if x < MID_X else "OBR"
     return dict(
-        InZone=False,
-        ZoneRow=0,
-        ZoneCol=0,
-        ZoneCell=0,
-        OuterLabel=label,
-        ZoneId=OUTER_ID[label],
+        InZone=False, ZoneRow=0, ZoneCol=0, ZoneCell=0, OuterLabel=label, ZoneId=OUTER_ID[label]
     )
 
 
@@ -169,9 +152,7 @@ PITCH_KEYS = [
 ]
 
 PITCH_COLUMNS = [f"Count_{k}" for k in PITCH_KEYS]
-SIDE_PITCH_COLUMNS = {
-    side: [f"Count_{side}_{k}" for k in PITCH_KEYS] for side in ("L", "R")
-}
+SIDE_PITCH_COLUMNS = {side: [f"Count_{side}_{k}" for k in PITCH_KEYS] for side in ("L", "R")}
 ALL_PITCH_COLUMNS = PITCH_COLUMNS + SIDE_PITCH_COLUMNS["L"] + SIDE_PITCH_COLUMNS["R"]
 
 
@@ -210,12 +191,10 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
         "PlateLocHeight",
     ]
     if not all(c in df.columns for c in required):
-        print(f"Warning: missing required columns in {file_path}")
+        print(f"Warning: missing required columns in {filename}")
         return {}
 
-    df = df.dropna(
-        subset=["Pitcher", "PitcherTeam", "PlateLocSide", "PlateLocHeight"]
-    ).copy()
+    df = df.dropna(subset=["Pitcher", "PitcherTeam", "PlateLocSide", "PlateLocHeight"]).copy()
     df["Date"] = game_date
 
     out: Dict[PitchKey, dict] = {}
@@ -228,9 +207,9 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
             continue
 
         meta = classify_13(x, y)
-        team = str(r["PitcherTeam"])
+        team = str(r["PitcherTeam"]).strip()
         date = game_date
-        pitcher = str(r["Pitcher"])
+        pitcher = str(r["Pitcher"]).strip()
         zone_id = int(meta["ZoneId"])
         key: PitchKey = (team, date, pitcher, zone_id)
 
@@ -261,19 +240,6 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
 # -----------------------------------------------------------------------------
 # Upload
 # -----------------------------------------------------------------------------
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            return float(obj)
-        if isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-        if pd.isna(obj):
-            return None
-        return super().default(obj)
-
-
 def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
     if not bins:
         print("No bins data to upload")
@@ -305,39 +271,9 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
 # -----------------------------------------------------------------------------
 def main():
     print("Starting pitch bins CSV processing...")
-    csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    year_value = os.getenv("BINS_YEAR")
-    if not year_value:
-        raise RuntimeError(
-            "BINS_YEAR environment variable must be set to process pitcher bins."
-        )
-    year = int(year_value)
-    print(f"Looking for CSV files in: {csv_folder_path}\\{year}")
-    bins = process_csv_folder(csv_folder_path, year=year)
-    print(f"\nTotal unique bins: {len(bins)}")
-    if bins:
-        print("Sample:")
-        for i, (k, v) in enumerate(list(bins.items())[:5]):
-            print(
-                " ",
-                k,
-                {
-                    kk: v[kk]
-                    for kk in [
-                        "ZoneId",
-                        "InZone",
-                        "ZoneRow",
-                        "ZoneCol",
-                        "ZoneCell",
-                        "OuterLabel",
-                        "TotalPitchCount",
-                    ]
-                },
-            )
-        print("\nUploading to Supabase...")
-        upload_bins_to_supabase(bins)
-    else:
-        print("No bins to upload")
+    # csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
+    # TODO: Add updated get_ and upload functions
+
 
 
 if __name__ == "__main__":

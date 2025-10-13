@@ -1,19 +1,21 @@
 """
-Unit tests for pitcher statistics processing.
+Unit tests for update_pitchers_table.py
 
-Run with: pytest test_pitcher_stats.py -v
+Tests pitcher statistics extraction and upload functionality.
+Run with: pytest tests/test_pitchers_table.py -v
 """
 
-import pytest
-import pandas as pd
 import io
 from datetime import date
-from unittest.mock import Mock, patch, MagicMock
-from update_pitchers_table import (
-    is_in_strike_zone,
+from unittest.mock import Mock, patch
+
+import pytest
+
+from utils import (
     calculate_innings_pitched,
     get_pitcher_stats_from_buffer,
-    upload_pitchers_to_supabase
+    is_in_strike_zone,
+    upload_pitchers_to_supabase,
 )
 
 
@@ -22,43 +24,43 @@ class TestStrikeZoneDetection:
 
     def test_center_of_zone_is_strike(self):
         """Pitch in dead center should be a strike."""
-        assert is_in_strike_zone(2.66, 0.0) == True
+        assert is_in_strike_zone(2.66, 0.0) is True
 
     def test_top_corner_is_strike(self):
         """Top corner of zone should be a strike."""
-        assert is_in_strike_zone(3.55, 0.86) == True
+        assert is_in_strike_zone(3.55, 0.86) is True
 
     def test_bottom_corner_is_strike(self):
         """Bottom corner of zone should be a strike."""
-        assert is_in_strike_zone(1.77, -0.86) == True
+        assert is_in_strike_zone(1.77, -0.86) is True
 
     def test_pitch_above_zone_is_ball(self):
         """Pitch above zone should be a ball."""
-        assert is_in_strike_zone(4.0, 0.0) == False
+        assert is_in_strike_zone(4.0, 0.0) is False
 
     def test_pitch_below_zone_is_ball(self):
         """Pitch below zone should be a ball."""
-        assert is_in_strike_zone(1.0, 0.0) == False
+        assert is_in_strike_zone(1.0, 0.0) is False
 
     def test_pitch_left_of_zone_is_ball(self):
         """Pitch outside left edge should be a ball."""
-        assert is_in_strike_zone(2.5, -1.5) == False
+        assert is_in_strike_zone(2.5, -1.5) is False
 
     def test_pitch_right_of_zone_is_ball(self):
         """Pitch outside right edge should be a ball."""
-        assert is_in_strike_zone(2.5, 1.5) == False
+        assert is_in_strike_zone(2.5, 1.5) is False
 
     def test_none_height_returns_false(self):
         """None value for height should return False, not crash."""
-        assert is_in_strike_zone(None, 0.0) == False
+        assert is_in_strike_zone(None, 0.0) is False
 
     def test_none_side_returns_false(self):
         """None value for side should return False, not crash."""
-        assert is_in_strike_zone(2.5, None) == False
+        assert is_in_strike_zone(2.5, None) is False
 
     def test_string_values_return_false(self):
         """String values should return False, not crash."""
-        assert is_in_strike_zone("high", "outside") == False
+        assert is_in_strike_zone("high", "outside") is False
 
 
 class TestInningsPitchedCalculation:
@@ -106,6 +108,13 @@ class TestPitcherStatsExtraction:
     """Test extraction of pitcher statistics from CSV data."""
 
     @pytest.fixture
+    def mock_date_parser(self):
+        """Mock date parser to return fixed date."""
+        with patch("utils.file_date.CSVFilenameParser") as mock:
+            mock.return_value.get_date_object.return_value = date(2025, 3, 15)
+            yield mock
+
+    @pytest.fixture
     def minimal_csv(self):
         """Minimal valid CSV data."""
         csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult,GameUID
@@ -126,7 +135,7 @@ Johnson,TeamB,,StrikeSwinging,2.5,0.0,1,0,3,1,1,0,Miller,Out,game1
 Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         return io.StringIO(csv_data)
 
-    def test_basic_stats_extraction(self, minimal_csv):
+    def test_basic_stats_extraction(self, minimal_csv, mock_date_parser):
         """Test basic counting stats are extracted correctly."""
         result = get_pitcher_stats_from_buffer(minimal_csv, "test.csv")
 
@@ -139,7 +148,7 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         assert stats["hits"] == 1
         assert stats["pitches"] == 3
 
-    def test_multiple_pitchers_separated(self, complex_csv):
+    def test_multiple_pitchers_separated(self, complex_csv, mock_date_parser):
         """Test that stats for different pitchers are kept separate."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
@@ -147,28 +156,28 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         assert ("Smith", "TeamA", 2025) in result
         assert ("Johnson", "TeamB", 2025) in result
 
-    def test_strikeout_count(self, complex_csv):
+    def test_strikeout_count(self, complex_csv, mock_date_parser):
         """Test strikeout counting."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
         smith_stats = result[("Smith", "TeamA", 2025)]
         assert smith_stats["total_strikeouts_pitcher"] == 3
 
-    def test_walk_count(self, complex_csv):
+    def test_walk_count(self, complex_csv, mock_date_parser):
         """Test walk counting."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
         johnson_stats = result[("Johnson", "TeamB", 2025)]
         assert johnson_stats["total_walks_pitcher"] == 1
 
-    def test_homerun_count(self, complex_csv):
+    def test_homerun_count(self, complex_csv, mock_date_parser):
         """Test home run counting."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
         johnson_stats = result[("Johnson", "TeamB", 2025)]
         assert johnson_stats["homeruns"] == 1
 
-    def test_innings_pitched_calculation(self, complex_csv):
+    def test_innings_pitched_calculation(self, complex_csv, mock_date_parser):
         """Test that innings pitched is calculated correctly."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
@@ -176,7 +185,7 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         # 3 strikeouts = 3 outs = 1.0 inning
         assert smith_stats["total_innings_pitched"] == 1.0
 
-    def test_k_per_9_calculation(self, complex_csv):
+    def test_k_per_9_calculation(self, complex_csv, mock_date_parser):
         """Test K/9 rate calculation."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
@@ -184,7 +193,7 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         # 3 K in 1.0 inning = (3 * 9) / 1.0 = 27.0
         assert smith_stats["k_per_9"] == 27.0
 
-    def test_whip_calculation(self, minimal_csv):
+    def test_whip_calculation(self, minimal_csv, mock_date_parser):
         """Test WHIP calculation."""
         result = get_pitcher_stats_from_buffer(minimal_csv, "test.csv")
 
@@ -194,7 +203,7 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         # WHIP = 2 / (2/3) = 3.0
         assert stats["whip"] == 3.0
 
-    def test_zone_statistics(self, complex_csv):
+    def test_zone_statistics(self, complex_csv, mock_date_parser):
         """Test in-zone and out-of-zone pitch counting."""
         result = get_pitcher_stats_from_buffer(complex_csv, "test.csv")
 
@@ -202,7 +211,7 @@ Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
         assert smith_stats["total_in_zone_pitches"] > 0
         assert smith_stats["misses_in_zone"] >= 0
 
-    def test_missing_columns_returns_empty(self):
+    def test_missing_columns_returns_empty(self, mock_date_parser):
         """Test that missing required columns returns empty dict."""
         csv_data = """Pitcher,PitcherTeam
 Smith,TeamA"""
@@ -211,7 +220,7 @@ Smith,TeamA"""
         result = get_pitcher_stats_from_buffer(buffer, "test.csv")
         assert result == {}
 
-    def test_null_pitcher_name_skipped(self):
+    def test_null_pitcher_name_skipped(self, mock_date_parser):
         """Test that rows with null pitcher names are skipped."""
         csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
 ,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout
@@ -223,7 +232,7 @@ Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout"""
         assert len(result) == 1
         assert ("Smith", "TeamA", 2025) in result
 
-    def test_games_started_detection(self):
+    def test_games_started_detection(self, mock_date_parser):
         """Test detection of games started (first PA of first inning)."""
         csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
 Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,0,1,0,Jones,Strikeout"""
@@ -270,12 +279,11 @@ class TestSupabaseUpload:
             }
         }
 
-    @patch('update_pitchers_table.supabase')
+    @patch("utils.update_pitchers_table.supabase")
     def test_upload_removes_unique_games_field(self, mock_supabase, sample_pitcher_dict):
         """Test that unique_games set is removed before upload."""
         mock_table = Mock()
         mock_upsert = Mock()
-        mock_execute = Mock()
 
         mock_supabase.table.return_value = mock_table
         mock_table.upsert.return_value = mock_upsert
@@ -292,7 +300,7 @@ class TestSupabaseUpload:
         assert "Pitcher" in uploaded_record
         assert uploaded_record["Pitcher"] == "Smith"
 
-    @patch('update_pitchers_table.supabase')
+    @patch("utils.update_pitchers_table.supabase")
     def test_upload_uses_correct_conflict_key(self, mock_supabase, sample_pitcher_dict):
         """Test that upsert uses correct conflict resolution."""
         mock_table = Mock()
@@ -305,16 +313,15 @@ class TestSupabaseUpload:
         upload_pitchers_to_supabase(sample_pitcher_dict)
 
         # Verify the conflict key
-        mock_table.upsert.assert_called_once()
         call_kwargs = mock_table.upsert.call_args[1]
-        assert call_kwargs["on_conflict"] == "Pitcher,PitcherTeam,Year"
+        assert call_kwargs["on_conflict"] == "Pitcher,PitcherTeam,Date"
 
-    @patch('update_pitchers_table.supabase')
+    @patch("utils.update_pitchers_table.supabase")
     def test_upload_batches_large_datasets(self, mock_supabase):
         """Test that large datasets are uploaded in batches."""
-        # Create 250 pitchers (should be 3 batches of 100)
+        # Create 2500 pitchers (should be 3 batches)
         large_dict = {}
-        for i in range(250):
+        for i in range(2500):
             large_dict[(f"Pitcher{i}", "Team", 2025)] = {
                 "Pitcher": f"Pitcher{i}",
                 "PitcherTeam": "Team",
@@ -345,10 +352,10 @@ class TestSupabaseUpload:
 
         upload_pitchers_to_supabase(large_dict)
 
-        # Should be called 3 times (100 + 100 + 50)
+        # Should be called 3 times (1000 + 1000 + 500)
         assert mock_table.upsert.call_count == 3
 
-    @patch('update_pitchers_table.supabase')
+    @patch("utils.update_pitchers_table.supabase")
     def test_upload_handles_empty_dict(self, mock_supabase):
         """Test that empty dictionary doesn't cause errors."""
         upload_pitchers_to_supabase({})
@@ -360,7 +367,14 @@ class TestSupabaseUpload:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_divide_by_zero_in_percentages(self):
+    @pytest.fixture
+    def mock_date_parser(self):
+        """Mock date parser."""
+        with patch("utils.file_date.CSVFilenameParser") as mock:
+            mock.return_value.get_date_object.return_value = date(2025, 3, 15)
+            yield mock
+
+    def test_divide_by_zero_in_percentages(self, mock_date_parser):
         """Test that zero batters faced doesn't cause divide by zero."""
         csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult"""
         buffer = io.StringIO(csv_data)
@@ -370,7 +384,7 @@ class TestEdgeCases:
         # Empty result is acceptable
         assert isinstance(result, dict)
 
-    def test_invalid_numeric_values(self):
+    def test_invalid_numeric_values(self, mock_date_parser):
         """Test that invalid numeric values are handled gracefully."""
         csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
 Smith,TeamA,Strikeout,StrikeSwinging,invalid,notanumber,1,0,0,2,1,0,Jones,Strikeout"""
@@ -383,4 +397,3 @@ Smith,TeamA,Strikeout,StrikeSwinging,invalid,notanumber,1,0,0,2,1,0,Jones,Strike
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

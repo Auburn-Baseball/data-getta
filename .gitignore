@@ -33,10 +33,8 @@ ui/*.local
 
 package-lock.json
 scripts/poetry.lock
-scripts/__pycache__/
-scripts/QA/__pycache__/
-scripts/tests/__pycache__/
-scripts/utils/__pycache__/
+scripts/.coverage
 csv/
 
+*__pycache__/
 .vscode
