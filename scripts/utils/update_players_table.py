@@ -1,24 +1,22 @@
 import os
+from pathlib import Path
+from typing import Dict, Tuple
+
 import pandas as pd
 from dotenv import load_dotenv
-from supabase import create_client, Client
-import re
-from typing import Dict, Tuple, List
-from pathlib import Path
+from supabase import Client, create_client
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
+env = os.getenv("ENV", "development")
+load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
+    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -115,7 +113,7 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table(f"Players")
+                    supabase.table("Players")
                     .upsert(batch, on_conflict="Name,TeamTrackmanAbbreviation,Year")
                     .execute()
                 )
@@ -125,16 +123,14 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
 
             except Exception as batch_error:
                 print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
+                print(result.data)
                 continue
 
         print(f"Successfully processed {total_inserted} player records")
 
         # Get final count
         count_result = (
-            supabase.table(f"Players")
-            .select("*", count="exact")
-            .eq("Year", 2025)
-            .execute()
+            supabase.table("Players").select("*", count="exact").eq("Year", 2025).execute()
         )
         total_players = count_result.count
         print(f"Total 2025 players in database: {total_players}")

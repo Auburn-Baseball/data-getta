@@ -4,8 +4,9 @@ The scripts directory contains an orchestrator python script (process_all_data.p
 
 ## Setup
 
-- Use poetry to install all of the project's python dependencies:
+- Use the make command or poetry to install all of the project's python dependencies:
 ```bash
+make install
 poetry install
 ```
 
@@ -26,15 +27,20 @@ VITE_SUPABASE_API_KEY=string
 
 ## Script usage
 
-Once the dependencies are installed and the .env file(s) are prepared, the main script is ready to run!
+Once the dependencies are installed and the .env file(s) are prepared, the main script is ready to run! The Makefile is your friend, but manually running the command is also an option.
 
 ```bash
-poetry run python3 process_all_data.py
+make process  # Run using the Makefile shortcut
+
+poetry run python3 process_all_data.py  # Run manually
 ```
 
 There are two flags supported when running the script: test and date-range
 
 ```bash
+make process-args --test
+make process-args --date-range {range}
+
 poetry run python3 process_all_data.py --test
 poetry run python3 process_all_data.py --date-range {range}
 ```
@@ -52,3 +58,13 @@ poetry run python3 process_local_csv.py {filename}
 ```
 
 Note that the filename does not need to be the full path to the file, as the 'process_local_csv.py' file will check the 'test_csv_files' subdirectory by default.
+
+## Linting, auto-formatting, and testing
+
+A series of tools has been included in the pyproject.toml file and combined with the Makefile in order to provide automated formatting (isort), linting (flake8), static type checking (mypy), pytest configuration (ini_options). This is both quality of life and also just makes the scripts more maintainable overall.
+
+For the purposes of deployment, poetry install should be run with the --without dev flag to refrain from installing unnecessary dev tools.
+
+## Note to future devs
+
+A workflow of auto-formatting, linting, and performing tests can be set to run on commit. Running 'poetry run pre-commit install' will setup pre-commit hooks according to the pyproject.toml file. Afterward, when committing, the pipeline is run, and any failures prevent a successful commit. You can skip the pre-commit with the --no-verify flag when committing if necessary.
