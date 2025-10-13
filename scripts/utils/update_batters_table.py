@@ -85,7 +85,6 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         if "League" in df.columns:
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
             is_practice = (league_values == "TEAM").any()
-
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date = str(date_parser.get_date_object(filename))
@@ -322,6 +321,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "total_bases": total_bases,
                 "is_practice": is_practice,
                 "total_exit_velo": round(total_exit_velo, 1),
+                "is_practice": is_practice,
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
                 else None,
@@ -383,7 +383,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Preparing to upload {len(batter_data)} unique batters...")
 
         # Insert data in batches to avoid request size limits
-        batch_size = 100
+        batch_size = 1000
         total_inserted = 0
 
         for i in range(0, len(batter_data), batch_size):

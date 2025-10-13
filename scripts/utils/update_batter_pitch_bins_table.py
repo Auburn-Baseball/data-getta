@@ -234,7 +234,7 @@ def upload_batter_pitch_bins(bins: Dict[BinKey, Dict[str, float]]):
         return
 
     payload = [json.loads(json.dumps(row, cls=NumpyEncoder)) for row in bins.values()]
-    batch = 200
+    batch = 1000
     uploaded = 0
     for start in range(0, len(payload), batch):
         chunk = payload[start : start + batch]
