@@ -39,6 +39,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         elif isinstance(obj, np.floating):
             return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         elif pd.isna(obj):
@@ -77,6 +79,12 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     """Extract batter statistics from a CSV file in-memory"""
     try:
         df = pd.read_csv(buffer)
+
+        # Determines if this is practice data by checking the League column
+        is_practice = False
+        if "League" in df.columns:
+            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+            is_practice = (league_values == "TEAM").any()
 
         # Get game date from filename
         date_parser = CSVFilenameParser()
@@ -312,6 +320,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
+                "is_practice": is_practice,
                 "total_exit_velo": round(total_exit_velo, 1),
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
