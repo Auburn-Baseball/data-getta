@@ -16,26 +16,16 @@ import pandas as pd
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import json
+from typing import Dict, Tuple
+
 import numpy as np
-from typing import Dict, Tuple, List, Set
-from pathlib import Path
+import pandas as pd
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
 from .file_date import CSVFilenameParser
 import xgboost as xgb
 import bisect
-
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -321,15 +311,9 @@ def get_advanced_batting_stats_from_buffer(
             for _, row in group.iterrows():
                 try:
                     height = (
-                        float(row["PlateLocHeight"])
-                        if pd.notna(row["PlateLocHeight"])
-                        else None
+                        float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
-                    side = (
-                        float(row["PlateLocSide"])
-                        if pd.notna(row["PlateLocSide"])
-                        else None
-                    )
+                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
 
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):
@@ -416,13 +400,9 @@ def get_advanced_batting_stats_from_buffer(
             )
 
             # Whiff and chase percentages
-            whiff_per = (
-                in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
-            )
+            whiff_per = in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
             chase_per = (
-                out_of_zone_swings / out_of_zone_pitches
-                if out_of_zone_pitches > 0
-                else None
+                out_of_zone_swings / out_of_zone_pitches if out_of_zone_pitches > 0 else None
             )
 
             # --- Prepare batted_ball_rows ---
@@ -565,35 +545,27 @@ def get_advanced_batting_stats_from_buffer(
                     round(avg_exit_velo, 1) if avg_exit_velo is not None else None
                 ),
                 "k_per": round(k_percentage, 3) if k_percentage is not None else None,
-                "bb_per": (
-                    round(bb_percentage, 3) if bb_percentage is not None else None
-                ),
-                "la_sweet_spot_per": (
-                    round(la_sweet_spot_per, 3)
-                    if la_sweet_spot_per is not None
-                    else None
-                ),
-                "hard_hit_per": (
-                    round(hard_hit_per, 3) if hard_hit_per is not None else None
-                ),
+                "bb_per": round(bb_percentage, 3) if bb_percentage is not None else None,
+                "la_sweet_spot_per": round(la_sweet_spot_per, 3)
+                if la_sweet_spot_per is not None
+                else None,
+                "hard_hit_per": round(hard_hit_per, 3) if hard_hit_per is not None else None,
                 "in_zone_pitches": in_zone_pitches,
                 "whiff_per": round(whiff_per, 3) if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": round(chase_per, 3) if chase_per is not None else None,
                 "infield_left_slice": infield_left_slice,
-                "infield_left_per": (
-                    round(infield_left_per, 3) if infield_left_per is not None else None
-                ),
+                "infield_left_per": round(infield_left_per, 3)
+                if infield_left_per is not None
+                else None,
                 "infield_lc_slice": infield_lc_slice,
                 "infield_lc_per": (
                     round(infield_lc_per, 3) if infield_lc_per is not None else None
                 ),
                 "infield_center_slice": infield_center_slice,
-                "infield_center_per": (
-                    round(infield_center_per, 3)
-                    if infield_center_per is not None
-                    else None
-                ),
+                "infield_center_per": round(infield_center_per, 3)
+                if infield_center_per is not None
+                else None,
                 "infield_rc_slice": infield_rc_slice,
                 "infield_rc_per": (
                     round(infield_rc_per, 3) if infield_rc_per is not None else None
@@ -866,9 +838,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                 temp["avg_exit_velo"], ascending=True
             )
             temp["k_per_rank"] = rank_and_scale_to_1_100(temp["k_per"], ascending=False)
-            temp["bb_per_rank"] = rank_and_scale_to_1_100(
-                temp["bb_per"], ascending=True
-            )
+            temp["bb_per_rank"] = rank_and_scale_to_1_100(temp["bb_per"], ascending=True)
             temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_100(
                 temp["la_sweet_spot_per"], ascending=True
             )
