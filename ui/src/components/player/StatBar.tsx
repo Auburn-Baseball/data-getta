@@ -8,17 +8,32 @@ interface StatBarProps {
 }
 
 
-// Helper to interpolate between blue and red based on percentile
 function getBarColor(percentile: number) {
-  // 1% = blue (#1976d2), 99% = red (#c62828)
-  const percent = (percentile - 1) / 98;
-  const r1 = 25, g1 = 118, b1 = 210; // blue
-  const r2 = 198, g2 = 40, b2 = 40; // red
-  const r = Math.round(r1 + (r2 - r1) * percent);
-  const g = Math.round(g1 + (g2 - g1) * percent);
-  const b = Math.round(b1 + (b2 - b1) * percent);
+  const p = Math.max(0, Math.min(percentile, 100));
+
+  const lowBlue = { r: 0, g: 0, b: 255 };     // dark blue
+  const highBlue = { r: 204, g: 229, b: 255 }; // light blue
+
+  const lowRed = { r: 255, g: 204, b: 204 };   // light red
+  const highRed = { r: 204, g: 0, b: 0 };    // bright red
+
+  let r, g, b;
+
+  if (p < 50) {
+    const t = p / 50; // interpolate 0 → 50
+    r = Math.round(lowBlue.r + t * (highBlue.r - lowBlue.r));
+    g = Math.round(lowBlue.g + t * (highBlue.g - lowBlue.g));
+    b = Math.round(lowBlue.b + t * (highBlue.b - lowBlue.b));
+  } else {
+    const t = (p - 50) / 50; // interpolate 51 → 100
+    r = Math.round(lowRed.r + t * (highRed.r - lowRed.r));
+    g = Math.round(lowRed.g + t * (highRed.g - lowRed.g));
+    b = Math.round(lowRed.b + t * (highRed.b - lowRed.b));
+  }
+
   return `rgb(${r},${g},${b})`;
 }
+
 
 const StatBar: React.FC<StatBarProps> = ({ statName, percentile, statValue }) => {
   const barColor = getBarColor(percentile);

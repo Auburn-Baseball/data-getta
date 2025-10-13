@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -38,6 +39,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         elif isinstance(obj, np.floating):
             return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         elif pd.isna(obj):
@@ -70,6 +73,15 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
     """Extract pitcher statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
+
+        # Determine if this is practice data by checking League column
+        is_practice = False
+        if "League" in df.columns:
+            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+            is_practice = (league_values == "TEAM").any()
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -229,7 +241,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             pitcher_stats = {
                 "Pitcher": pitcher_name,
                 "PitcherTeam": pitcher_team,
-                "Year": 2025,
+                "Date": game_date,
                 "total_strikeouts_pitcher": total_strikeouts_pitcher,
                 "total_walks_pitcher": total_walks_pitcher,
                 "total_out_of_zone_pitches": out_of_zone_count,
@@ -246,6 +258,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
                 "bb_per_9": bb_per_9,
                 "whip": whip,
                 "total_batters_faced": total_batters_faced,
+                "is_practice": is_practice,
                 "k_percentage": round(k_percentage, 3)
                 if k_percentage is not None
                 else None,
@@ -302,7 +315,7 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"PitcherStats")
-                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Year")
+                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Date")
                     .execute()
                 )
 
@@ -322,11 +335,10 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
         count_result = (
             supabase.table(f"PitcherStats")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
         total_pitchers = count_result.count
-        print(f"Total 2025 pitchers in database: {total_pitchers}")
+        print(f"Total pitchers in database: {total_pitchers}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

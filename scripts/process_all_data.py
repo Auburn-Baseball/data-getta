@@ -25,6 +25,7 @@ import json
 import hashlib
 import sys
 from supabase import create_client, Client
+import pandas as pd
 
 # Import your existing processing functions
 from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
@@ -32,6 +33,9 @@ from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
                    get_players_from_buffer, upload_players_to_supabase,
                    get_advanced_batting_stats_from_buffer, upload_advanced_batting_to_supabase,
+                   combine_advanced_batting_stats,
+                   get_batter_bins_from_buffer, upload_batter_pitch_bins,
+                   get_pitcher_bins_from_buffer, upload_pitcher_pitch_bins,
                    CSVFilenameParser )
 
 project_root = Path(__file__).parent.parent
@@ -296,7 +300,7 @@ def is_csv_file(name):
     if not name.lower().endswith(".csv"):
         return False
 
-    exclude_patterns = ["playerpositioning", "fhc", "unverified"]
+    exclude_patterns = ["playerpositioning", "fhc"]
     filename_lower = name.lower()
     return not any(pattern in filename_lower for pattern in exclude_patterns)
 
@@ -404,6 +408,30 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer = BytesIO()
         ftp.retrbinary(f"RETR {filename}", buffer.write)
 
+        # If file is unverified, check if it's practice before skipping/processing it
+        if "unverified" in filename.lower():
+            buffer.seek(0)
+            try:
+                df = pd.read_csv(buffer)
+
+                is_practice = False
+                if "League" in df.columns:
+                    league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+                    is_practice = (league_values == "TEAM").any()
+                    print(f"DEBUG: {filename} - League values: {league_values.unique()}, is_practice: {is_practice}")
+
+                # If it's not practice, skip this file
+                if not is_practice:
+                    return True, f"Skipped (unverified non-practice): {filename}"
+            except Exception as e:
+                return False, f"Error checking unverified file {filename}: {e}"
+
+            # Reset buffer for processing
+            buffer.seek(0)
+
+        csv_date_getter = CSVFilenameParser()
+        game_date = str(csv_date_getter.get_date_object(file_info['filename']))
+
         # Process through each module
         stats_summary = {}
 
@@ -411,7 +439,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             batter_stats = get_batter_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['batters'].update(batter_stats)
+            upload_batters_to_supabase(batter_stats)
             stats_summary['batters'] = len(batter_stats)
         except Exception as e:
             print(f"Error processing batter stats for {file_info['filename']}: {e}")
@@ -421,7 +449,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitcher_stats = get_pitcher_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['pitchers'].update(pitcher_stats)
+            upload_pitchers_to_supabase(pitcher_stats)
             stats_summary['pitchers'] = len(pitcher_stats)
         except Exception as e:
             print(f"Error processing pitcher stats for {file_info['filename']}: {e}")
@@ -431,7 +459,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitch_stats = get_pitch_counts_from_buffer(buffer, file_info['filename'])
-            all_stats['pitches'].update(pitch_stats)
+            upload_pitches_to_supabase(pitch_stats)
             stats_summary['pitches'] = len(pitch_stats)
         except Exception as e:
             print(f"Error processing pitch stats for {file_info['filename']}: {e}")
@@ -451,11 +479,40 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             advanced_batting_stats = get_advanced_batting_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['advanced_batting'].update(advanced_batting_stats)
-            stats_summary['advanced_batting'] = len(advanced_batting_stats)
+
+            # Merge new stats into existing ones
+            for key, new_stat in advanced_batting_stats.items():
+                if key in all_stats['advanced_batting']:
+                    combined = combine_advanced_batting_stats(all_stats['advanced_batting'][key], new_stat)
+                    all_stats['advanced_batting'][key] = combined
+                else:
+                    all_stats['advanced_batting'][key] = new_stat
+
+            stats_summary['advanced_batting'] = len(all_stats['advanced_batting'])
+
         except Exception as e:
             print(f"Error processing advanced batting stats for {file_info['filename']}: {e}")
             stats_summary['advanced_batting'] = 0
+
+        # Batter pitch bins (heatmaps)
+        buffer.seek(0)
+        try:
+            batter_pitch_bin = get_batter_bins_from_buffer(buffer, file_info['filename'])
+            upload_batter_pitch_bins(batter_pitch_bin)
+            stats_summary['batter_bin'] = len(batter_pitch_bin)
+        except Exception as e:
+            print(f"Error processing batter pitch bin stats for {file_info['filename']}: {e}")
+            stats_summary['batter_bin'] = 0
+
+        # Pitcher pitch bins (heatmaps)
+        buffer.seek(0)
+        try:
+            pitcher_pitch_bin = get_pitcher_bins_from_buffer(buffer, file_info['filename'])
+            upload_pitcher_pitch_bins(pitcher_pitch_bin)
+            stats_summary['pitcher_bin'] = len(pitcher_pitch_bin)
+        except Exception as e:
+            print(f"Error processing pitcher pitch bin stats for {file_info['filename']}: {e}")
+            stats_summary['pitcher_bin'] = 0
 
         # Mark as processed in database
         tracker.mark_processed(
@@ -488,6 +545,8 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         'pitchers': {},
         'pitches': {},
         'players': {},
+        'batter_bin': {},
+        'pitcher_bin': {},
         'advanced_batting': {}
     }
 
@@ -546,25 +605,21 @@ def upload_all_stats(all_stats):
     print("UPLOADING TO DATABASE")
     print("="*50)
 
-    if all_stats['batters']:
-        print(f"\nUploading {len(all_stats['batters'])} batter records...")
-        upload_batters_to_supabase(all_stats['batters'])
-
-    if all_stats['pitchers']:
-        print(f"\nUploading {len(all_stats['pitchers'])} pitcher records...")
-        upload_pitchers_to_supabase(all_stats['pitchers'])
-
-    if all_stats['pitches']:
-        print(f"\nUploading {len(all_stats['pitches'])} pitch records...")
-        upload_pitches_to_supabase(all_stats['pitches'])
-
     if all_stats['players']:
         print(f"\nUploading {len(all_stats['players'])} player records...")
         upload_players_to_supabase(all_stats['players'])
-    
+
     if all_stats['advanced_batting']:
         print(f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records...")
         upload_advanced_batting_to_supabase(all_stats['advanced_batting'])
+
+    if all_stats['batter_bin']:
+        print(f"\nUploading {len(all_stats['batter_bin'])} batter pitch bin records...")
+        upload_batter_pitch_bins(all_stats['batter_bin'])
+
+    if all_stats['pitcher_bin']:
+        print(f"\nUploading {len(all_stats['pitcher_bin'])} pitcher pitch bin records...")
+        upload_pitcher_pitch_bins(all_stats['pitcher_bin'])
 
 def main():
 

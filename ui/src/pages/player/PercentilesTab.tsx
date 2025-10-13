@@ -21,9 +21,9 @@ const InfieldSprayChart: React.FC<{ stats: any }> = ({ stats }) => {
   // Calculate total and per-slice counts
   const counts = [
     stats.infield_left_slice ?? 0,
-    stats.infield_leftcenter_slice ?? 0,
+    stats.infield_lc_slice ?? 0,
     stats.infield_center_slice ?? 0,
-    stats.infield_rightcenter_slice ?? 0,
+    stats.infield_rc_slice ?? 0,
     stats.infield_right_slice ?? 0,
   ];
 
@@ -36,7 +36,7 @@ const InfieldSprayChart: React.FC<{ stats: any }> = ({ stats }) => {
   // White → red gradient
   const getColor = (percent: number) => {
     if (maxPercent === 0) return "rgb(255,255,255)";
-    const intensity = percent / maxPercent; // 0–1 scale
+    const intensity = percent / 50; // 50% maps to full red
     const red = 255;
     const green = Math.round(255 * (1 - intensity));
     const blue = Math.round(255 * (1 - intensity));

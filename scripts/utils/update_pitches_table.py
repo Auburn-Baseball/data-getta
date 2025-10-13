@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -32,6 +33,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         elif isinstance(obj, np.floating):
             return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         elif pd.isna(obj):
@@ -43,6 +46,15 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     """Extract pitch count statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
+
+        # Determine if this is practice data by checking League column
+        is_pratice = False
+        if "League" in df.columns:
+            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+            is_practice = (league_values == "TEAM").any()
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -111,7 +123,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             pitch_stats = {
                 "Pitcher": pitcher_name,
                 "PitcherTeam": pitcher_team,
-                "Year": 2025,
+                "Date": game_date,
                 "total_pitches": total_pitches,
                 "curveball_count": curveball_count,
                 "fourseam_count": fourseam_count,
@@ -124,6 +136,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "other_count": other_count,
                 "unique_games": unique_games,  # Store the set of unique games
                 "games": len(unique_games),  # This will be recalculated later
+                "is_practice": is_practice,
             }
 
             pitchers_dict[key] = pitch_stats
@@ -166,7 +179,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"PitchCounts")
-                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Year")
+                    .upsert(batch, on_conflict="Pitcher,PitcherTeam,Date")
                     .execute()
                 )
 
@@ -186,11 +199,10 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"PitchCounts")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
         total_pitchers = count_result.count
-        print(f"Total 2025 pitcher pitch counts in database: {total_pitchers}")
+        print(f"Total pitcher pitch counts in database: {total_pitchers}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

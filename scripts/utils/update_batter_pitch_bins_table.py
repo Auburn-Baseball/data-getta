@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from supabase import Client, create_client
+from .file_date import CSVFilenameParser
 
 # ---------------------------------------------------------------------------
 # Environment / Supabase
@@ -75,7 +76,7 @@ ALL_TRACKED_COLUMNS = [
     *HIT_COLUMNS,
 ]
 
-BinKey = Tuple[str, int, str, int]  # BatterTeam, Year, Batter, ZoneId
+BinKey = Tuple[str, str, str, int]  # BatterTeam, Date, Batter, ZoneId
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -144,10 +145,10 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     }
 
 
-def empty_row(team: str, year: int, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
+def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
     row: Dict[str, float] = {
         "BatterTeam": team,
-        "Year": year,
+        "Date": game_date,
         "Batter": batter,
         "ZoneId": int(zone_meta["ZoneId"]),
         "InZone": bool(zone_meta["InZone"]),
@@ -162,8 +163,13 @@ def empty_row(team: str, year: int, batter: str, zone_meta: Dict[str, object]) -
     return row
 
 
-def process_csv(csv_path: Path, year: int) -> Dict[BinKey, Dict[str, float]]:
-    df = pd.read_csv(csv_path)
+def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str, float]]:
+    df = pd.read_csv(buffer)
+
+    # Get date from filename
+    date_parser = CSVFilenameParser()
+    game_date = str(date_parser.get_date_object(filename))
+
     required = [
         "Batter",
         "BatterTeam",
@@ -178,7 +184,7 @@ def process_csv(csv_path: Path, year: int) -> Dict[BinKey, Dict[str, float]]:
         return {}
 
     df = df.dropna(subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]).copy()
-    df["Year"] = year
+    df["Date"] = game_date
 
     bins: Dict[BinKey, Dict[str, float]] = {}
 
@@ -195,10 +201,10 @@ def process_csv(csv_path: Path, year: int) -> Dict[BinKey, Dict[str, float]]:
         if not team or not batter:
             continue
 
-        key: BinKey = (team, year, batter, int(zone_meta["ZoneId"]))
+        key: BinKey = (team, game_date, batter, int(zone_meta["ZoneId"]))
         record = bins.get(key)
         if record is None:
-            record = empty_row(team, year, batter, zone_meta)
+            record = empty_row(team, game_date, batter, zone_meta)
             bins[key] = record
 
         record["TotalPitchCount"] += 1
@@ -222,17 +228,7 @@ def process_csv(csv_path: Path, year: int) -> Dict[BinKey, Dict[str, float]]:
     return bins
 
 
-def merge_bins(target: Dict[BinKey, Dict[str, float]], source: Dict[BinKey, Dict[str, float]]):
-    for key, row in source.items():
-        if key not in target:
-            target[key] = row
-            continue
-        dest = target[key]
-        for col in ALL_TRACKED_COLUMNS:
-            dest[col] += row[col]
-
-
-def upload(bins: Dict[BinKey, Dict[str, float]]):
+def upload_batter_pitch_bins(bins: Dict[BinKey, Dict[str, float]]):
     if not bins:
         print("No batter bins to upload.")
         return
@@ -245,7 +241,7 @@ def upload(bins: Dict[BinKey, Dict[str, float]]):
         try:
             supabase.table("BatterPitchBins").upsert(
                 chunk,
-                on_conflict="BatterTeam,Year,Batter,ZoneId",
+                on_conflict="BatterTeam,Date,Batter,ZoneId",
             ).execute()
             uploaded += len(chunk)
             print(f"Uploaded batch {(start // batch) + 1}: {len(chunk)} records")
