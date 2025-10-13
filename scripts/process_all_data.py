@@ -25,6 +25,7 @@ import json
 import hashlib
 import sys
 from supabase import create_client, Client
+import pandas as pd
 
 # Import your existing processing functions
 from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
@@ -272,7 +273,7 @@ def is_csv_file(name):
     if not name.lower().endswith(".csv"):
         return False
 
-    exclude_patterns = ["playerpositioning", "fhc", "unverified"]
+    exclude_patterns = ["playerpositioning", "fhc"]
     filename_lower = name.lower()
     return not any(pattern in filename_lower for pattern in exclude_patterns)
 
@@ -380,6 +381,30 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer = BytesIO()
         ftp.retrbinary(f"RETR {filename}", buffer.write)
 
+        # If file is unverified, check if it's practice before skipping/processing it
+        if "unverified" in filename.lower():
+            buffer.seek(0)
+            try:
+                df = pd.read_csv(buffer)
+
+                is_practice = False
+                if "League" in df.columns:
+                    league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+                    is_practice = (league_values == "TEAM").any()
+                    print(f"DEBUG: {filename} - League values: {league_values.unique()}, is_practice: {is_practice}")
+
+                # If it's not practice, skip this file
+                if not is_practice:
+                    return True, f"Skipped (unverified non-practice): {filename}"
+            except Exception as e:
+                return False, f"Error checking unverified file {filename}: {e}"
+
+            # Reset buffer for processing
+            buffer.seek(0)
+
+        csv_date_getter = CSVFilenameParser()
+        game_date = str(csv_date_getter.get_date_object(file_info['filename']))
+
         # Process through each module
         stats_summary = {}
 
@@ -387,7 +412,10 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             batter_stats = get_batter_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['batters'].update(batter_stats)
+            # Add game's date to each player's row
+            for key, stats in batter_stats.items():
+                stats['Date'] = game_date
+            upload_batters_to_supabase(batter_stats)
             stats_summary['batters'] = len(batter_stats)
         except Exception as e:
             print(f"Error processing batter stats for {file_info['filename']}: {e}")
@@ -397,7 +425,10 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitcher_stats = get_pitcher_stats_from_buffer(buffer, file_info['filename'])
-            all_stats['pitchers'].update(pitcher_stats)
+            # Add game's date to each player's row
+            for key, stats in pitcher_stats.items():
+                stats['Date'] = game_date
+            upload_pitchers_to_supabase(pitcher_stats)
             stats_summary['pitchers'] = len(pitcher_stats)
         except Exception as e:
             print(f"Error processing pitcher stats for {file_info['filename']}: {e}")
@@ -407,7 +438,10 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitch_stats = get_pitch_counts_from_buffer(buffer, file_info['filename'])
-            all_stats['pitches'].update(pitch_stats)
+            # Add game's date to each pitch's row
+            for key, stats in pitch_stats.items():
+                stats['Date'] = game_date
+            upload_pitches_to_supabase(pitch_stats)
             stats_summary['pitches'] = len(pitch_stats)
         except Exception as e:
             print(f"Error processing pitch stats for {file_info['filename']}: {e}")
@@ -450,9 +484,6 @@ def process_with_progress(csv_files, tracker, max_workers=4):
 
     # Initialize stats containers - just accumulate, don't merge
     all_stats = {
-        'batters': {},
-        'pitchers': {},
-        'pitches': {},
         'players': {}
     }
 
@@ -510,18 +541,6 @@ def upload_all_stats(all_stats):
     print("\n" + "="*50)
     print("UPLOADING TO DATABASE")
     print("="*50)
-
-    if all_stats['batters']:
-        print(f"\nUploading {len(all_stats['batters'])} batter records...")
-        upload_batters_to_supabase(all_stats['batters'])
-
-    if all_stats['pitchers']:
-        print(f"\nUploading {len(all_stats['pitchers'])} pitcher records...")
-        upload_pitchers_to_supabase(all_stats['pitchers'])
-
-    if all_stats['pitches']:
-        print(f"\nUploading {len(all_stats['pitches'])} pitch records...")
-        upload_pitches_to_supabase(all_stats['pitches'])
 
     if all_stats['players']:
         print(f"\nUploading {len(all_stats['players'])} player records...")

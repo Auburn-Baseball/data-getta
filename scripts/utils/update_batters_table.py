@@ -38,6 +38,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         elif isinstance(obj, np.floating):
             return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         elif pd.isna(obj):
@@ -77,6 +79,12 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     try:
         df = pd.read_csv(buffer)
 
+        # Determines if this is practice data by checking the League column
+        is_practice = False
+        if "League" in df.columns:
+            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+            is_practice = (league_values == "TEAM").any()
+
         # Check if required columns exist
         required_columns = [
             "Batter",
@@ -89,7 +97,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             "TaggedHitType",
         ]
         if not all(col in df.columns for col in required_columns):
-            print(f"Warning: Missing required columns in {file_path}")
+            print(f"Warning: Missing required columns in {filename}")
             return {}
 
         batters_dict = {}
@@ -263,7 +271,6 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
-                "Year": 2025,
                 "hits": hits,
                 "at_bats": at_bats,
                 "strikes": strikes,
@@ -275,6 +282,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
+                "is_practice": is_practice,
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
                 else None,
@@ -311,7 +319,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         return batters_dict
 
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {filename}: {e}")
         return {}
 
 
@@ -346,7 +354,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"BatterStats")
-                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Date")
                     .execute()
                 )
 
@@ -366,7 +374,6 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"BatterStats")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
 
