@@ -26,8 +26,8 @@ const columns: GridColDef[] = [
   },
   {
     field: 'games',
-    headerName: 'G',
-    description: 'Games',
+    headerName: 'GP',
+    description: 'Games Plauyed',
     width: 80,
   },
   {
@@ -37,27 +37,27 @@ const columns: GridColDef[] = [
     width: 80,
   },
   {
-    field: 'pitches',
-    headerName: 'P',
-    description: 'Pitches',
-    width: 80,
-  },
-  {
     field: 'total_innings_pitched',
     headerName: 'IP',
-    description: 'Total Innings Pitched',
+    description: 'Innings Pitched',
     width: 80,
   },
   {
-    field: 'total_batters_faced',
-    headerName: 'BF',
-    description: 'Total Batters Faced',
+    field: 'hits',
+    headerName: 'H',
+    description: 'Hits Allowed',
     width: 80,
   },
   {
-    field: 'total_strikeouts_pitcher',
-    headerName: 'K',
-    description: 'Total Strikeouts',
+    field: 'runs_allowed',
+    headerName: 'R',
+    description: 'Runs Allowed',
+    width: 80,
+  },
+  {
+    field: 'homeruns',
+    headerName: 'HR',
+    description: 'Home Runs',
     width: 80,
   },
   {
@@ -67,79 +67,45 @@ const columns: GridColDef[] = [
     width: 80,
   },
   {
-    field: 'total_out_of_zone_pitches',
-    headerName: 'OoZ',
-    description: 'Total Out of Zone Pitches',
+    field: 'total_strikeouts_pitcher',
+    headerName: 'K',
+    description: 'Total Strikeouts',
     width: 80,
   },
   {
-    field: 'misses_in_zone',
-    headerName: 'MiZ',
-    description: 'Misses in Zone',
-    width: 80,
-  },
-  {
-    field: 'swings_in_zone',
-    headerName: 'SiZ',
-    description: 'Swings in Zone',
-    width: 80,
-  },
-  {
-    field: 'total_num_chases',
-    headerName: 'Chases',
-    description: 'Total Number of Chases',
-    width: 80,
-  },
-  {
-    field: 'in_zone_whiff_percentage',
-    headerName: 'IZW',
-    description: 'In Zone Whiff Percentage',
+    field: 'k_per_9',
+    headerName: 'K/9',
+    description: 'Strikeouts Per 9 Innings',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0.0';
       }
+      return Number(value).toFixed(1);
     },
   },
   {
-    field: 'chase_percentage',
-    headerName: 'CHASE',
-    description: 'Chase Percentage',
+    field: 'bb_per_9',
+    headerName: 'BB/9',
+    description: 'Walks Per 9 Innings',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0.0';
       }
+      return Number(value).toFixed(1);
     },
   },
   {
-    field: 'k_percentage',
-    headerName: 'K%',
-    description: 'K Percentage',
+    field: 'whip',
+    headerName: 'WHIP',
+    description: 'Walks Hits Per Innings Pitched',
     width: 80,
     valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
+      if (value === null || value === undefined) {
+        return '0.00';
       }
-    },
-  },
-  {
-    field: 'base_on_ball_percentage',
-    headerName: 'BoB',
-    description: 'Base on Ball Percentage',
-    width: 80,
-    valueGetter: (value) => {
-      if (!value) {
-        return value;
-      } else {
-        return Number((value * 100).toFixed(0));
-      }
+      return Number(value).toFixed(2);
     },
   },
 ];

@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -85,6 +86,10 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
             is_practice = (league_values == "TEAM").any()
 
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
+
         # Check if required columns exist
         required_columns = [
             "Batter",
@@ -156,6 +161,15 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
 
             # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
+
+            # Calculate singles
+            singles = len(group[group["PlayResult"] == "Single"])
+
+            # Calculate doubles
+            doubles = len(group[group["PlayResult"] == "Double"])
+
+            # Calculate triples
+            triples = len(group[group["PlayResult"] == "Triple"])
 
             # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
@@ -268,14 +282,38 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 else set()
             )
 
+            # Calculate total exit velocity
+            if "ExitSpeed" in group.columns:
+                # Convert to numeric (in case it's read as string)
+                group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
+
+                total_exit_velo = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ]["ExitSpeed"].sum()
+
+                # Optional: also count how many batted balls were included
+                batted_ball_count = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ].shape[0]
+            else:
+                total_exit_velo = 0
+                batted_ball_count = 0
+
+
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
+                "Date": game_date,
                 "hits": hits,
                 "at_bats": at_bats,
                 "strikes": strikes,
                 "walks": walks,
                 "strikeouts": strikeouts,
+                "singles": singles,
+                "doubles": doubles,
+                "triples": triples,
                 "homeruns": homeruns,
                 "extra_base_hits": extra_base_hits,
                 "plate_appearances": plate_appearances,
@@ -283,6 +321,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
                 "is_practice": is_practice,
+                "total_exit_velo": round(total_exit_velo, 1),
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
                 else None,
@@ -378,7 +417,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         )
 
         total_batters = count_result.count
-        print(f"Total 2025 batters in database: {total_batters}")
+        print(f"Total batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

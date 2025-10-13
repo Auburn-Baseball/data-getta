@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -51,6 +52,10 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         if "League" in df.columns:
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
             is_practice = (league_values == "TEAM").any()
+
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -119,6 +124,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
             pitch_stats = {
                 "Pitcher": pitcher_name,
                 "PitcherTeam": pitcher_team,
+                "Date": game_date,
                 "total_pitches": total_pitches,
                 "curveball_count": curveball_count,
                 "fourseam_count": fourseam_count,
@@ -197,7 +203,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
             .execute()
         )
         total_pitchers = count_result.count
-        print(f"Total 2025 pitcher pitch counts in database: {total_pitchers}")
+        print(f"Total pitcher pitch counts in database: {total_pitchers}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

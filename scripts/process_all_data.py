@@ -32,6 +32,9 @@ from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitcher_stats_from_buffer, upload_pitchers_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
                    get_players_from_buffer, upload_players_to_supabase,
+                   get_advanced_batting_stats_from_buffer, upload_advanced_batting_to_supabase,
+                   get_batter_bins_from_buffer, upload_batter_pitch_bins,
+                   get_pitcher_bins_from_buffer, upload_pitcher_pitch_bins,
                    CSVFilenameParser )
 
 project_root = Path(__file__).parent.parent
@@ -81,27 +84,50 @@ class DatabaseProcessedFilesTracker:
         identifier = f"{remote_path}|{file_size}|{last_modified}"
         return hashlib.md5(identifier.encode()).hexdigest()
 
-    def _load_all_processed_hashes(self):
-        """ ---------------------------------------------------------------
+    def _load_all_processed_hashes(self, batch_size=1000):
+        """
+        ---------------------------------------------------------------
         Load all processed file hashes into memory cache for fast lookups.
-        ------------------------------------------------------------------- """
+        Handles Supabase row limits by fetching in batches.
+        -------------------------------------------------------------------
+        """
         if self._cache_loaded:
             return
 
+        self._processed_hashes_cache = set()
         try:
             print("Loading processed files cache from database...")
-            result = self.supabase.table('ProcessedFiles')\
-                .select('file_hash')\
-                .execute()
 
-            self._processed_hashes_cache = set(row['file_hash'] for row in result.data)
+            offset = 0
+            while True:
+                # Fetch a batch of rows
+                result = (
+                    self.supabase.table('ProcessedFiles')
+                    .select('file_hash')
+                    .range(offset, offset + batch_size - 1)  # Supabase uses inclusive range
+                    .execute()
+                )
+
+                data = result.data
+                if not data:
+                    break  # No more rows to fetch
+
+                # Add hashes to cache
+                self._processed_hashes_cache.update(row['file_hash'] for row in data)
+
+                print(f"Loaded batch of {len(data)} rows (total so far: {len(self._processed_hashes_cache)})")
+
+                # Increment offset
+                offset += batch_size
+
             self._cache_loaded = True
-            print(f"Loaded {len(self._processed_hashes_cache)} processed files into cache")
+            print(f"Finished loading {len(self._processed_hashes_cache)} processed files into cache")
 
         except Exception as e:
             print(f"Error loading processed files cache: {e}")
             self._processed_hashes_cache = set()
             self._cache_loaded = True
+
 
     def is_processed(self, remote_path: str, file_size: int = None, last_modified: str = None) -> bool:
         """ ---------------------------------------------------------------
@@ -412,9 +438,6 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             batter_stats = get_batter_stats_from_buffer(buffer, file_info['filename'])
-            # Add game's date to each player's row
-            for key, stats in batter_stats.items():
-                stats['Date'] = game_date
             upload_batters_to_supabase(batter_stats)
             stats_summary['batters'] = len(batter_stats)
         except Exception as e:
@@ -425,9 +448,6 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitcher_stats = get_pitcher_stats_from_buffer(buffer, file_info['filename'])
-            # Add game's date to each player's row
-            for key, stats in pitcher_stats.items():
-                stats['Date'] = game_date
             upload_pitchers_to_supabase(pitcher_stats)
             stats_summary['pitchers'] = len(pitcher_stats)
         except Exception as e:
@@ -438,9 +458,6 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer.seek(0)
         try:
             pitch_stats = get_pitch_counts_from_buffer(buffer, file_info['filename'])
-            # Add game's date to each pitch's row
-            for key, stats in pitch_stats.items():
-                stats['Date'] = game_date
             upload_pitches_to_supabase(pitch_stats)
             stats_summary['pitches'] = len(pitch_stats)
         except Exception as e:
@@ -456,6 +473,36 @@ def process_csv_worker(file_info, all_stats, tracker):
         except Exception as e:
             print(f"Error processing player stats for {file_info['filename']}: {e}")
             stats_summary['players'] = 0
+
+        # Advanced Batting
+        buffer.seek(0)
+        try:
+            advanced_batting_stats = get_advanced_batting_stats_from_buffer(buffer, file_info['filename'])
+            all_stats['advanced_batting'].update(advanced_batting_stats)
+            stats_summary['advanced_batting'] = len(advanced_batting_stats)
+        except Exception as e:
+            print(f"Error processing advanced batting stats for {file_info['filename']}: {e}")
+            stats_summary['advanced_batting'] = 0
+
+        # Batter pitch bins (heatmaps)
+        buffer.seek(0)
+        try:
+            batter_pitch_bin = get_batter_bins_from_buffer(buffer, file_info['filename'])
+            upload_batter_pitch_bins(batter_pitch_bin)
+            stats_summary['batter_bin'] = len(batter_pitch_bin)
+        except Exception as e:
+            print(f"Error processing batter pitch bin stats for {file_info['filename']}: {e}")
+            stats_summary['batter_bin'] = 0
+
+        # Pitcher pitch bins (heatmaps)
+        buffer.seek(0)
+        try:
+            pitcher_pitch_bin = get_pitcher_bins_from_buffer(buffer, file_info['filename'])
+            upload_pitcher_pitch_bins(pitcher_pitch_bin)
+            stats_summary['pitcher_bin'] = len(pitcher_pitch_bin)
+        except Exception as e:
+            print(f"Error processing pitcher pitch bin stats for {file_info['filename']}: {e}")
+            stats_summary['pitcher_bin'] = 0
 
         # Mark as processed in database
         tracker.mark_processed(
@@ -484,7 +531,13 @@ def process_with_progress(csv_files, tracker, max_workers=4):
 
     # Initialize stats containers - just accumulate, don't merge
     all_stats = {
-        'players': {}
+        'batters': {},
+        'pitchers': {},
+        'pitches': {},
+        'players': {},
+        'batter_bin': {},
+        'pitcher_bin': {},
+        'advanced_batting': {}
     }
 
     print(f"\nStarting processing of {total_files} files with {max_workers} concurrent workers...")
@@ -545,6 +598,18 @@ def upload_all_stats(all_stats):
     if all_stats['players']:
         print(f"\nUploading {len(all_stats['players'])} player records...")
         upload_players_to_supabase(all_stats['players'])
+
+    if all_stats['advanced_batting']:
+        print(f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records...")
+        upload_advanced_batting_to_supabase(all_stats['advanced_batting'])
+
+    if all_stats['batter_bin']:
+        print(f"\nUploading {len(all_stats['batter_bin'])} batter pitch bin records...")
+        upload_batter_pitch_bins(all_stats['batter_bin'])
+
+    if all_stats['pitcher_bin']:
+        print(f"\nUploading {len(all_stats['pitcher_bin'])} pitcher pitch bin records...")
+        upload_pitcher_pitch_bins(all_stats['pitcher_bin'])
 
 def main():
 

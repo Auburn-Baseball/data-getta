@@ -234,3 +234,19 @@ class CSVFilenameParser:
             filtered.append(filename)
 
         return filtered
+
+    def get_date_object(self, filename: str):
+        """ -----------------------------------------------------------------------
+        Get the date of the file's game and return as a python date object.
+        Args:
+            filename: The CSV filename to parse
+        Returns:
+            Python date object (compatible with Supabase date object)
+        ---------------------------------------------------------------------- """
+
+        date_obj = self.parse_filename(filename)
+        try:
+            return date(date_obj.year, date_obj.month, date_obj.day)
+        except Exception as e:
+            print(f"Error while getting the date as a date object: {e}")
+        return None
