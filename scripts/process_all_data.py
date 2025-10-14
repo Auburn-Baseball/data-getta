@@ -2,13 +2,14 @@
 """
 Author: Joshua Henley
 Created: 07 September 2025
-Updated: 21 September 2025
+Updated: 14 October 2025
 
 Unified TrackMan CSV Processor - Database Tracking Version
 - Downloads CSV files from FTP concurrently
 - Processes each file once through all update modules
 - Tracks processed files in database to avoid duplicates
 - Works in containerized environments (Docker/GitLab Actions)
+- Supports test mode and date range filtering
 """
 
 import os
@@ -705,14 +706,6 @@ def upload_all_stats(all_stats):
         upload_pitcher_pitch_bins(all_stats['pitcher_pitch_bins'])
     else:
         print("No new pitcher pitch bin stats to upload.")
-
-    if all_stats['batter_bin']:
-        print(f"\nUploading {len(all_stats['batter_bin'])} batter pitch bin records...")
-        upload_batter_pitch_bins(all_stats['batter_bin'])
-
-    if all_stats['pitcher_bin']:
-        print(f"\nUploading {len(all_stats['pitcher_bin'])} pitcher pitch bin records...")
-        upload_pitcher_pitch_bins(all_stats['pitcher_bin'])
 
 def main():
 

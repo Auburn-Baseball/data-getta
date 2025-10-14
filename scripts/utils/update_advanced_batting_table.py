@@ -1,3 +1,16 @@
+"""
+Author: Joshua Reed
+Created: 08 October 2025
+Updated: 14 October 2025
+
+Advanced Batting Stats Utility Module
+- Loads environment variables and initializes Supabase client
+- Defines strike zone constants and helper functions
+- Extracts, calculates, and combines advanced batting stats from CSV files
+- Uploads combined stats to Supabase
+- Computes and updates scaled percentile ranks for players
+"""
+
 import os
 import pandas as pd
 from dotenv import load_dotenv
@@ -32,7 +45,8 @@ MAX_PLATE_SIDE = 0.86
 MAX_PLATE_HEIGHT = 3.55
 MIN_PLATE_HEIGHT = 1.77
 
-# Custom encoder to handle numpy types
+
+# Custom JSON encoder for numpy and pandas types
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -45,8 +59,9 @@ class NumpyEncoder(json.JSONEncoder):
             return None
         return super(NumpyEncoder, self).default(obj)
     
+
 def is_in_strike_zone(plate_loc_height, plate_loc_side):
-    """Check if pitch is in strike zone"""
+    """Return True if pitch is within strike zone bounds"""
     try:
         height = float(plate_loc_height)
         side = float(plate_loc_side)
@@ -59,15 +74,12 @@ def is_in_strike_zone(plate_loc_height, plate_loc_side):
 
 
 def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
-    """Extract advanced batting statistics from a CSV file in-memory"""
+    """Extract advanced batting stats from CSV in memory"""
     try:
         df = pd.read_csv(buffer)
 
-        # Check if required columns exist
-        required_columns = [
-            "Batter",
-            "BatterTeam",
-        ]
+        # Verify required columns exist
+        required_columns = ["Batter", "BatterTeam"]
         if not all(col in df.columns for col in required_columns):
             print(f"Warning: Missing required columns in {filename}")
             return {}
@@ -79,7 +91,7 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             print(f"Warning: Could not extract date from filename {filename}, defaulting to 2025")
             year = 2025
         else:
-            year = date_components[0]  # year is the first component
+            year = date_components[0]
 
         batters_dict = {}
 
@@ -107,14 +119,14 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 ]
             )
 
-            # Calculate batted balls (make sure all stats are there to avoid skewing))
+            # Calculate batted balls with complete stats
             batted_balls = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
                 (group['Angle']).notna()
             ].shape[0]
 
-            # Calculate LA Sweet Spot (launch angle between 8 and 32 degrees)
+            # LA Sweet Spot percentage
             sweet_spot_balls = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
@@ -123,7 +135,7 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             ].shape[0]
             la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
 
-            # Calculate hard hit percentage (exit velocity >= 95 mph)
+            # Hard hit percentage
             hard_hit_balls = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
@@ -132,50 +144,33 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             ].shape[0]
             hard_hit_per = (hard_hit_balls / batted_balls) if batted_balls > 0 else None
 
-            # Calculate total exit velocity for average
+            # Total and average exit velocity
             total_exit_velo = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
                 (group["Angle"].notna())
             ]["ExitSpeed"].sum()
-
-            # Calculate average exit velocity
             avg_exit_velo = total_exit_velo / batted_balls if batted_balls > 0 else None
 
-            # Calculate walks
+            # Walks and strikeouts
             walks = len(group[group["KorBB"] == "Walk"])
-
-            # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
-            # Calculate K %
-            k_percentage = (
-                strikeouts / plate_appearances if plate_appearances > 0 else None
-            )
+            # K% and BB%
+            k_percentage = strikeouts / plate_appearances if plate_appearances > 0 else None
+            bb_percentage = walks / plate_appearances if plate_appearances > 0 else None
 
-            # Calculate BB %
-            bb_percentage = (
-                walks / plate_appearances if plate_appearances > 0 else None
-            )
-
-            # Calculate zone statistics
+            # Initialize zone stats counters
             in_zone_pitches = 0
             out_of_zone_pitches = 0
             in_zone_whiffs = 0
             out_of_zone_swings = 0
 
+            # Compute zone stats
             for _, row in group.iterrows():
                 try:
-                    height = (
-                        float(row["PlateLocHeight"])
-                        if pd.notna(row["PlateLocHeight"])
-                        else None
-                    )
-                    side = (
-                        float(row["PlateLocSide"])
-                        if pd.notna(row["PlateLocSide"])
-                        else None
-                    )
+                    height = float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
+                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
 
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):
@@ -184,30 +179,25 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                                 in_zone_whiffs += 1
                         else:
                             out_of_zone_pitches += 1
-                            if row["PitchCall"] in [
-                                "StrikeSwinging",
-                                "FoulBallNotFieldable",
-                                "InPlay",
-                            ]:
+                            if row["PitchCall"] in ["StrikeSwinging","FoulBallNotFieldable","InPlay"]:
                                 out_of_zone_swings += 1
                 except (ValueError, TypeError):
                     continue
 
-            # Calculate infield slices
+            # Initialize infield slice counters
             infield_left_slice = 0
             infield_lc_slice = 0
             infield_center_slice = 0
             infield_rc_slice = 0
             infield_right_slice = 0
 
+            # Compute infield slices
             for _, row in group.iterrows():
                 try:
-                    # Only consider balls with Distance <= 200
                     distance = float(row["Distance"]) if pd.notna(row["Distance"]) else None
                     bearing = float(row["Bearing"]) if pd.notna(row["Bearing"]) else None
 
                     if distance is not None and distance <= 200 and bearing is not None:
-                        # Assign to slices
                         if -45 <= bearing < -27:
                             infield_left_slice += 1
                         elif -27 <= bearing < -9:
@@ -227,35 +217,18 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 infield_right_slice
             )
 
-            # Calculate slice %s
-            infield_left_per = (
-                infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-            )
-            infield_lc_per = (
-                infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-            )
-            infield_center_per = (
-                infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-            )
-            infield_rc_per = (
-                infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-            )
-            infield_right_per = (
-                infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-            )
+            # Compute slice percentages
+            infield_left_per = infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            infield_lc_per = infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            infield_center_per = infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            infield_rc_per = infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+            infield_right_per = infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
 
-            # Calculate whiff %
-            whiff_per = (
-                in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
-            )
+            # Whiff and chase percentages
+            whiff_per = in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
+            chase_per = out_of_zone_swings / out_of_zone_pitches if out_of_zone_pitches > 0 else None
 
-            # Calculate chase %
-            chase_per = (
-                out_of_zone_swings / out_of_zone_pitches
-                if out_of_zone_pitches > 0
-                else None
-            )
-
+            # Store computed stats for batter
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
@@ -288,63 +261,53 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
         return batters_dict
 
     except Exception as e:
-        print(f"Error reading {filename}: {e}")
+        print(f"Error processing {filename}: {e}")
         return {}
 
 
-
 def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dict:
-    """Combine existing and new advanced batting stats"""
+    """Merge existing and new batting stats, updating rates and percentages"""
     if not existing_stats:
         return new_stats
     
-    # Combine plate appearances
+    # Combine plate appearances and batted balls
     combined_plate_app = existing_stats.get("plate_app", 0) + new_stats.get("plate_app", 0)
-    
-    # Combine batted balls
     combined_batted_balls = existing_stats.get("batted_balls", 0) + new_stats.get("batted_balls", 0)
     
-    # Calculate combined average exit velocity
+    # Compute combined average exit velocity
     existing_total_exit_velo = (existing_stats.get("avg_exit_velo", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
     new_total_exit_velo = (new_stats.get("avg_exit_velo", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
-    
     combined_avg_exit_velo = None
     if combined_batted_balls > 0:
         total_exit_velo = existing_total_exit_velo + new_total_exit_velo
         combined_avg_exit_velo = total_exit_velo / combined_batted_balls
     
-    # Combine K%
+    # Combine K% and BB%
     existing_strikeouts = (existing_stats.get("k_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
     new_strikeouts = (new_stats.get("k_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_k_per = (existing_strikeouts + new_strikeouts) / combined_plate_app if combined_plate_app > 0 else None
-    
-    # Combine BB%
+
     existing_walks = (existing_stats.get("bb_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
     new_walks = (new_stats.get("bb_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
     combined_bb_per = (existing_walks + new_walks) / combined_plate_app if combined_plate_app > 0 else None
-    
-    # Combine LA Sweet Spot %
+
+    # Combine LA Sweet Spot and Hard Hit percentages
     existing_sweet_spot = (existing_stats.get("la_sweet_spot_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
     new_sweet_spot = (new_stats.get("la_sweet_spot_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
     combined_sweet_spot_per = (existing_sweet_spot + new_sweet_spot) / combined_batted_balls if combined_batted_balls > 0 else None
-    
-    # Combine Hard Hit %
+
     existing_hard_hit = (existing_stats.get("hard_hit_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
     new_hard_hit = (new_stats.get("hard_hit_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
     combined_hard_hit_per = (existing_hard_hit + new_hard_hit) / combined_batted_balls if combined_batted_balls > 0 else None
 
-    # Combine in_zone_pitches
+    # Combine in-zone stats
     combined_in_zone_pitches = existing_stats.get("in_zone_pitches", 0) + new_stats.get("in_zone_pitches", 0)
-
-    # Combine whiff %
     existing_in_zone_whiffs = (existing_stats.get("whiff_per", 0) or 0) * (existing_stats.get("in_zone_pitches", 0) or 0)
     new_in_zone_whiffs = (new_stats.get("whiff_per", 0) or 0) * (new_stats.get("in_zone_pitches", 0) or 0)
     combined_whiff_per = (existing_in_zone_whiffs + new_in_zone_whiffs) / combined_in_zone_pitches if combined_in_zone_pitches > 0 else None
 
-    # Combine out_of_zone_pitches
+    # Combine out-of-zone stats
     combined_out_of_zone_pitches = existing_stats.get("out_of_zone_pitches", 0) + new_stats.get("out_of_zone_pitches", 0)
-
-    # Combine chase %
     existing_out_of_zone_swings = (existing_stats.get("chase_per", 0) or 0) * (existing_stats.get("out_of_zone_pitches", 0) or 0)
     new_out_of_zone_swings = (new_stats.get("chase_per", 0) or 0) * (new_stats.get("out_of_zone_pitches", 0) or 0)
     combined_chase_per = (existing_out_of_zone_swings + new_out_of_zone_swings) / combined_out_of_zone_pitches if combined_out_of_zone_pitches > 0 else None
@@ -356,27 +319,17 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     combined_infield_rc_slice = existing_stats.get("infield_rc_slice", 0) + new_stats.get("infield_rc_slice", 0)
     combined_infield_right_slice = existing_stats.get("infield_right_slice", 0) + new_stats.get("infield_right_slice", 0)
 
-    # Combine infield slice %s
+    # Compute combined infield slice percentages
     total_infield_batted_balls = (
         combined_infield_left_slice + combined_infield_lc_slice + 
         combined_infield_center_slice + combined_infield_rc_slice + 
         combined_infield_right_slice
     )
-    combined_infield_left_per = (
-        combined_infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    )
-    combined_infield_lc_per = (
-        combined_infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    )
-    combined_infield_center_per = (
-        combined_infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    )
-    combined_infield_rc_per = (
-        combined_infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    )
-    combined_infield_right_per = (
-        combined_infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    )
+    combined_infield_left_per = combined_infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    combined_infield_lc_per = combined_infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    combined_infield_center_per = combined_infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    combined_infield_rc_per = combined_infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
+    combined_infield_right_per = combined_infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
 
     return {
         "Batter": new_stats["Batter"],
@@ -405,21 +358,19 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "infield_right_per": round(combined_infield_right_per, 3) if combined_infield_right_per is not None else None,
     }
 
+
 def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
-    """Fetch existing stats, combine with new stats, upload to Supabase, and compute scaled percentile ranks"""
+    """Upload batting stats to Supabase and compute scaled percentile ranks"""
     if not batters_dict:
         print("No advanced batting stats to upload")
         return
 
     try:
-        # ==========================================
-        # Step 1: Fetch existing Supabase records
-        # ==========================================
+        # Fetch existing records in batches
         existing_stats = {}
         offset = 0
         batch_size = 1000
-
-        while True: # Fetch all existing records in batches
+        while True:
             result = supabase.table("AdvancedBattingStats").select("*").range(offset, offset + batch_size - 1).execute()
             data = result.data
             if not data:
@@ -429,13 +380,10 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                 existing_stats[key] = record
             offset += batch_size
 
-        # ==========================================
-        # Step 2: Combine existing stats with new stats
-        # ==========================================
+        # Combine new stats with existing stats
         combined_stats = {}
         updated_count = 0
         new_count = 0
-
         for key, new_stat in batters_dict.items():
             if key in existing_stats:
                 combined = combine_advanced_batting_stats(existing_stats[key], new_stat)
@@ -445,9 +393,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                 new_count += 1
             combined_stats[key] = combined
 
-        # ==========================================
-        # Step 3: Convert to JSON-serializable list
-        # ==========================================
+        # Convert combined stats to JSON-serializable list
         batter_data = []
         for batter_dict in combined_stats.values():
             clean_dict = {k: v for k, v in batter_dict.items() if k != "unique_games"}
@@ -455,11 +401,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             clean_batter = json.loads(json_str)
             batter_data.append(clean_batter)
 
-        print(f"Preparing to upload {updated_count} existing records and uploading {new_count} new players...")
+        print(f"Preparing to upload {updated_count} existing records and {new_count} new players...")
 
-        # ==========================================
-        # Step 4: Upload combined data in batches
-        # ==========================================
+        # Upload data in batches
         upload_batch_size = 1000
         total_inserted = 0
         for i in range(0, len(batter_data), upload_batch_size):
@@ -476,34 +420,30 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                     print(f"Sample record: {batch[0]}")
                 continue
 
-        print(f"Successfully processed {total_inserted} combined batter records")
+        print(f"Uploaded {total_inserted} combined batter records")
 
-        # ==========================================
-        # Step 5: Compute scaled percentile ranks
-        # ==========================================
-        print("\nFetching all batter records to compute scaled percentile ranks...")
-
+        # Fetch all records to compute scaled percentile ranks
+        print("\nFetching all batter records for ranking...")
         all_records = []
         offset = 0
-        batch_size = 1000
         while True:
             result = supabase.table("AdvancedBattingStats").select(
                 "Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per,whiff_per,chase_per"
             ).range(offset, offset + batch_size - 1).execute()
-            
             data = result.data
             if not data:
                 break
             all_records.extend(data)
             offset += batch_size
-            print(f"Fetched {len(data)} records (total so far: {len(all_records)})")
+            print(f"Fetched {len(data)} records (total: {len(all_records)})")
 
         if not all_records:
-            print("No records found to rank.")
+            print("No records found for ranking.")
             return
 
         df = pd.DataFrame(all_records).dropna(subset=["Year"])
 
+        # Helper: rank series and scale to 1-100
         def rank_and_scale_to_1_100(series, ascending=False):
             series = series.copy()
             mask = series.notna()
@@ -516,6 +456,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             result[mask] = scaled
             return result
 
+        # Compute rankings by year
         ranked_dfs = []
         for year, group in df.groupby("Year"):
             temp = group.copy()
@@ -529,20 +470,14 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             ranked_dfs.append(temp)
 
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
-        print("Computed ranked and scaled percentile values by year.")
+        print("Computed scaled percentile ranks by year.")
 
-        # Prepare data for Supabase
+        # Prepare data for upload
         update_cols = [
-            "Batter",
-            "BatterTeam",
-            "Year",
-            "avg_exit_velo_rank",
-            "k_per_rank",
-            "bb_per_rank",
-            "la_sweet_spot_per_rank",
-            "hard_hit_per_rank",
-            "whiff_per_rank",
-            "chase_per_rank",
+            "Batter","BatterTeam","Year",
+            "avg_exit_velo_rank","k_per_rank","bb_per_rank",
+            "la_sweet_spot_per_rank","hard_hit_per_rank",
+            "whiff_per_rank","chase_per_rank"
         ]
         update_data = ranked_df[update_cols].to_dict(orient="records")
         for record in update_data:
@@ -550,8 +485,8 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                 if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
                     record[key] = None
 
-        # Upload ranks in batches
-        print("\nUploading scaled percentile rank updates to Supabase...")
+        # Upload rank updates in batches
+        print("\nUploading scaled percentile ranks...")
         total_updated = 0
         for i in range(0, len(update_data), upload_batch_size):
             batch = update_data[i : i + upload_batch_size]
@@ -560,20 +495,19 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                     batch, on_conflict="Batter,BatterTeam,Year"
                 ).execute()
                 total_updated += len(batch)
-                print(f"Updated rank batch {i//upload_batch_size + 1}: {len(batch)} records")
+                print(f"Updated batch {i//upload_batch_size + 1}: {len(batch)} records")
             except Exception as update_err:
                 print(f"Error updating batch {i//upload_batch_size + 1}: {update_err}")
                 if batch:
                     print(f"Sample record: {batch[0]}")
                 continue
 
-        print(f"Successfully updated scaled percentile ranks for {total_updated} records across all years.")
+        print(f"Successfully updated ranks for {total_updated} records across all years.")
 
     except Exception as e:
         print(f"Supabase error: {e}")
 
 
 if __name__ == "__main__":
-    # This script is designed to be imported and used by other scripts
-    # The main processing logic should be called from the main data processing script
+    # Module entry point; designed for import
     print("Advanced Batting Stats utility module loaded")
