@@ -319,6 +319,7 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
+                "is_practice": is_practice,
                 "total_exit_velo": round(total_exit_velo, 1),
                 "is_practice": is_practice,
                 "batting_average": round(batting_average, 3)
