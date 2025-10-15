@@ -236,7 +236,7 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
     payload = [json.loads(json.dumps(v, cls=NumpyEncoder)) for v in bins.values()]
     print(f"Preparing to upload {len(payload)} bins...")
 
-    batch = 200
+    batch = 1000
     total = 0
     for i in range(0, len(payload), batch):
         chunk = payload[i:i+batch]

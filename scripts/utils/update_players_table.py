@@ -106,7 +106,7 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Preparing to upload {len(player_data)} unique players...")
 
         # Insert data in batches to avoid request size limits
-        batch_size = 100
+        batch_size = 1000
         total_inserted = 0
 
         for i in range(0, len(player_data), batch_size):
