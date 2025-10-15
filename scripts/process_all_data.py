@@ -412,15 +412,20 @@ def process_csv_worker(file_info, all_stats, tracker):
             buffer.seek(0)
             try:
                 df = pd.read_csv(buffer)
-
                 is_practice = False
                 if "League" in df.columns:
                     league_values = df["League"].dropna().astype(str).str.strip().str.upper()
                     is_practice = (league_values == "TEAM").any()
                     print(f"DEBUG: {filename} - League values: {league_values.unique()}, is_practice: {is_practice}")
 
-                # If it's not practice, skip this file
+                # If it's not practice, skip this file and mark as processed
                 if not is_practice:
+                    tracker.mark_processed(
+                        file_info['remote_path'],
+                        file_info['size'],
+                        file_info['date'],
+                        {'skipped': 'unverified_non_practice'}
+                    )
                     return True, f"Skipped (unverified non-practice): {filename}"
             except Exception as e:
                 return False, f"Error checking unverified file {filename}: {e}"
