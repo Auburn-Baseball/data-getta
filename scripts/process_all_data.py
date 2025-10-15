@@ -34,7 +34,8 @@ from utils import ( get_batter_stats_from_buffer, upload_batters_to_supabase,
                    get_pitch_counts_from_buffer, upload_pitches_to_supabase,
                    get_players_from_buffer, upload_players_to_supabase,
                    get_advanced_batting_stats_from_buffer, upload_advanced_batting_to_supabase,
-                   combine_advanced_batting_stats,
+                   get_advanced_pitching_stats_from_buffer, upload_advanced_pitching_to_supabase,
+                   combine_advanced_batting_stats, combine_advanced_pitching_stats,
                    get_batter_bins_from_buffer, upload_batter_pitch_bins,
                    get_pitcher_bins_from_buffer, upload_pitcher_pitch_bins,
                    CSVFilenameParser )
@@ -539,6 +540,25 @@ def process_csv_worker(file_info, all_stats, tracker):
             print(f"Error processing advanced batting stats for {file_info['filename']}: {e}")
             stats_summary['advanced_batting'] = 0
 
+        # Advanced Pitching
+        buffer.seek(0)
+        try:
+            advanced_pitching_stats = get_advanced_pitching_stats_from_buffer(buffer, file_info['filename'])
+
+            # Merge new stats into existing ones
+            for key, new_stat in advanced_pitching_stats.items():
+                if key in all_stats['advanced_pitching']:
+                    combined = combine_advanced_pitching_stats(all_stats['advanced_pitching'][key], new_stat)
+                    all_stats['advanced_pitching'][key] = combined
+                else:
+                    all_stats['advanced_pitching'][key] = new_stat
+
+            stats_summary['advanced_pitching'] = len(all_stats['advanced_pitching'])
+
+        except Exception as e:
+            print(f"Error processing advanced pitching stats for {file_info['filename']}: {e}")
+            stats_summary['advanced_pitching'] = 0
+
         # Batter pitch bins (heatmaps)
         buffer.seek(0)
         try:
@@ -611,6 +631,7 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         'pitch_counts': {},
         'players': {},
         'advanced_batting': {},
+        'advanced_pitching': {},
         'batter_pitch_bins': {},
         'pitcher_pitch_bins': {}
     }
@@ -699,6 +720,12 @@ def upload_all_stats(all_stats):
         upload_advanced_batting_to_supabase(all_stats['advanced_batting'])
     else:
         print("No new advanced batting stats to upload.")
+
+    if all_stats['advanced_pitching']:
+        print(f"\nUploading {len(all_stats['advanced_pitching'])} advanced pitching records...")
+        upload_advanced_pitching_to_supabase(all_stats['advanced_pitching'])
+    else:
+        print("No new advanced pitching stats to upload.")
 
     if all_stats['batter_pitch_bins']:
         print(f"\nUploading {len(all_stats['batter_pitch_bins'])} batter pitch bin records...")
