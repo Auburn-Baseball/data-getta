@@ -1,24 +1,17 @@
 # pitch_bin.py  (13 zones: 3x3 inner + 4 outer quadrants)
-import os, json
-from pathlib import Path
+import json
 from typing import Dict, Tuple
+
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 
 # -----------------------------------------------------------------------------
-# Environment / Supabase
+# Supabase client
 # -----------------------------------------------------------------------------
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
-
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("VITE_SUPABASE_PROJECT_URL and VITE_SUPABASE_API_KEY must be set")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------------------------------------------------------
@@ -27,14 +20,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 ZONE_VERSION = "fixed_v3"
 
 # inner box bounds (feet)
-Z_X_HALF = 0.83       # ~ 17" plate half-width (≈ 0.7083) plus small margin if desired
-Z_Y_BOT  = 1.50
-Z_Y_TOP  = 3.50
+Z_X_HALF = 0.83  # ~ 17" plate half-width (≈ 0.7083) plus small margin if desired
+Z_Y_BOT = 1.50
+Z_Y_TOP = 3.50
 
 # 3x3 splits (row 1 = bottom, col 1 = left)
 SPLITS = 3
 X_EDGES = np.linspace(-Z_X_HALF, +Z_X_HALF, SPLITS + 1)  # 4 edges
-Y_EDGES = np.linspace( Z_Y_BOT,  Z_Y_TOP,  SPLITS + 1)
+Y_EDGES = np.linspace(Z_Y_BOT, Z_Y_TOP, SPLITS + 1)
 
 MID_X = 0.0
 MID_Y = float((Z_Y_BOT + Z_Y_TOP) / 2.0)
@@ -42,6 +35,7 @@ MID_Y = float((Z_Y_BOT + Z_Y_TOP) / 2.0)
 # ZoneId map (row-major for inner)
 # 1=IBL,2=IBM,3=IBR, 4=IML,5=IMM,6=IMR, 7=ITL,8=ITM,9=ITR, 10=OTL,11=OTR,12=OBL,13=OBR
 OUTER_ID = {"OTL": 10, "OTR": 11, "OBL": 12, "OBR": 13}
+
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -73,6 +67,7 @@ def norm_pitch_type(s: str) -> str:
         return "Splitter"
     return "Other"
 
+
 def norm_side(s: str) -> str:
     """Return 'L' or 'R'. If unknown/missing, default to 'R' to satisfy DB CHECK."""
     if not isinstance(s, str):
@@ -83,6 +78,7 @@ def norm_side(s: str) -> str:
     if t.startswith("R"):
         return "R"
     return "R"
+
 
 def classify_13(x: float, y: float):
     """
@@ -96,8 +92,8 @@ def classify_13(x: float, y: float):
             y <=MID_Y and x < 0 -> OBL (12)
             y <=MID_Y and x >=0 -> OBR (13)
     """
-    in_x = (-Z_X_HALF <= x <= +Z_X_HALF)
-    in_y = ( Z_Y_BOT  <= y <=  Z_Y_TOP)
+    in_x = -Z_X_HALF <= x <= +Z_X_HALF
+    in_y = Z_Y_BOT <= y <= Z_Y_TOP
     if in_x and in_y:
         col = int(np.digitize([x], X_EDGES, right=False)[0])  # 1..3
         row = int(np.digitize([y], Y_EDGES, right=False)[0])  # 1..3
@@ -105,8 +101,7 @@ def classify_13(x: float, y: float):
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col  # 1..9
         return dict(
-            InZone=True, ZoneRow=row, ZoneCol=col, ZoneCell=cell,
-            OuterLabel="NA", ZoneId=cell
+            InZone=True, ZoneRow=row, ZoneCol=col, ZoneCell=cell, OuterLabel="NA", ZoneId=cell
         )
     # outside -> quadrant
     if y > MID_Y:
@@ -114,13 +109,14 @@ def classify_13(x: float, y: float):
     else:
         label = "OBL" if x < MID_X else "OBR"
     return dict(
-        InZone=False, ZoneRow=0, ZoneCol=0, ZoneCell=0,
-        OuterLabel=label, ZoneId=OUTER_ID[label]
+        InZone=False, ZoneRow=0, ZoneCol=0, ZoneCell=0, OuterLabel=label, ZoneId=OUTER_ID[label]
     )
+
 
 def should_exclude_file(filename: str) -> bool:
     f = filename.lower()
     return any(p in f for p in ["fhc", "unverified", "playerpositioning"])
+
 
 # -----------------------------------------------------------------------------
 # Aggregation
@@ -139,10 +135,9 @@ PITCH_KEYS = [
 ]
 
 PITCH_COLUMNS = [f"Count_{k}" for k in PITCH_KEYS]
-SIDE_PITCH_COLUMNS = {
-    side: [f"Count_{side}_{k}" for k in PITCH_KEYS] for side in ("L", "R")
-}
+SIDE_PITCH_COLUMNS = {side: [f"Count_{side}_{k}" for k in PITCH_KEYS] for side in ("L", "R")}
 ALL_PITCH_COLUMNS = PITCH_COLUMNS + SIDE_PITCH_COLUMNS["L"] + SIDE_PITCH_COLUMNS["R"]
+
 
 def empty_row(team: str, game_date, pitcher: str, meta: dict) -> dict:
     base = {
@@ -162,6 +157,7 @@ def empty_row(team: str, game_date, pitcher: str, meta: dict) -> dict:
         base[col] = 0
     return base
 
+
 def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
     df = pd.read_csv(buffer)
 
@@ -169,12 +165,19 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
     date_parser = CSVFilenameParser()
     game_date = str(date_parser.get_date_object(filename))
 
-    required = ["Pitcher","PitcherTeam","BatterSide","AutoPitchType","PlateLocSide","PlateLocHeight"]
+    required = [
+        "Pitcher",
+        "PitcherTeam",
+        "BatterSide",
+        "AutoPitchType",
+        "PlateLocSide",
+        "PlateLocHeight",
+    ]
     if not all(c in df.columns for c in required):
-        print(f"Warning: missing required columns in {file_path}")
+        print(f"Warning: missing required columns in {filename}")
         return {}
 
-    df = df.dropna(subset=["Pitcher","PitcherTeam","PlateLocSide","PlateLocHeight"]).copy()
+    df = df.dropna(subset=["Pitcher", "PitcherTeam", "PlateLocSide", "PlateLocHeight"]).copy()
     df["Date"] = game_date
 
     out: Dict[PitchKey, dict] = {}
@@ -187,9 +190,9 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
             continue
 
         meta = classify_13(x, y)
-        team = str(r["PitcherTeam"])
+        team = str(r["PitcherTeam"]).strip()
         date = game_date
-        pitcher = str(r["Pitcher"])
+        pitcher = str(r["Pitcher"]).strip()
         zone_id = int(meta["ZoneId"])
         key: PitchKey = (team, date, pitcher, zone_id)
 
@@ -220,14 +223,6 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
 # -----------------------------------------------------------------------------
 # Upload
 # -----------------------------------------------------------------------------
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (np.integer,)):  return int(obj)
-        if isinstance(obj, (np.floating,)): return float(obj)
-        if isinstance(obj, (np.ndarray,)):  return obj.tolist()
-        if pd.isna(obj):                    return None
-        return super().default(obj)
-
 def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
     if not bins:
         print("No bins data to upload")
@@ -239,11 +234,11 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
     batch = 1000
     total = 0
     for i in range(0, len(payload), batch):
-        chunk = payload[i:i+batch]
+        chunk = payload[i : i + batch]
         try:
-            supabase.table("PitcherPitchBins") \
-                .upsert(chunk, on_conflict="PitcherTeam,Date,Pitcher,ZoneId") \
-                .execute()
+            supabase.table("PitcherPitchBins").upsert(
+                chunk, on_conflict="PitcherTeam,Date,Pitcher,ZoneId"
+            ).execute()
             total += len(chunk)
             print(f"Uploaded batch {i//batch + 1}: {len(chunk)}")
         except Exception as e:
@@ -253,24 +248,15 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
             continue
     print(f"Successfully processed {total} records")
 
+
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 def main():
     print("Starting pitch bins CSV processing...")
-    csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    year = 2025
-    print(f"Looking for CSV files in: {csv_folder_path}\\{year}")
-    bins = process_csv_folder(csv_folder_path, year=year)
-    print(f"\nTotal unique bins: {len(bins)}")
-    if bins:
-        print("Sample:")
-        for i, (k, v) in enumerate(list(bins.items())[:5]):
-            print(" ", k, {kk: v[kk] for kk in ['ZoneId','InZone','ZoneRow','ZoneCol','ZoneCell','OuterLabel','TotalPitchCount']})
-        print("\nUploading to Supabase...")
-        upload_bins_to_supabase(bins)
-    else:
-        print("No bins to upload")
+    # csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
+    # TODO: Add updated get_ and upload functions
+
 
 if __name__ == "__main__":
     main()
