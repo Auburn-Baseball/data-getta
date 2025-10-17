@@ -27,7 +27,15 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract players from a CSV file using dict for deduplication"""
     try:
-        df = pd.read_csv(buffer)
+        cols_needed = [
+            'Pitcher',
+            'PitcherId',
+            'PitcherTeam',
+            'Batter',
+            'BatterId',
+            'BatterTeam'
+        ]
+        df = pd.read_csv(buffer, usecols=cols_needed)
 
         # Check if required columns exist
         if "Pitcher" not in df.columns and "Batter" not in df.columns:

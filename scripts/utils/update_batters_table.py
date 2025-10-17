@@ -78,7 +78,20 @@ def calculate_total_bases(play_result):
 def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract batter statistics from a CSV file in-memory"""
     try:
-        df = pd.read_csv(buffer)
+        cols_needed = [
+            'League',
+            "Batter",
+            "BatterTeam",
+            "PlayResult",
+            "KorBB",
+            "PitchCall",
+            "PlateLocHeight",
+            "PlateLocSide",
+            "TaggedHitType",
+            'GameUID',
+            'ExitSpeed'
+        ]
+        df = pd.read_csv(buffer, usecols=cols_needed)
 
         # Determines if this is practice data by checking the League column
         is_practice = False

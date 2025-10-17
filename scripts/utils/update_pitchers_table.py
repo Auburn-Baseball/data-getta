@@ -72,7 +72,24 @@ def calculate_innings_pitched(strikeouts, outs_on_play):
 def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitcher statistics from a CSV file"""
     try:
-        df = pd.read_csv(buffer)
+        cols_needed = [
+            'League',
+            "Pitcher",
+            "PitcherTeam",
+            "KorBB",
+            "PitchCall",
+            "PlateLocHeight",
+            "PlateLocSide",
+            "Inning",
+            "Outs",
+            "Balls",
+            "Strikes",
+            "PAofInning",
+            "OutsOnPlay",
+            "Batter",
+            'PlayResult'
+        ]
+        df = pd.read_csv(buffer, usecols=cols_needed)
 
         # Determine if this is practice data by checking League column
         is_practice = False

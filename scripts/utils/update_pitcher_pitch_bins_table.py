@@ -163,7 +163,17 @@ def empty_row(team: str, game_date, pitcher: str, meta: dict) -> dict:
     return base
 
 def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
-    df = pd.read_csv(buffer)
+    cols_needed = [
+        'Batter',
+        'BatterTeam',
+        'PlateLocSide',
+        'PlateLocHeight',
+        'AutoPitchType',
+        'PitchCall',
+        'PlayResult',
+        'Date'
+    ]
+    df = pd.read_csv(buffer, usecols=cols_needed)
 
     # Get game date from the filename
     date_parser = CSVFilenameParser()
@@ -171,7 +181,7 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
 
     required = ["Pitcher","PitcherTeam","BatterSide","AutoPitchType","PlateLocSide","PlateLocHeight"]
     if not all(c in df.columns for c in required):
-        print(f"Warning: missing required columns in {file_path}")
+        # print(f"Warning: missing required columns in {filename}")
         return {}
 
     df = df.dropna(subset=["Pitcher","PitcherTeam","PlateLocSide","PlateLocHeight"]).copy()

@@ -164,7 +164,17 @@ def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -
 
 
 def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str, float]]:
-    df = pd.read_csv(buffer)
+    cols_needed = [
+        'Batter',
+        'BatterTeam',
+        'PlateLocSide',
+        'PlateLocHeight',
+        'AutoPitchType',
+        'PitchCall',
+        'PlayResult',
+        'Date'
+    ]
+    df = pd.read_csv(buffer, usecols=cols_needed)
 
     # Get date from filename
     date_parser = CSVFilenameParser()
@@ -180,7 +190,7 @@ def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str,
         "PlayResult",
     ]
     if not all(col in df.columns for col in required):
-        print(f"Skipping {csv_path.name}: missing required columns")
+        # print(f"Skipping {csv_path.name}: missing required columns")
         return {}
 
     df = df.dropna(subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]).copy()

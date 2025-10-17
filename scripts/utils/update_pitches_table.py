@@ -45,7 +45,15 @@ class NumpyEncoder(json.JSONEncoder):
 def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitch count statistics from a CSV file"""
     try:
-        df = pd.read_csv(buffer)
+        cols_needed = [
+            "Pitcher",
+            "PitcherTeam",
+            "AutoPitchType",
+            "TaggedPitchType",
+            'League',
+            'GameUID'
+        ]
+        df = pd.read_csv(buffer, usecols=cols_needed)
 
         # Determine if this is practice data by checking League column
         is_pratice = False

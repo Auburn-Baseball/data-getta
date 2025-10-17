@@ -21,6 +21,7 @@ import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
 from .file_date import CSVFilenameParser
+import xgboost as xgb
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -44,6 +45,57 @@ MIN_PLATE_SIDE = -0.86
 MAX_PLATE_SIDE = 0.86
 MAX_PLATE_HEIGHT = 3.55
 MIN_PLATE_HEIGHT = 1.77
+
+
+# Load xBA grid for fast lookups
+XBA_GRID_PATH = project_root / "scripts" / "utils" / "saved_models" / "xBA_grid.csv"
+if XBA_GRID_PATH.exists():
+    xba_grid = pd.read_csv(XBA_GRID_PATH)
+else:
+    print("Warning: xBA grid not found, xBA stats will be skipped")
+    xba_grid = pd.DataFrame(columns=["ev_bin","la_bin","dir_bin","xBA"])
+
+def lookup_xBA(ev, la, dir_angle):
+    """Return xBA using neighbor averaging from precomputed grid."""
+    if xba_grid.empty:
+        return None
+    neighbors = xba_grid[
+        (abs(xba_grid["ev_bin"] - ev) <= 1) &
+        (abs(xba_grid["la_bin"] - la) <= 1) &
+        (abs(xba_grid["dir_bin"] - dir_angle) <= 5)
+    ]
+    if not neighbors.empty:
+        return neighbors["xBA"].mean()
+    else:
+        return xba_grid["xBA"].mean()
+    
+
+# --- Load pre-trained xSLG model ---
+XSLG_MODEL_PATH = project_root / "scripts" / "utils" / "saved_models" / "xslg_model.json"
+xslg_model = None
+if XSLG_MODEL_PATH.exists():
+    try:
+        xslg_model = xgb.XGBRegressor()
+        xslg_model.load_model(str(XSLG_MODEL_PATH))
+        print("xSLG model loaded successfully.")
+    except Exception as e:
+        print(f"Failed to load xSLG model: {e}")
+else:
+    print("xSLG model not found — skipping xSLG predictions.")
+
+
+# --- Load pre-trained xwOBA model ---
+XWOBAM_MODEL_PATH = project_root / "scripts" / "utils" / "saved_models" / "xwoba_model.json"
+xwoba_model = None
+if XWOBAM_MODEL_PATH.exists():
+    try:
+        xwoba_model = xgb.XGBRegressor()
+        xwoba_model.load_model(str(XWOBAM_MODEL_PATH))
+        print("xwOBA model loaded successfully.")
+    except Exception as e:
+        print(f"Failed to load xwOBA model: {e}")
+else:
+    print("xwOBA model not found — skipping xwOBA predictions.")
 
 
 # Custom JSON encoder for numpy and pandas types
@@ -76,7 +128,22 @@ def is_in_strike_zone(plate_loc_height, plate_loc_side):
 def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract advanced batting stats from CSV in memory"""
     try:
-        df = pd.read_csv(buffer)
+        cols_needed = [
+            'Batter', 
+            'BatterTeam', 
+            'KorBB', 
+            'PitchCall', 
+            'PlayResult',
+            'ExitSpeed',
+            'Angle',
+            'Direction',
+            'BatterSide',
+            'PlateLocHeight',
+            'PlateLocSide',
+            'Bearing',
+            'Distance'
+        ]
+        df = pd.read_csv(buffer, usecols=cols_needed)
 
         # Verify required columns exist
         required_columns = ["Batter", "BatterTeam"]
@@ -123,14 +190,25 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             batted_balls = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
-                (group['Angle']).notna()
+                (group['Angle']).notna() &
+                (group["Direction"].notna()) &
+                (group["BatterSide"].notna())
             ].shape[0]
+
+            # Calculate at-bats
+            at_bats = len(
+                group[
+                    group["KorBB"].isin(["Strikeout"])
+                ]
+            ) + batted_balls
 
             # LA Sweet Spot percentage
             sweet_spot_balls = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
                 (group["Angle"].notna()) &
+                (group["Direction"].notna()) &
+                (group["BatterSide"].notna()) &
                 (group["Angle"] >= 8) & (group["Angle"] <= 32)
             ].shape[0]
             la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
@@ -140,7 +218,9 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
                 (group["ExitSpeed"] >= 95) &
-                (group["Angle"].notna())
+                (group["Angle"].notna()) &
+                (group["Direction"].notna()) &
+                (group["BatterSide"].notna())
             ].shape[0]
             hard_hit_per = (hard_hit_balls / batted_balls) if batted_balls > 0 else None
 
@@ -148,7 +228,9 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             total_exit_velo = group[
                 (group["PitchCall"] == "InPlay") &
                 (group["ExitSpeed"].notna()) &
-                (group["Angle"].notna())
+                (group["Angle"].notna()) &
+                (group["Direction"].notna()) &
+                (group["BatterSide"].notna())
             ]["ExitSpeed"].sum()
             avg_exit_velo = total_exit_velo / batted_balls if batted_balls > 0 else None
 
@@ -228,6 +310,119 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
             whiff_per = in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
             chase_per = out_of_zone_swings / out_of_zone_pitches if out_of_zone_pitches > 0 else None
 
+            # --- Prepare batted_ball_rows ---
+            batted_ball_rows = group[
+                (group["PitchCall"] == "InPlay") &
+                (group["ExitSpeed"].notna()) &
+                (group["Angle"].notna()) &
+                (group["Direction"].notna()) &
+                (group["BatterSide"].notna())
+            ].copy()
+
+            # --- Compute xBA for all batted balls ---
+            dir_angle = batted_ball_rows["Direction"].astype(float)
+            dir_angle[batted_ball_rows["BatterSide"] == "Left"] *= -1  # mirror lefties
+            ev_bin = batted_ball_rows["ExitSpeed"].round().astype(int)
+            la_bin = batted_ball_rows["Angle"].round().astype(int)
+            dir_bin = (dir_angle // 5 * 5).astype(int)
+
+            # Use your neighbor-averaging function
+            batted_ball_rows["xBA"] = [
+                lookup_xBA(ev, la, dr) for ev, la, dr in zip(ev_bin, la_bin, dir_bin)
+            ]
+
+            # --- Predict xSLG for all batted balls ---
+            if xslg_model is not None and not batted_ball_rows.empty:
+                valid_xslg = batted_ball_rows[["ExitSpeed", "Angle", "Direction", "BatterSide"]].copy()
+                valid_xslg["BatterSide"] = valid_xslg["BatterSide"].map({"Left": 0, "Right": 1})
+                preds_xslg = xslg_model.predict(valid_xslg)
+                batted_ball_rows["xSLG"] = preds_xslg
+            else:
+                batted_ball_rows["xSLG"] = 0
+
+            # --- Drop any rows where xBA or xSLG is None just to be safe ---
+            batted_ball_rows = batted_ball_rows.dropna(subset=["xBA", "xSLG"])
+
+            # --- Barrel % calculation (skip rows with None) ---
+            barrel_balls = batted_ball_rows[
+                (batted_ball_rows["xBA"].notna()) &
+                (batted_ball_rows["xSLG"].notna()) &
+                (batted_ball_rows["xBA"] >= 0.5) &
+                (batted_ball_rows["xSLG"] >= 1.5)
+            ].shape[0]
+
+            barrel_per = (barrel_balls / batted_balls) if batted_balls > 0 else None
+
+
+            # --- Compute xBA per batter ---
+            if not batted_ball_rows.empty:
+                avg_xba_batted_balls = batted_ball_rows["xBA"].mean()
+                batter_xba = (avg_xba_batted_balls * batted_balls) / at_bats if at_bats > 0 else 0
+                batter_xba = max(batter_xba, 0)  # Clip minimum
+            else:
+                batter_xba = 0
+
+            # --- Compute xSLG per batter ---
+            if not batted_ball_rows.empty:
+                avg_xslg_batted_balls = batted_ball_rows["xSLG"].mean()
+                batter_xslg = (avg_xslg_batted_balls * batted_balls) / at_bats if at_bats > 0 else 0
+                batter_xslg = max(batter_xslg, 0)  # Clip minimum
+            else:
+                batter_xslg = 0
+
+            # --- Predict xwOBA using pre-trained model ---
+            woba_map = {
+                "Single": 0.89,
+                "Double": 1.27,
+                "Triple": 1.62,
+                "HomeRun": 2.10,
+                "Walk": 0.72,
+                "HitByPitch": 0.73,
+                "Sacrifice": 0.0,
+                "FieldersChoice": 0.0,
+                "Out": 0.0,
+                "Error": 0.0,
+                "Undefined": 0.0
+            }
+
+            # Non-batted-ball events
+            walks = len(group[group["KorBB"] == "Walk"])
+            hbps = len(group[group["KorBB"] == "HitByPitch"])
+            sacrifices = len(group[group["PlayResult"] == "Sacrifice"])
+            fielders_choice = len(group[group["PlayResult"] == "FieldersChoice"])
+            outs = len(group[group["PlayResult"] == "Out"])
+
+            # --- Full xwOBA including walks/HBP/etc ---
+            try:
+                # Plate appearances safety
+                pa = plate_appearances if plate_appearances > 0 else 1
+
+                # Model contributions from batted balls
+                if not batted_ball_rows.empty and xwoba_model is not None:
+                    valid_bb = batted_ball_rows[["ExitSpeed","Angle","Direction","BatterSide"]].copy()
+                    valid_bb["BatterSide"] = valid_bb["BatterSide"].map({"Left":0,"Right":1})
+                    preds = xwoba_model.predict(valid_bb)
+                    sum_xwOBA_bb = np.sum(preds)
+                else:
+                    sum_xwOBA_bb = 0
+
+                # Contributions from non-batted-ball events
+                total_contrib = sum_xwOBA_bb \
+                    + walks * woba_map["Walk"] \
+                    + hbps * woba_map["HitByPitch"] \
+                    + sacrifices * woba_map["Sacrifice"] \
+                    + fielders_choice * woba_map["FieldersChoice"] \
+                    + outs * woba_map["Out"]
+
+                # Compute xwOBA
+                batter_xwoba = total_contrib / pa
+                batter_xwoba = max(batter_xwoba, 0)  # Clip minimum
+
+            except Exception as e:
+                print(f"Error computing xwOBA for {batter_name}: {e}")
+                batter_xwoba = 0
+
+
             # Store computed stats for batter
             batter_stats = {
                 "Batter": batter_name,
@@ -254,6 +449,11 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
                 "infield_rc_per": round(infield_rc_per, 3) if infield_rc_per is not None else None,
                 "infield_right_slice": infield_right_slice,
                 "infield_right_per": round(infield_right_per, 3) if infield_right_per is not None else None,
+                "xba_per": round(batter_xba, 3) if batter_xba is not None else None,
+                "xslg_per": round(batter_xslg, 3) if batter_xslg is not None else None,
+                "at_bats": at_bats,
+                "xwoba_per": round(batter_xwoba, 3) if batter_xwoba is not None else None,
+                "barrel_per": round(barrel_per, 3) if barrel_per is not None else None,
             }
 
             batters_dict[key] = batter_stats
@@ -266,96 +466,81 @@ def get_advanced_batting_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[
 
 
 def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dict:
-    """Merge existing and new batting stats, updating rates and percentages"""
+    """Merge existing and new batting stats with explicit layout and rounded percentages"""
+
     if not existing_stats:
         return new_stats
-    
-    # Combine plate appearances and batted balls
-    combined_plate_app = existing_stats.get("plate_app", 0) + new_stats.get("plate_app", 0)
-    combined_batted_balls = existing_stats.get("batted_balls", 0) + new_stats.get("batted_balls", 0)
-    
-    # Compute combined average exit velocity
-    existing_total_exit_velo = (existing_stats.get("avg_exit_velo", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
-    new_total_exit_velo = (new_stats.get("avg_exit_velo", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
-    combined_avg_exit_velo = None
-    if combined_batted_balls > 0:
-        total_exit_velo = existing_total_exit_velo + new_total_exit_velo
-        combined_avg_exit_velo = total_exit_velo / combined_batted_balls
-    
-    # Combine K% and BB%
-    existing_strikeouts = (existing_stats.get("k_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
-    new_strikeouts = (new_stats.get("k_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
-    combined_k_per = (existing_strikeouts + new_strikeouts) / combined_plate_app if combined_plate_app > 0 else None
 
-    existing_walks = (existing_stats.get("bb_per", 0) or 0) * (existing_stats.get("plate_app", 0) or 0)
-    new_walks = (new_stats.get("bb_per", 0) or 0) * (new_stats.get("plate_app", 0) or 0)
-    combined_bb_per = (existing_walks + new_walks) / combined_plate_app if combined_plate_app > 0 else None
+    # Helper to safely get numeric values
+    def safe_get(d, key):
+        return d.get(key) if d.get(key) is not None else 0
 
-    # Combine LA Sweet Spot and Hard Hit percentages
-    existing_sweet_spot = (existing_stats.get("la_sweet_spot_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
-    new_sweet_spot = (new_stats.get("la_sweet_spot_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
-    combined_sweet_spot_per = (existing_sweet_spot + new_sweet_spot) / combined_batted_balls if combined_batted_balls > 0 else None
+    # Combine counts
+    combined_plate_app = safe_get(existing_stats, "plate_app") + safe_get(new_stats, "plate_app")
+    combined_batted_balls = safe_get(existing_stats, "batted_balls") + safe_get(new_stats, "batted_balls")
+    combined_at_bats = safe_get(existing_stats, "at_bats") + safe_get(new_stats, "at_bats")
+    combined_in_zone_pitches = safe_get(existing_stats, "in_zone_pitches") + safe_get(new_stats, "in_zone_pitches")
+    combined_out_of_zone_pitches = safe_get(existing_stats, "out_of_zone_pitches") + safe_get(new_stats, "out_of_zone_pitches")
 
-    existing_hard_hit = (existing_stats.get("hard_hit_per", 0) or 0) * (existing_stats.get("batted_balls", 0) or 0)
-    new_hard_hit = (new_stats.get("hard_hit_per", 0) or 0) * (new_stats.get("batted_balls", 0) or 0)
-    combined_hard_hit_per = (existing_hard_hit + new_hard_hit) / combined_batted_balls if combined_batted_balls > 0 else None
+    # Weighted averages helper
+    def weighted_avg(stat_key, weight_key, total_weight, round_digits=3):
+        total = safe_get(existing_stats, stat_key) * safe_get(existing_stats, weight_key) + \
+                safe_get(new_stats, stat_key) * safe_get(new_stats, weight_key)
+        if total_weight > 0:
+            return round(max(total / total_weight, 0), round_digits)
+        return None
 
-    # Combine in-zone stats
-    combined_in_zone_pitches = existing_stats.get("in_zone_pitches", 0) + new_stats.get("in_zone_pitches", 0)
-    existing_in_zone_whiffs = (existing_stats.get("whiff_per", 0) or 0) * (existing_stats.get("in_zone_pitches", 0) or 0)
-    new_in_zone_whiffs = (new_stats.get("whiff_per", 0) or 0) * (new_stats.get("in_zone_pitches", 0) or 0)
-    combined_whiff_per = (existing_in_zone_whiffs + new_in_zone_whiffs) / combined_in_zone_pitches if combined_in_zone_pitches > 0 else None
-
-    # Combine out-of-zone stats
-    combined_out_of_zone_pitches = existing_stats.get("out_of_zone_pitches", 0) + new_stats.get("out_of_zone_pitches", 0)
-    existing_out_of_zone_swings = (existing_stats.get("chase_per", 0) or 0) * (existing_stats.get("out_of_zone_pitches", 0) or 0)
-    new_out_of_zone_swings = (new_stats.get("chase_per", 0) or 0) * (new_stats.get("out_of_zone_pitches", 0) or 0)
-    combined_chase_per = (existing_out_of_zone_swings + new_out_of_zone_swings) / combined_out_of_zone_pitches if combined_out_of_zone_pitches > 0 else None
+    # Compute weighted stats
+    combined_avg_exit_velo = weighted_avg("avg_exit_velo", "batted_balls", combined_batted_balls, 1)
+    combined_k_per = weighted_avg("k_per", "plate_app", combined_plate_app)
+    combined_bb_per = weighted_avg("bb_per", "plate_app", combined_plate_app)
+    combined_sweet_spot_per = weighted_avg("la_sweet_spot_per", "batted_balls", combined_batted_balls)
+    combined_hard_hit_per = weighted_avg("hard_hit_per", "batted_balls", combined_batted_balls)
+    combined_whiff_per = weighted_avg("whiff_per", "in_zone_pitches", combined_in_zone_pitches)
+    combined_chase_per = weighted_avg("chase_per", "out_of_zone_pitches", combined_out_of_zone_pitches)
+    combined_xba_per = weighted_avg("xba_per", "at_bats", combined_at_bats)
+    combined_xslg_per = weighted_avg("xslg_per", "at_bats", combined_at_bats)
+    combined_xwoba_per = weighted_avg("xwoba_per", "plate_app", combined_plate_app)
+    combined_barrel_per = weighted_avg("barrel_per", "batted_balls", combined_batted_balls)
 
     # Combine infield slices
-    combined_infield_left_slice = existing_stats.get("infield_left_slice", 0) + new_stats.get("infield_left_slice", 0)
-    combined_infield_lc_slice = existing_stats.get("infield_lc_slice", 0) + new_stats.get("infield_lc_slice", 0)
-    combined_infield_center_slice = existing_stats.get("infield_center_slice", 0) + new_stats.get("infield_center_slice", 0)
-    combined_infield_rc_slice = existing_stats.get("infield_rc_slice", 0) + new_stats.get("infield_rc_slice", 0)
-    combined_infield_right_slice = existing_stats.get("infield_right_slice", 0) + new_stats.get("infield_right_slice", 0)
+    slices = ["infield_left_slice", "infield_lc_slice", "infield_center_slice", "infield_rc_slice", "infield_right_slice"]
+    combined_slices = {s: safe_get(existing_stats, s) + safe_get(new_stats, s) for s in slices}
+    total_infield = sum(combined_slices.values())
+    combined_slice_per = {s.replace("_slice", "_per"): round(v / total_infield, 3) if total_infield > 0 else None
+                          for s, v in combined_slices.items()}
 
-    # Compute combined infield slice percentages
-    total_infield_batted_balls = (
-        combined_infield_left_slice + combined_infield_lc_slice + 
-        combined_infield_center_slice + combined_infield_rc_slice + 
-        combined_infield_right_slice
-    )
-    combined_infield_left_per = combined_infield_left_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    combined_infield_lc_per = combined_infield_lc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    combined_infield_center_per = combined_infield_center_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    combined_infield_rc_per = combined_infield_rc_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-    combined_infield_right_per = combined_infield_right_slice / total_infield_batted_balls if total_infield_batted_balls > 0 else None
-
+    # Explicit return layout
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
         "Year": new_stats["Year"],
         "plate_app": combined_plate_app,
         "batted_balls": combined_batted_balls,
-        "avg_exit_velo": round(combined_avg_exit_velo, 1) if combined_avg_exit_velo is not None else None,
-        "k_per": round(combined_k_per, 3) if combined_k_per is not None else None,
-        "bb_per": round(combined_bb_per, 3) if combined_bb_per is not None else None,
-        "la_sweet_spot_per": round(combined_sweet_spot_per, 3) if combined_sweet_spot_per is not None else None,
-        "hard_hit_per": round(combined_hard_hit_per, 3) if combined_hard_hit_per is not None else None,
+        "at_bats": combined_at_bats,
+        "avg_exit_velo": combined_avg_exit_velo,
+        "k_per": combined_k_per,
+        "bb_per": combined_bb_per,
+        "la_sweet_spot_per": combined_sweet_spot_per,
+        "hard_hit_per": combined_hard_hit_per,
         "in_zone_pitches": combined_in_zone_pitches,
-        "whiff_per": round(combined_whiff_per, 3) if combined_whiff_per is not None else None,
+        "whiff_per": combined_whiff_per,
         "out_of_zone_pitches": combined_out_of_zone_pitches,
-        "chase_per": round(combined_chase_per, 3) if combined_chase_per is not None else None,
-        "infield_left_slice": combined_infield_left_slice,
-        "infield_left_per": round(combined_infield_left_per, 3) if combined_infield_left_per is not None else None,
-        "infield_lc_slice": combined_infield_lc_slice,
-        "infield_lc_per": round(combined_infield_lc_per, 3) if combined_infield_lc_per is not None else None,
-        "infield_center_slice": combined_infield_center_slice,
-        "infield_center_per": round(combined_infield_center_per, 3) if combined_infield_center_per is not None else None,
-        "infield_rc_slice": combined_infield_rc_slice,
-        "infield_rc_per": round(combined_infield_rc_per, 3) if combined_infield_rc_per is not None else None,
-        "infield_right_slice": combined_infield_right_slice,
-        "infield_right_per": round(combined_infield_right_per, 3) if combined_infield_right_per is not None else None,
+        "chase_per": combined_chase_per,
+        "infield_left_slice": combined_slices["infield_left_slice"],
+        "infield_left_per": combined_slice_per["infield_left_per"],
+        "infield_lc_slice": combined_slices["infield_lc_slice"],
+        "infield_lc_per": combined_slice_per["infield_lc_per"],
+        "infield_center_slice": combined_slices["infield_center_slice"],
+        "infield_center_per": combined_slice_per["infield_center_per"],
+        "infield_rc_slice": combined_slices["infield_rc_slice"],
+        "infield_rc_per": combined_slice_per["infield_rc_per"],
+        "infield_right_slice": combined_slices["infield_right_slice"],
+        "infield_right_per": combined_slice_per["infield_right_per"],
+        "xba_per": combined_xba_per,
+        "xslg_per": combined_xslg_per,
+        "xwoba_per": combined_xwoba_per,
+        "barrel_per": combined_barrel_per
     }
 
 
@@ -428,7 +613,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         offset = 0
         while True:
             result = supabase.table("AdvancedBattingStats").select(
-                "Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per,whiff_per,chase_per"
+                "Batter,BatterTeam,Year,avg_exit_velo,k_per,"
+                + "bb_per,la_sweet_spot_per,hard_hit_per,whiff_per,"
+                + "chase_per,xba_per,xslg_per,xwoba_per,barrel_per"
             ).range(offset, offset + batch_size - 1).execute()
             data = result.data
             if not data:
@@ -467,6 +654,10 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             temp["hard_hit_per_rank"] = rank_and_scale_to_1_100(temp["hard_hit_per"], ascending=True)
             temp["whiff_per_rank"] = rank_and_scale_to_1_100(temp["whiff_per"], ascending=False)
             temp["chase_per_rank"] = rank_and_scale_to_1_100(temp["chase_per"], ascending=False)
+            temp["xba_per_rank"] = rank_and_scale_to_1_100(temp["xba_per"], ascending=True)
+            temp["xslg_per_rank"] = rank_and_scale_to_1_100(temp["xslg_per"], ascending=True)
+            temp["xwoba_per_rank"] = rank_and_scale_to_1_100(temp["xwoba_per"], ascending=True)
+            temp["barrel_per_rank"] = rank_and_scale_to_1_100(temp["barrel_per"], ascending=True)
             ranked_dfs.append(temp)
 
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
@@ -477,7 +668,8 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             "Batter","BatterTeam","Year",
             "avg_exit_velo_rank","k_per_rank","bb_per_rank",
             "la_sweet_spot_per_rank","hard_hit_per_rank",
-            "whiff_per_rank","chase_per_rank"
+            "whiff_per_rank","chase_per_rank","xba_per_rank",
+            "xslg_per_rank","xwoba_per_rank","barrel_per_rank"
         ]
         update_data = ranked_df[update_cols].to_dict(orient="records")
         for record in update_data:
