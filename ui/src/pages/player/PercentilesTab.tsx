@@ -181,7 +181,7 @@ const PercentilesTab: React.FC = () => {
         gap: 24,
       }}
     >
-      {/* ✅ Center: Advanced Stats */}
+      {/* Center: Advanced Stats */}
       <div style={boxStyle}>
         <div style={{ width: "100%", maxWidth: 400 }}>
           <h2 style={{ textAlign: "center", marginBottom: 24 }}>
@@ -238,7 +238,7 @@ const PercentilesTab: React.FC = () => {
         </div>
       </div>
 
-      {/* ✅ Right: Flipped Infield Spray Chart */}
+      {/* Right: Flipped Infield Spray Chart */}
       <div style={boxStyle}>
         {!loading && stats ? (
           <div style={{ textAlign: "center" }}>
