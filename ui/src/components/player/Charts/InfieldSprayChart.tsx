@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { AdvancedBattingStatsTable } from '@/types/schemas';
+import { AdvancedBattingStatsTable } from '@/types/db';
 
 type InfieldSprayChartProps = {
   stats: AdvancedBattingStatsTable;

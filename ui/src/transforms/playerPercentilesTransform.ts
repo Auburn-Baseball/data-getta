@@ -1,4 +1,4 @@
-import { AdvancedBattingStatsTable } from '@/types/schemas';
+import { AdvancedBattingStatsTable } from '@/types/db';
 
 /**
  * Transforms advanced batting stats data for a specific player

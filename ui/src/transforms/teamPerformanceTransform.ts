@@ -1,4 +1,4 @@
-import { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/schemas';
+import { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 
 export interface TeamPerformanceRow {
   team: string;

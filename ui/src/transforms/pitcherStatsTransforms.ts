@@ -1,4 +1,4 @@
-import { PitchCountsTable, PitcherStatsTable } from '@/types/schemas';
+import { PitchCountsTable, PitcherStatsTable } from '@/types/db';
 
 const inningsToOuts = (innings: number | string | null | undefined): number => {
   if (innings === null || innings === undefined) {

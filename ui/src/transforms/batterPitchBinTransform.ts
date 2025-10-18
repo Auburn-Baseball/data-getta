@@ -1,4 +1,4 @@
-import { BatterPitchBinsTable } from '@/types/schemas';
+import { BatterPitchBinsTable } from '@/types/db';
 
 /**
  * Groups batter pitch data by zone and aggregates counts across date ranges

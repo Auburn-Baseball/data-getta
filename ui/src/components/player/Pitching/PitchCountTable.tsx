@@ -1,4 +1,4 @@
-import { PitchCountsTable as PitchCountsTableType } from '@/types/schemas';
+import { PitchCountsTable as PitchCountsTableType } from '@/types/db';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';

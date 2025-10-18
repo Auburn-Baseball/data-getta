@@ -1,7 +1,7 @@
 import Link from '@/utils/Link';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Theme } from '@/utils/theme';
-import { BatterStatsTable } from '@/types/schemas';
+import { Theme } from '@/styles/theme';
+import { BatterStatsTable } from '@/types/db';
 
 const playerURL: string = '/team/';
 

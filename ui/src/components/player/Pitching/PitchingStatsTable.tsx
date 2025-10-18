@@ -1,4 +1,4 @@
-import { PitcherStatsTable } from '@/types/schemas';
+import { PitcherStatsTable } from '@/types/db';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import StatBar from '@/components/player/StatBar';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase/client';
+
+import StatBar from '@/components/player/StatBar';
+import { fetchAdvancedBattingStats } from '@/services/playerService';
+import type { AdvancedBattingStatsTable } from '@/types/db';
 
 const boxStyle: React.CSSProperties = {
   flex: 1,
@@ -12,7 +14,10 @@ const boxStyle: React.CSSProperties = {
   margin: '0 12px',
 };
 
-const advancedStatKeys = [
+const advancedStatKeys: Array<{
+  key: keyof AdvancedBattingStatsTable;
+  label: string;
+}> = [
   { key: 'avg_exit_velo', label: 'EV' },
   { key: 'k_per', label: 'K%' },
   { key: 'bb_per', label: 'BB%' },
@@ -27,7 +32,7 @@ const PercentilesTab: React.FC = () => {
     year: string;
   }>();
 
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AdvancedBattingStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,19 +52,18 @@ const PercentilesTab: React.FC = () => {
 
         console.log('Fetching stats for:', formattedPlayerName, decodedTeamName, safeYear);
 
-        const { data: allBatters, error } = await supabase
-          .from('AdvancedBattingStats')
-          .select('*')
-          .eq('BatterTeam', decodedTeamName)
-          .eq('Year', safeYear);
+        const { data: allBatters, error } = await fetchAdvancedBattingStats(
+          decodedTeamName,
+          Number(safeYear),
+        );
 
         if (error) throw error;
 
-        const playerStats = allBatters.find((b: any) => b.Batter === formattedPlayerName);
+        const playerStats = allBatters?.find((b) => b.Batter === formattedPlayerName) ?? null;
 
         console.log('Player stats fetched:', playerStats);
 
-        setStats(playerStats);
+        setStats(playerStats as AdvancedBattingStatsTable | null);
       } catch (err: any) {
         console.error(err);
         setError('Failed to load player stats');
@@ -107,8 +111,9 @@ const PercentilesTab: React.FC = () => {
           ) : stats ? (
             <div>
               {advancedStatKeys.map(({ key, label }) => {
-                const rankKey = `${key}_rank`;
-                const rank = typeof stats[rankKey] === 'number' ? stats[rankKey] : 1;
+                const rankKey = `${key}_rank` as keyof AdvancedBattingStatsTable;
+                const rankValue = stats[rankKey];
+                const rank = typeof rankValue === 'number' ? rankValue : 1;
 
                 return (
                   <StatBar

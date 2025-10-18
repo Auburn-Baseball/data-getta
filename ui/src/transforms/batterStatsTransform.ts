@@ -1,4 +1,4 @@
-import { BatterStatsTable } from '@/types/schemas';
+import { BatterStatsTable } from '@/types/db';
 
 const aggregatePlayerStats = (playerStats: BatterStatsTable[]): BatterStatsTable | null => {
   if (!playerStats.length) return null;
