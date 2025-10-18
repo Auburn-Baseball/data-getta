@@ -9,14 +9,17 @@ import { TeamsTable } from '@/types/schemas';
 import { ConferenceGroup, ConferenceGroupTeam } from '@/types/types';
 
 type ConferencePageProps = {
-  startDate: string | null;
-  endDate: string | null;
+  year: number;
 };
 
-export default function ConferencePage({ startDate, endDate }: ConferencePageProps) {
+export default function ConferencePage({ year }: ConferencePageProps) {
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  if (!year) {
+    year = new Date().getFullYear();
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,21 +29,17 @@ export default function ConferencePage({ startDate, endDate }: ConferencePagePro
         const { data, error } = await cachedQuery({
           key: createCacheKey('Teams', {
             select: '*',
-            eq: { Year: 2025 },
+            eq: { Year: year },
             order: [
               { column: 'Conference', ascending: true },
               { column: 'TeamName', ascending: true },
             ],
-            range: {
-              startDate,
-              endDate,
-            },
           }),
           query: () =>
             supabase
               .from('Teams')
               .select('*')
-              .eq('Year', 2025) // change this to match the year passed into the page
+              .eq('Year', year)
               .order('Conference', { ascending: true })
               .order('TeamName', { ascending: true })
               .overrideTypes<TeamsTable[], { merge: false }>(),
@@ -80,7 +79,7 @@ export default function ConferencePage({ startDate, endDate }: ConferencePagePro
     };
 
     fetchData();
-  }, [startDate, endDate]);
+  }, [year]);
 
   if (loading) {
     return (
@@ -103,7 +102,7 @@ export default function ConferencePage({ startDate, endDate }: ConferencePagePro
   return (
     <Box sx={{ px: 8, py: 4 }}>
       <Typography variant="h4" fontWeight={700} sx={{ pb: 4 }}>
-        Conferences
+        Conferences ({year})
       </Typography>
 
       <Grid container spacing={2}>

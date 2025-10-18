@@ -196,7 +196,9 @@ export default function BattingStatsTable({
             ) : playerStats.length > 0 ? (
               <TableRow>
                 <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].games}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].plate_appearances}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>
+                  {playerStats[0].plate_appearances}
+                </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].at_bats}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].hits}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].homeruns}</TableCell>

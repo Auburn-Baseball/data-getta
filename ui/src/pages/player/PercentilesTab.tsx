@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react";
-import StatBar from "@/components/player/StatBar";
-import { useParams } from "react-router";
-import { supabase } from "@/utils/supabase/client";
+import React, { useEffect, useState } from 'react';
+import StatBar from '@/components/player/StatBar';
+import { useParams } from 'react-router';
+import { supabase } from '@/utils/supabase/client';
 
 const boxStyle: React.CSSProperties = {
   flex: 1,
-  minHeight: "400px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  margin: "0 12px",
+  minHeight: '400px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  margin: '0 12px',
 };
 
 // ------------------------------------------------------
@@ -35,7 +35,7 @@ const InfieldSprayChart: React.FC<{ stats: any }> = ({ stats }) => {
 
   // White → red gradient
   const getColor = (percent: number) => {
-    if (maxPercent === 0) return "rgb(255,255,255)";
+    if (maxPercent === 0) return 'rgb(255,255,255)';
     const intensity = percent / 50; // 50% maps to full red
     const red = 255;
     const green = Math.round(255 * (1 - intensity));
@@ -44,21 +44,21 @@ const InfieldSprayChart: React.FC<{ stats: any }> = ({ stats }) => {
   };
 
   const slices = [
-    { label: "Left", percent: percents[0] ?? 0 },
-    { label: "Left-Center", percent: percents[1] ?? 0 },
-    { label: "Center", percent: percents[2] ?? 0 },
-    { label: "Right-Center", percent: percents[3] ?? 0 },
-    { label: "Right", percent: percents[4] ?? 0 },
+    { label: 'Left', percent: percents[0] ?? 0 },
+    { label: 'Left-Center', percent: percents[1] ?? 0 },
+    { label: 'Center', percent: percents[2] ?? 0 },
+    { label: 'Right-Center', percent: percents[3] ?? 0 },
+    { label: 'Right', percent: percents[4] ?? 0 },
   ];
 
   return (
     <svg
       viewBox="-150 -50 300 200"
       style={{
-        width: "100%",
+        width: '100%',
         maxWidth: 400,
-        margin: "auto",
-        transform: "scale(1, -1)", // flip vertically (faces up)
+        margin: 'auto',
+        transform: 'scale(1, -1)', // flip vertically (faces up)
       }}
     >
       {slices.map((slice, i) => {
@@ -106,9 +106,6 @@ const InfieldSprayChart: React.FC<{ stats: any }> = ({ stats }) => {
   );
 };
 
-
-
-
 // ------------------------------------------------------
 // Main PercentilesTab Component
 // ------------------------------------------------------
@@ -129,29 +126,27 @@ const PercentilesTab: React.FC = () => {
       setError(null);
 
       try {
-        const safeYear = year || "2025";
+        const safeYear = year || '2025';
         const formattedPlayerName = playerName
-          ? decodeURIComponent(playerName).replace("_", ", ")
-          : "";
+          ? decodeURIComponent(playerName).replace('_', ', ')
+          : '';
         const decodedTeamName = trackmanAbbreviation
           ? decodeURIComponent(trackmanAbbreviation)
-          : "";
+          : '';
 
         const { data: allBatters, error } = await supabase
-          .from("AdvancedBattingStats")
-          .select("*")
-          .eq("BatterTeam", decodedTeamName)
-          .eq("Year", safeYear);
+          .from('AdvancedBattingStats')
+          .select('*')
+          .eq('BatterTeam', decodedTeamName)
+          .eq('Year', safeYear);
 
         if (error) throw error;
 
-        const playerStats = allBatters.find(
-          (b: any) => b.Batter === formattedPlayerName
-        );
+        const playerStats = allBatters.find((b: any) => b.Batter === formattedPlayerName);
         setStats(playerStats);
       } catch (err: any) {
         console.error(err);
-        setError("Failed to load player stats");
+        setError('Failed to load player stats');
       } finally {
         setLoading(false);
       }
@@ -174,50 +169,43 @@ const PercentilesTab: React.FC = () => {
   return (
     <div
       style={{
-        display: "flex",
-        width: "100%",
+        display: 'flex',
+        width: '100%',
         maxWidth: 1200,
-        margin: "40px auto",
+        margin: '40px auto',
         gap: 24,
       }}
     >
       {/* Center: Advanced Stats */}
       <div style={boxStyle}>
-        <div style={{ width: "100%", maxWidth: 400 }}>
-          <h2 style={{ textAlign: "center", marginBottom: 24 }}>
-            Advanced Stats
-          </h2>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Advanced Stats</h2>
           {loading ? (
-            <div style={{ textAlign: "center", padding: 32 }}>Loading...</div>
+            <div style={{ textAlign: 'center', padding: 32 }}>Loading...</div>
           ) : error ? (
-            <div
-              style={{ color: "#d32f2f", textAlign: "center", padding: 32 }}
-            >
-              {error}
-            </div>
+            <div style={{ color: '#d32f2f', textAlign: 'center', padding: 32 }}>{error}</div>
           ) : stats ? (
             <div>
               {[
-                { key: "avg_exit_velo", label: "EV" },
-                { key: "k_per", label: "K%" },
-                { key: "bb_per", label: "BB%" },
-                { key: "la_sweet_spot_per", label: "LA Sweet Spot %" },
-                { key: "hard_hit_per", label: "Hard Hit %" },
-                { key: "whiff_per", label: "Whiff %" },
-                { key: "chase_per", label: "Chase %" },
+                { key: 'avg_exit_velo', label: 'EV' },
+                { key: 'k_per', label: 'K%' },
+                { key: 'bb_per', label: 'BB%' },
+                { key: 'la_sweet_spot_per', label: 'LA Sweet Spot %' },
+                { key: 'hard_hit_per', label: 'Hard Hit %' },
+                { key: 'whiff_per', label: 'Whiff %' },
+                { key: 'chase_per', label: 'Chase %' },
               ].map(({ key, label }) => {
                 const rankKey = `${key}_rank`;
-                let rank =
-                  typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
+                let rank = typeof stats[rankKey] === 'number' ? stats[rankKey] : 1;
 
                 rank = Math.round(rank);
 
                 const statValue =
-                  typeof stats[key] === "number"
-                    ? key.endsWith("per") || key === "k_per" || key === "bb_per"
+                  typeof stats[key] === 'number'
+                    ? key.endsWith('per') || key === 'k_per' || key === 'bb_per'
                       ? `${(stats[key] * 100).toFixed(1)}%`
                       : stats[key].toFixed(1)
-                    : "0.0";
+                    : '0.0';
 
                 return (
                   <StatBar
@@ -231,9 +219,7 @@ const PercentilesTab: React.FC = () => {
               })}
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: 32 }}>
-              No Data Available
-            </div>
+            <div style={{ textAlign: 'center', padding: 32 }}>No Data Available</div>
           )}
         </div>
       </div>
@@ -241,12 +227,12 @@ const PercentilesTab: React.FC = () => {
       {/* Right: Flipped Infield Spray Chart */}
       <div style={boxStyle}>
         {!loading && stats ? (
-          <div style={{ textAlign: "center" }}>
+          <div style={{ textAlign: 'center' }}>
             <h2 style={{ marginBottom: 16 }}>Infield Spray Chart</h2>
             <InfieldSprayChart stats={stats} />
           </div>
         ) : (
-          <div style={{ textAlign: "center", padding: 32 }}>Loading chart...</div>
+          <div style={{ textAlign: 'center', padding: 32 }}>Loading chart...</div>
         )}
       </div>
     </div>

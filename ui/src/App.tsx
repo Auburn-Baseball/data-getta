@@ -48,7 +48,13 @@ export default function App() {
             <Route
               path="conferences"
               element={
-                <ConferencePage startDate={dateRange.startDate} endDate={dateRange.endDate} />
+                <ConferencePage
+                  year={
+                    dateRange.startDate
+                      ? new Date(dateRange.startDate).getFullYear()
+                      : new Date().getFullYear()
+                  }
+                />
               }
             />
             <Route
