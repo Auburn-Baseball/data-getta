@@ -30,7 +30,13 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
       const seasonSlug = formatYearRange(dateRange);
 
       if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
-        navigate(`${playerPath}/stats/${seasonSlug}`, { replace: true });
+        navigate(
+          {
+            pathname: `${playerPath}/stats/${seasonSlug}`,
+            search: `?start=${dateRange.startDate}&end=${dateRange.endDate}`,
+          },
+          { replace: true },
+        );
       }
     }
   }, [dateRange, location.pathname, navigate, playerName, trackmanAbbreviation]);

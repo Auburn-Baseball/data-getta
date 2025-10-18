@@ -1,10 +1,12 @@
-import { Link as RouterLink } from 'react-router';
+import { Link as RouterLink, useLocation } from 'react-router';
 import Tabs from '../Tabs';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import eyeLogo from '@/assets/TheEyeLogo.svg';
 
 export default function TabGroup() {
+  const { search } = useLocation();
+
   return (
     <Box
       sx={{
@@ -17,7 +19,7 @@ export default function TabGroup() {
     >
       <Link
         component={RouterLink}
-        to="/conferences"
+        to={{ pathname: '/conferences', search }}
         prefetch="intent"
         underline="none"
         sx={{ display: 'inline-block' }}

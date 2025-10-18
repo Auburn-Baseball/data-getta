@@ -164,7 +164,7 @@ export default function SeasonDateRangeSelect({
                 {option.year} Season
               </MenuItem>
             ))}
-          <MenuItem 
+          <MenuItem
             value="custom"
             onClick={openCustomDialog} // Add direct click handler to always open dialog
           >

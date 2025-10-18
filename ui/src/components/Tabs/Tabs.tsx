@@ -1,4 +1,4 @@
-import { Link as RouterLink, useNavigate } from 'react-router';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -16,6 +16,7 @@ import { Theme } from '@/styles/theme';
 
 export default function Tabs() {
   const navigate = useNavigate();
+  const { search } = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -31,7 +32,7 @@ export default function Tabs() {
       <ListItem disablePadding sx={{ pb: 2 }}>
         <ListItemButton
           component={RouterLink}
-          to="/team/AUB_TIG/roster"
+          to={{ pathname: '/team/AUB_TIG/roster', search }}
           sx={{
             gap: 2,
             justifyContent: 'center',
@@ -55,7 +56,7 @@ export default function Tabs() {
       <ListItem disablePadding sx={{ pb: 2 }}>
         <ListItemButton
           component={RouterLink}
-          to="/conferences"
+          to={{ pathname: '/conferences', search }}
           sx={{
             gap: 2,
             justifyContent: 'center',
@@ -74,7 +75,7 @@ export default function Tabs() {
       <ListItem disablePadding sx={{ pb: 2 }}>
         <ListItemButton
           component={RouterLink}
-          to="/teamperformance"
+          to={{ pathname: '/teamperformance', search }}
           sx={{
             gap: 2,
             justifyContent: 'center',
