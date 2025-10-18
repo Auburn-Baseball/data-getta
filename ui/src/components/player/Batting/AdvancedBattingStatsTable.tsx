@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useOutletContext, useParams } from 'react-router';
 
 import StatBar from '@/components/player/StatBar';
 import { fetchAdvancedBattingStats } from '@/services/playerService';
 import type { AdvancedBattingStatsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 const boxStyle: React.CSSProperties = {
   flex: 1,
@@ -26,11 +28,12 @@ const advancedStatKeys: Array<{
 ];
 
 const PercentilesTab: React.FC = () => {
-  const { trackmanAbbreviation, playerName, year } = useParams<{
+  const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
-    year: string;
   }>();
+  const dateRange = useOutletContext<DateRange>();
+  const seasonLabel = formatYearRange(dateRange);
 
   const [stats, setStats] = useState<AdvancedBattingStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +45,6 @@ const PercentilesTab: React.FC = () => {
       setError(null);
 
       try {
-        const safeYear = year || '2025';
         const formattedPlayerName = playerName
           ? decodeURIComponent(playerName).replace('_', ', ')
           : '';
@@ -50,11 +52,11 @@ const PercentilesTab: React.FC = () => {
           ? decodeURIComponent(trackmanAbbreviation)
           : '';
 
-        console.log('Fetching stats for:', formattedPlayerName, decodedTeamName, safeYear);
+        console.log('Fetching stats for:', formattedPlayerName, decodedTeamName, dateRange);
 
         const { data: allBatters, error } = await fetchAdvancedBattingStats(
           decodedTeamName,
-          Number(safeYear),
+          dateRange,
         );
 
         if (error) throw error;
@@ -73,7 +75,7 @@ const PercentilesTab: React.FC = () => {
     }
 
     fetchStats();
-  }, [trackmanAbbreviation, playerName, year]);
+  }, [dateRange, trackmanAbbreviation, playerName]);
 
   // Compute color based on rank
   const getRankColor = (rank: number): string => {
@@ -103,7 +105,7 @@ const PercentilesTab: React.FC = () => {
       <div style={boxStyle}></div>
       <div style={boxStyle}>
         <div style={{ width: '100%', maxWidth: 400 }}>
-          <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Advanced Stats</h2>
+          <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Advanced Stats ({seasonLabel})</h2>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 32 }}>Loading...</div>
           ) : error ? (

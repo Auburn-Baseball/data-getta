@@ -4,16 +4,23 @@ import Box from '@mui/material/Box';
 import TopBar from '@/components/TopBar';
 import MobileSideBar from '@/components/MobileSideBar';
 import DesktopSideBar from '@/components/DesktopSideBar';
-import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
 
 type SideBarProps = {
   width: number;
-  startDate: string | null;
-  endDate: string | null;
-  onDateRangeChange: (range: DateRangeSelection) => void;
+  startDate: string;
+  endDate: string;
+  seasonRanges: SeasonDateRange[];
+  onDateRangeChange: (range: DateRange) => void;
 };
 
-export default function SideBar({ width, startDate, endDate, onDateRangeChange }: SideBarProps) {
+export default function SideBar({
+  width,
+  startDate,
+  endDate,
+  seasonRanges,
+  onDateRangeChange,
+}: SideBarProps) {
   const drawerWidth = width;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -40,6 +47,7 @@ export default function SideBar({ width, startDate, endDate, onDateRangeChange }
         width={drawerWidth}
         startDate={startDate}
         endDate={endDate}
+        seasonRanges={seasonRanges}
         onDateRangeChange={onDateRangeChange}
       />
 

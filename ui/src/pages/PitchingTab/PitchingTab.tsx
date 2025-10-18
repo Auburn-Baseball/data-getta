@@ -10,8 +10,8 @@ import type { PitchCountsTable, PitcherStatsTable } from '@/types/db';
 import { pitcherStatsTransform, pitchCountsTransform } from '@/transforms/pitcherStatsTransforms';
 
 type PitchingTabProps = {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 };
 
 export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
@@ -28,17 +28,11 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
         setLoading(true);
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
 
+        const range = { startDate, endDate };
+
         const [pitchersResponse, pitchesResponse] = await Promise.all([
-          fetchTeamPitcherStats(
-            decodedTrackmanAbbreviation,
-            startDate || undefined,
-            endDate || undefined,
-          ),
-          fetchTeamPitchCounts(
-            decodedTrackmanAbbreviation,
-            startDate || undefined,
-            endDate || undefined,
-          ),
+          fetchTeamPitcherStats(decodedTrackmanAbbreviation, range),
+          fetchTeamPitchCounts(decodedTrackmanAbbreviation, range),
         ]);
 
         if (pitchersResponse.error) throw pitchersResponse.error;
@@ -56,7 +50,7 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
     }
 
     fetchPitchers();
-  }, [trackmanAbbreviation, startDate, endDate]);
+  }, [endDate, startDate, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
 

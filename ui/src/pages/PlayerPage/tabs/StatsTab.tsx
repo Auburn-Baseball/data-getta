@@ -44,11 +44,12 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         setError(null);
 
         // Fetch batting stats
+        const range = { startDate, endDate };
+
         const { data: batterData, error: batterError } = await fetchPlayerBatterStats(
           decodedPlayerName,
           decodedTeamName,
-          startDate,
-          endDate,
+          range,
         );
 
         if (batterError) throw batterError;
@@ -57,8 +58,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         const { data: pitcherData, error: pitcherError } = await fetchPlayerPitcherStats(
           decodedPlayerName,
           decodedTeamName,
-          startDate,
-          endDate,
+          range,
         );
 
         if (pitcherError) throw pitcherError;
@@ -67,8 +67,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         const { data: pitchData, error: pitchError } = await fetchPlayerPitchCounts(
           decodedPlayerName,
           decodedTeamName,
-          startDate,
-          endDate,
+          range,
         );
 
         if (pitchError) throw pitchError;

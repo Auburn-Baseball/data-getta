@@ -6,23 +6,23 @@ import Typography from '@mui/material/Typography';
 
 import TeamPercent from '@/components/team/TeamPercent';
 import {
-  fetchAdvancedBattingStatsByYear,
-  fetchAdvancedPitchingStatsByYear,
+  fetchAdvancedBattingStats,
+  fetchAdvancedPitchingStats,
 } from '@/services/teamPerformanceService';
 import {
   transformTeamPerformance,
   TeamPerformanceRow,
 } from '@/transforms/teamPerformanceTransform';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 type TeamPerformancePageProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
-export default function TeamPerformancePage({ year }: TeamPerformancePageProps) {
+export default function TeamPerformancePage({ dateRange }: TeamPerformancePageProps) {
   const [params] = useSearchParams();
-
-  // Extract year from date for filtering and display purposes
-  const safeYear = useMemo(() => year || new Date().getFullYear(), [year]);
+  const seasonLabel = useMemo(() => formatYearRange(dateRange), [dateRange]);
 
   const mode = useMemo<'overall' | 'wl'>(() => {
     const m = (params.get('mode') || 'overall').toLowerCase();
@@ -41,7 +41,7 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
       try {
         // Fetch batting stats for the specific year
         const { data: battingData, error: battingError } =
-          await fetchAdvancedBattingStatsByYear(safeYear);
+          await fetchAdvancedBattingStats(dateRange);
 
         if (battingError) {
           throw new Error(`Error fetching batting stats: ${battingError.message}`);
@@ -49,7 +49,7 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
 
         // Fetch pitching stats for the specific year
         const { data: pitchingData, error: pitchingError } =
-          await fetchAdvancedPitchingStatsByYear(safeYear);
+          await fetchAdvancedPitchingStats(dateRange);
 
         if (pitchingError) {
           throw new Error(`Error fetching pitching stats: ${pitchingError.message}`);
@@ -69,7 +69,7 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
     }
 
     fetchStats();
-  }, [safeYear]);
+  }, [dateRange]);
 
   // If mode is W/L (no data yet), pass empty rows to show the empty state
   const rowsToShow = mode === 'wl' ? [] : rows;
@@ -80,7 +80,7 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
         Team Performance Metrics
       </Typography>
       <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
-        {safeYear} Season
+        {seasonLabel} Season
       </Typography>
 
       {loading && (
@@ -98,10 +98,10 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
       {!loading &&
         !error &&
         (rows.length > 0 ? (
-          <TeamPercent year={safeYear.toString()} rows={rowsToShow} mode={mode} />
+          <TeamPercent seasonLabel={seasonLabel} rows={rowsToShow} mode={mode} />
         ) : (
           <Typography variant="body1" sx={{ py: 2 }}>
-            No team performance data available for {safeYear}
+            No team performance data available for {seasonLabel}
           </Typography>
         ))}
     </Box>

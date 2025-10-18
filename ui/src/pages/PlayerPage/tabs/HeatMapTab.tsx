@@ -16,10 +16,9 @@ type HeatMapTabProps = {
 };
 
 export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
-  const { trackmanAbbreviation, playerName, year } = useParams<{
+  const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
-    year: string;
   }>();
 
   const decodedTrackmanAbbreviation = trackmanAbbreviation
@@ -35,7 +34,7 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
 
   useEffect(() => {
     async function fetchBins() {
-      if (!trackmanAbbreviation || !playerName || !year) {
+      if (!trackmanAbbreviation || !playerName) {
         setPitcherBins([]);
         setPitcherLoading(false);
         return;
@@ -44,11 +43,11 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
       try {
         setPitcherLoading(true);
         setError(null);
+        const range = { startDate, endDate };
         const { data, error } = await fetchPitcherHeatMapBins(
           decodedPlayerName,
           decodedTrackmanAbbreviation,
-          startDate,
-          endDate,
+          range,
         );
 
         if (error) throw error;
@@ -73,12 +72,11 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
     playerName,
     startDate,
     trackmanAbbreviation,
-    year,
   ]);
 
   useEffect(() => {
     async function fetchBatterBins() {
-      if (!trackmanAbbreviation || !playerName || !year) {
+      if (!trackmanAbbreviation || !playerName) {
         setBatterBins([]);
         setBatterLoading(false);
         return;
@@ -86,11 +84,11 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
 
       try {
         setBatterLoading(true);
+        const range = { startDate, endDate };
         const { data, error } = await fetchBatterHeatMapBins(
           decodedPlayerName,
           decodedTrackmanAbbreviation,
-          startDate,
-          endDate,
+          range,
         );
 
         if (error) throw error;
@@ -114,10 +112,9 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
     playerName,
     startDate,
     trackmanAbbreviation,
-    year,
   ]);
 
-  if (!trackmanAbbreviation || !playerName || !year) {
+  if (!trackmanAbbreviation || !playerName) {
     return (
       <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
         <strong>Error!</strong>

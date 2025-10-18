@@ -26,11 +26,10 @@ export default function BattingTab({ startDate, endDate }: BattingTabProps) {
         setLoading(true);
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
 
-        const { data, error } = await fetchTeamBattingStats(
-          decodedTrackmanAbbreviation,
-          startDate || undefined,
-          endDate || undefined,
-        );
+        const { data, error } = await fetchTeamBattingStats(decodedTrackmanAbbreviation, {
+          startDate,
+          endDate,
+        });
 
         if (error) throw error;
 
@@ -47,7 +46,7 @@ export default function BattingTab({ startDate, endDate }: BattingTabProps) {
     }
 
     fetchBatters();
-  }, [trackmanAbbreviation, startDate, endDate]);
+  }, [endDate, startDate, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
   return <BatterTable players={batters} summaryRow={summary || createBatterStatsSummary([])} />;

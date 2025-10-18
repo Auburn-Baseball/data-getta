@@ -5,9 +5,6 @@ import {
   LinearProgress,
   Stack,
   Divider,
-  FormControl,
-  Select,
-  MenuItem,
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
@@ -19,24 +16,6 @@ export interface Row {
   label: string;
   raw_value: number | string;
   percentile: number | string;
-}
-
-function YearDropdown({ year }: { year: string }) {
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const setYear = (y: string) => {
-    const next = new URLSearchParams(params);
-    next.set('year', y);
-    navigate({ search: `?${next.toString()}` }, { replace: false });
-  };
-  return (
-    <FormControl size="small" sx={{ minWidth: 140 }}>
-      <Select value={year} onChange={(e) => setYear(String(e.target.value))}>
-        <MenuItem value="2024">2024</MenuItem>
-        <MenuItem value="2025">2025</MenuItem>
-      </Select>
-    </FormControl>
-  );
 }
 
 // NEW: Mode toggle (overall vs wl)
@@ -87,11 +66,11 @@ const formatRaw = (label: string, v: number | string) => {
 };
 
 export default function CreateTeamPercent({
-  year,
+  seasonLabel,
   rows,
   mode,
 }: {
-  year: string;
+  seasonLabel: string;
   rows: Row[];
   mode: 'overall' | 'wl';
 }) {
@@ -187,7 +166,9 @@ export default function CreateTeamPercent({
 
       {/* Filters row */}
       <Box display="flex" justifyContent="center" alignItems="center" mt={1} mb={3}>
-        <YearDropdown year={year} />
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {seasonLabel}
+        </Typography>
         <ModeToggle mode={mode} />
       </Box>
 

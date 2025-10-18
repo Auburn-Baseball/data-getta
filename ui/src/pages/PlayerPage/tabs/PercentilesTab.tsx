@@ -6,9 +6,11 @@ import StatBar from '@/components/player/StatBar';
 import InfieldSprayChart from '@/components/player/Charts/InfieldSprayChart';
 import { fetchAdvancedBattingStats } from '@/services/playerService';
 import type { AdvancedBattingStatsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 type PercentilesTabProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
 // Define a type for our stat keys to avoid 'any'
@@ -21,27 +23,21 @@ interface StatConfig {
   isPercentage?: boolean;
 }
 
-export default function PercentilesTab({ year }: PercentilesTabProps) {
-  const {
-    trackmanAbbreviation,
-    playerName,
-    year: urlYear,
-  } = useParams<{
+export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
+  const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
-    year: string;
   }>();
-
-  // Use year from URL if available, otherwise use the prop
-  const yearToUse = urlYear ? parseInt(urlYear, 10) : year;
 
   const [stats, setStats] = useState<AdvancedBattingStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const seasonLabel = formatYearRange(dateRange);
+
   useEffect(() => {
     async function fetchStats() {
-      if (!trackmanAbbreviation || !playerName || !yearToUse) return;
+      if (!trackmanAbbreviation || !playerName) return;
 
       setLoading(true);
       setError(null);
@@ -50,7 +46,7 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
         const formattedPlayerName = decodeURIComponent(playerName).replace('_', ', ');
         const decodedTeamName = decodeURIComponent(trackmanAbbreviation);
 
-        const { data, error } = await fetchAdvancedBattingStats(decodedTeamName, yearToUse);
+        const { data, error } = await fetchAdvancedBattingStats(decodedTeamName, dateRange);
 
         if (error) {
           console.error('Error fetching player stats:', error);
@@ -62,7 +58,7 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
         const playerStats = data?.find((entry) => entry.Batter === formattedPlayerName) ?? null;
 
         if (!playerStats) {
-          setError(`No advanced stats found for ${formattedPlayerName} in ${yearToUse}`);
+          setError(`No advanced stats found for ${formattedPlayerName} in ${seasonLabel}`);
           setLoading(false);
           return;
         }
@@ -77,7 +73,7 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
     }
 
     fetchStats();
-  }, [trackmanAbbreviation, playerName, yearToUse]);
+  }, [dateRange, trackmanAbbreviation, playerName, seasonLabel]);
 
   const getRankColor = (rank: number): string => {
     const r = Math.max(0, Math.min(rank, 100));
@@ -111,7 +107,7 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
   if (!stats) {
     return (
       <Typography variant="body1" sx={{ textAlign: 'center', py: '4rem' }}>
-        No advanced stats data available for this player in {yearToUse}.
+        No advanced stats data available for this player in {seasonLabel}.
       </Typography>
     );
   }
@@ -153,7 +149,7 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
       >
         <Box sx={{ width: '100%', maxWidth: 400 }}>
           <Typography variant="h5" sx={{ textAlign: 'center', mb: 3 }}>
-            Advanced Stats ({yearToUse})
+            Advanced Stats ({seasonLabel})
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {statConfigs.map((config) => {

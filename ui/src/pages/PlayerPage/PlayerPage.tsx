@@ -4,14 +4,16 @@ import Box from '@mui/material/Box';
 
 import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
-import { fetchPlayerByYear } from '@/services/playerService';
+import { fetchPlayer } from '@/services/playerService';
 import type { PlayersTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 type PlayerPageProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
-export default function PlayerPage({ year }: PlayerPageProps) {
+export default function PlayerPage({ dateRange }: PlayerPageProps) {
   const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
@@ -25,15 +27,16 @@ export default function PlayerPage({ year }: PlayerPageProps) {
   useEffect(() => {
     if (trackmanAbbreviation && playerName) {
       const playerPath = `/team/${trackmanAbbreviation}/player/${playerName}`;
+      const seasonSlug = formatYearRange(dateRange);
 
       if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
-        navigate(`${playerPath}/stats/${year}`, { replace: true });
+        navigate(`${playerPath}/stats/${seasonSlug}`, { replace: true });
       }
     }
-  }, [location.pathname, trackmanAbbreviation, playerName, navigate, year]);
+  }, [dateRange, location.pathname, navigate, playerName, trackmanAbbreviation]);
 
   useEffect(() => {
-    async function fetchPlayer() {
+    async function loadPlayer() {
       if (!trackmanAbbreviation || !playerName) return;
 
       try {
@@ -41,8 +44,8 @@ export default function PlayerPage({ year }: PlayerPageProps) {
         const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
         setLoading(true);
 
-        const { data, error } = await fetchPlayerByYear(
-          year,
+        const { data, error } = await fetchPlayer(
+          dateRange,
           decodedTrackmanAbbreviation,
           decodedPlayerName,
         );
@@ -56,8 +59,8 @@ export default function PlayerPage({ year }: PlayerPageProps) {
       }
     }
 
-    fetchPlayer();
-  }, [trackmanAbbreviation, playerName, year]);
+    loadPlayer();
+  }, [dateRange, playerName, trackmanAbbreviation]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -68,6 +71,7 @@ export default function PlayerPage({ year }: PlayerPageProps) {
 
   const decodedTeamName = decodeURIComponent(trackmanAbbreviation || '');
   const decodedPlayerName = decodeURIComponent(playerName);
+  const seasonLabel = formatYearRange(dateRange);
 
   return (
     <Box>
@@ -79,11 +83,15 @@ export default function PlayerPage({ year }: PlayerPageProps) {
           marginTop: '4px',
         }}
       >
-        <ModelTabs team={decodedTeamName} player={decodedPlayerName} />
+        <ModelTabs team={decodedTeamName} player={decodedPlayerName} seasonSlug={seasonLabel} />
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <PlayerInfo name={player.Name} team={player.TeamTrackmanAbbreviation} year={year} />
+        <PlayerInfo
+          name={player.Name}
+          team={player.TeamTrackmanAbbreviation}
+          seasonLabel={seasonLabel}
+        />
         <Outlet />
       </Box>
     </Box>

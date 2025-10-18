@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -7,300 +7,162 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 
-import { fetchSeasonDateRanges, type SeasonDateRange } from '@/services/seasonService';
-
-export type DateRangeSelection = {
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-};
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
 
 type SeasonDateRangeSelectProps = {
-  startDate: string;
-  endDate: string;
-  onDateRangeChange: (range: DateRangeSelection) => void;
+  value: DateRange;
+  seasonRanges: SeasonDateRange[];
+  onDateRangeChange: (range: DateRange) => void;
+  disabled?: boolean;
 };
 
+const DEFAULT_LABEL = 'Select date range';
+
 export default function SeasonDateRangeSelect({
-  startDate,
-  endDate,
+  value,
+  seasonRanges,
   onDateRangeChange,
+  disabled = false,
 }: SeasonDateRangeSelectProps) {
-  const [seasonOptions, setSeasonOptions] = useState<SeasonDateRange[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<string>('');
-  const [appliedSelection, setAppliedSelection] = useState<string>('');
-  const [activeRange, setActiveRange] = useState<{ start: Dayjs; end: Dayjs } | null>(null);
+  const [isCustomDialogOpen, setCustomDialogOpen] = useState(false);
   const [customRange, setCustomRange] = useState<{ start: Dayjs | null; end: Dayjs | null }>({
     start: null,
     end: null,
   });
-  const [isCustomDialogOpen, setCustomDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
 
-  // Load season ranges on component mount
+  const matchingSeason = useMemo(
+    () =>
+      seasonRanges.find(
+        (season) => season.startDate === value.startDate && season.endDate === value.endDate,
+      ) ?? null,
+    [seasonRanges, value.endDate, value.startDate],
+  );
+
   useEffect(() => {
-    if (hasLoadedRef.current) {
-      return;
-    }
-    hasLoadedRef.current = true;
+    setSelectedSeason(matchingSeason ? String(matchingSeason.year) : 'custom');
+  }, [matchingSeason]);
 
-    let isMounted = true;
-
-    const loadSeasonRanges = async () => {
-      setIsLoading(true);
-      setLoadError(null);
-
-      const { ranges, errorMessage } = await fetchSeasonDateRanges();
-      if (!isMounted) return;
-
-      if (ranges.length === 0) {
-        setSeasonOptions([]);
-        setSelectedSeason('');
-        setAppliedSelection('');
-        setActiveRange(null);
-        setCustomRange({ start: null, end: null });
-        setIsLoading(false);
-        if (errorMessage) {
-          setLoadError(errorMessage);
-        }
-        return;
-      }
-
-      // Set available season options
-      setSeasonOptions(ranges);
-      setIsLoading(false);
-
-      // Handle initial date selection
-      const hasInitialSelection = Boolean(startDate && endDate);
-
-      if (hasInitialSelection) {
-        const nextStart = dayjs(startDate);
-        const nextEnd = dayjs(endDate);
-        const matchedSeason = ranges.find(
-          (option) => option.startDate === startDate && option.endDate === endDate,
-        );
-
-        if (matchedSeason) {
-          // If the dates match a season, select that season
-          setSelectedSeason(matchedSeason.year);
-          setAppliedSelection(matchedSeason.year);
-        } else {
-          // Otherwise it's a custom selection
-          setSelectedSeason('custom');
-          setAppliedSelection('custom');
-        }
-
-        setActiveRange({ start: nextStart, end: nextEnd });
-        setCustomRange({ start: nextStart, end: nextEnd });
-      } else {
-        // No initial selection, use the most recent season
-        const initial = ranges[0];
-        const initialStart = dayjs(initial.startDate);
-        const initialEnd = dayjs(initial.endDate);
-
-        setSelectedSeason(initial.year);
-        setAppliedSelection(initial.year);
-        setActiveRange({ start: initialStart, end: initialEnd });
-        setCustomRange({ start: initialStart, end: initialEnd });
-
-        // Notify parent of the default selection
-        onDateRangeChange({
-          startDate: initial.startDate,
-          endDate: initial.endDate,
-        });
-      }
-
-      // Set error if there was one during loading
-      if (errorMessage) {
-        setLoadError(errorMessage);
-      }
-    };
-
-    loadSeasonRanges();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [endDate, onDateRangeChange, startDate]);
-
-  // Update component state when props change (e.g., from parent)
   useEffect(() => {
-    if (!startDate || !endDate || seasonOptions.length === 0) return;
-
-    const nextStart = dayjs(startDate);
-    const nextEnd = dayjs(endDate);
-
-    // Update active range if it changed
-    setActiveRange((prev) => {
-      if (prev && prev.start.isSame(nextStart, 'day') && prev.end.isSame(nextEnd, 'day')) {
-        return prev;
-      }
-      return { start: nextStart, end: nextEnd };
+    setCustomRange({
+      start: dayjs(value.startDate),
+      end: dayjs(value.endDate),
     });
+  }, [value.endDate, value.startDate]);
 
-    // Update custom range state
-    setCustomRange((prev) => {
-      if (prev?.start?.isSame(nextStart, 'day') && prev?.end?.isSame(nextEnd, 'day')) {
-        return prev;
-      }
-      return { start: nextStart, end: nextEnd };
-    });
-
-    // Determine if these dates match a season or are custom
-    const matchingSeason = seasonOptions.find(
-      (option) => option.startDate === startDate && option.endDate === endDate,
-    );
-
-    if (matchingSeason) {
-      setSelectedSeason(matchingSeason.year);
-      setAppliedSelection(matchingSeason.year);
-    } else {
-      setSelectedSeason('custom');
-      setAppliedSelection('custom');
-    }
-  }, [startDate, endDate, seasonOptions]);
-
-  // Handle dropdown selection change
   const handleOptionChange = useCallback(
     (event: SelectChangeEvent) => {
-      const value = event.target.value as string;
-
-      if (value === 'custom') {
-        setSelectedSeason(value);
-        if (activeRange) {
-          setCustomRange({ start: activeRange.start, end: activeRange.end });
-        }
+      const nextValue = event.target.value as string;
+      if (nextValue === 'custom') {
+        setSelectedSeason('custom');
         setCustomDialogOpen(true);
         return;
       }
 
-      setSelectedSeason(value);
-      setAppliedSelection(value);
-
-      const nextRange = seasonOptions.find((option) => option.year === value);
-      if (nextRange) {
-        const start = dayjs(nextRange.startDate);
-        const end = dayjs(nextRange.endDate);
-        setActiveRange({ start, end });
-        setCustomRange({ start, end });
-        onDateRangeChange({
-          startDate: nextRange.startDate,
-          endDate: nextRange.endDate,
-        });
+      const nextSeason = seasonRanges.find((season) => String(season.year) === nextValue);
+      if (!nextSeason) {
+        return;
       }
+
+      onDateRangeChange({
+        startDate: nextSeason.startDate,
+        endDate: nextSeason.endDate,
+      });
     },
-    [activeRange, onDateRangeChange, seasonOptions],
+    [onDateRangeChange, seasonRanges],
   );
 
-  // Handle custom dialog cancel
   const handleCustomCancel = useCallback(() => {
     setCustomDialogOpen(false);
-    if (activeRange) {
-      setCustomRange({ start: activeRange.start, end: activeRange.end });
-    }
-    setSelectedSeason(appliedSelection);
-  }, [activeRange, appliedSelection]);
+    setSelectedSeason(matchingSeason ? String(matchingSeason.year) : 'custom');
+  }, [matchingSeason]);
 
-  // Handle custom dialog apply button
   const handleCustomApply = useCallback(() => {
-    if (!customRange.start || !customRange.end) return;
+    if (!customRange.start || !customRange.end) {
+      return;
+    }
 
     let start = customRange.start;
     let end = customRange.end;
 
-    // Ensure start is before end
     if (start.isAfter(end)) {
       [start, end] = [end, start];
     }
 
-    const formattedStart = start.format('YYYY-MM-DD');
-    const formattedEnd = end.format('YYYY-MM-DD');
+    const formattedRange: DateRange = {
+      startDate: start.format('YYYY-MM-DD'),
+      endDate: end.format('YYYY-MM-DD'),
+    };
 
-    setCustomRange({ start, end });
-    setActiveRange({ start, end });
-    setAppliedSelection('custom');
-    setSelectedSeason('custom');
     setCustomDialogOpen(false);
+    onDateRangeChange(formattedRange);
+  }, [customRange.end, customRange.start, onDateRangeChange]);
 
-    onDateRangeChange({
-      startDate: formattedStart,
-      endDate: formattedEnd,
-    });
-  }, [customRange.start, customRange.end, onDateRangeChange]);
-
-  // Format the displayed value in the select dropdown
   const renderSelectedValue = useCallback(
     (selected: unknown) => {
-      const value = selected as string;
+      const current = selected as string;
 
-      if (!value) {
-        return 'Select date range';
+      if (!current) {
+        return DEFAULT_LABEL;
       }
 
-      if (value === 'custom') {
-        if (activeRange) {
-          return `Custom: ${activeRange.start.format('MM/DD/YYYY')} - ${activeRange.end.format(
-            'MM/DD/YYYY',
-          )}`;
-        }
-        return 'Custom Range';
+      if (current === 'custom') {
+        return `Custom: ${dayjs(value.startDate).format('MM/DD/YYYY')} - ${dayjs(
+          value.endDate,
+        ).format('MM/DD/YYYY')}`;
       }
 
-      const season = seasonOptions.find((option) => option.year === value);
-      if (season) {
-        const start = dayjs(season.startDate).format('MM/DD/YYYY');
-        const end = dayjs(season.endDate).format('MM/DD/YYYY');
-        return `${season.year} Season: ${start} - ${end}`;
+      const season = seasonRanges.find((option) => String(option.year) === current);
+      if (!season) {
+        return DEFAULT_LABEL;
       }
 
-      return value;
+      const start = dayjs(season.startDate).format('MM/DD/YYYY');
+      const end = dayjs(season.endDate).format('MM/DD/YYYY');
+      return `${season.year} Season: ${start} - ${end}`;
     },
-    [activeRange, seasonOptions],
+    [seasonRanges, value.endDate, value.startDate],
   );
 
   const isApplyDisabled = !customRange.start || !customRange.end;
+  const hasSeasons = seasonRanges.length > 0;
 
   return (
     <>
       <FormControl
         size="small"
         sx={{ ml: 'auto' }}
-        disabled={seasonOptions.length === 0 || isLoading}
-        error={Boolean(loadError)}
+        disabled={disabled || !hasSeasons}
+        error={!hasSeasons}
       >
         <Select
-          value={selectedSeason}
+          value={hasSeasons ? selectedSeason : ''}
           onChange={handleOptionChange}
           displayEmpty
           renderValue={renderSelectedValue}
           inputProps={{ 'aria-label': 'Select date range' }}
         >
-          {isLoading && (
+          {!hasSeasons && (
             <MenuItem value="" disabled>
-              Loading date ranges...
+              No seasons available
             </MenuItem>
           )}
-          {!isLoading &&
-            seasonOptions.map((option) => (
-              <MenuItem key={option.year} value={option.year}>
+
+          {hasSeasons &&
+            seasonRanges.map((option) => (
+              <MenuItem key={option.year} value={String(option.year)}>
                 {option.year} Season
               </MenuItem>
             ))}
           <MenuItem value="custom">Custom Range</MenuItem>
         </Select>
       </FormControl>
-      {loadError && (
-        <Box sx={{ ml: 2, color: 'error.main', fontSize: 12, alignSelf: 'center' }}>
-          {loadError}
-        </Box>
-      )}
       <Dialog open={isCustomDialogOpen} onClose={handleCustomCancel} fullWidth maxWidth="sm">
         <DialogTitle>Select Custom Date Range</DialogTitle>
         <LocalizationProvider dateAdapter={AdapterDayjs}>

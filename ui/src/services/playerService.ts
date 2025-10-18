@@ -9,21 +9,24 @@ import type {
   PitcherStatsTable,
   PlayersTable,
 } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { getYearRange } from '@/utils/dateRange';
 
-type RangeDescriptor = { range: { startDate: string | null; endDate: string | null } };
+const toRangeDescriptor = (range: DateRange) => ({
+  range: { startDate: range.startDate, endDate: range.endDate },
+});
 
-const buildRangeDescriptor = (startDate?: string, endDate?: string): Partial<RangeDescriptor> =>
-  startDate || endDate ? { range: { startDate: startDate ?? null, endDate: endDate ?? null } } : {};
+export async function fetchPlayer(range: DateRange, team: string, playerName: string) {
+  const { startYear, endYear } = getYearRange(range);
 
-export async function fetchPlayerByYear(year: number, team: string, playerName: string) {
   return cachedQuery({
     key: createCacheKey('Players', {
       select: '*',
       eq: {
         TeamTrackmanAbbreviation: team,
         Name: playerName,
-        Year: year,
       },
+      ...toRangeDescriptor(range),
       maybeSingle: true,
     }),
     query: () =>
@@ -32,83 +35,66 @@ export async function fetchPlayerByYear(year: number, team: string, playerName: 
         .select('*')
         .eq('TeamTrackmanAbbreviation', team)
         .eq('Name', playerName)
-        .eq('Year', year)
+        .gte('Year', startYear)
+        .lte('Year', endYear)
         .maybeSingle<PlayersTable>(),
   });
 }
 
-export async function fetchPlayerBatterStats(
-  playerName: string,
-  team: string,
-  startDate?: string,
-  endDate?: string,
-) {
+export async function fetchPlayerBatterStats(playerName: string, team: string, range: DateRange) {
   return cachedQuery({
     key: createCacheKey('BatterStats', {
       select: '*',
       eq: { Batter: playerName, BatterTeam: team },
-      ...buildRangeDescriptor(startDate, endDate),
+      ...toRangeDescriptor(range),
     }),
-    query: () => {
-      let query = supabase
+    query: () =>
+      supabase
         .from('BatterStats')
         .select('*')
         .eq('Batter', playerName)
-        .eq('BatterTeam', team);
-      if (startDate) query = query.gte('Date', startDate);
-      if (endDate) query = query.lte('Date', endDate);
-      return query.overrideTypes<BatterStatsTable[], { merge: false }>();
-    },
+        .eq('BatterTeam', team)
+        .gte('Date', range.startDate)
+        .lte('Date', range.endDate)
+        .overrideTypes<BatterStatsTable[], { merge: false }>(),
   });
 }
 
-export async function fetchPlayerPitcherStats(
-  playerName: string,
-  team: string,
-  startDate?: string,
-  endDate?: string,
-) {
+export async function fetchPlayerPitcherStats(playerName: string, team: string, range: DateRange) {
   return cachedQuery({
     key: createCacheKey('PitcherStats', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
-      ...buildRangeDescriptor(startDate, endDate),
+      ...toRangeDescriptor(range),
     }),
-    query: () => {
-      let query = supabase
+    query: () =>
+      supabase
         .from('PitcherStats')
         .select('*')
         .eq('Pitcher', playerName)
-        .eq('PitcherTeam', team);
-      if (startDate) query = query.gte('Date', startDate);
-      if (endDate) query = query.lte('Date', endDate);
-      return query.overrideTypes<PitcherStatsTable[], { merge: false }>();
-    },
+        .eq('PitcherTeam', team)
+        .gte('Date', range.startDate)
+        .lte('Date', range.endDate)
+        .overrideTypes<PitcherStatsTable[], { merge: false }>(),
   });
 }
 
-export async function fetchPlayerPitchCounts(
-  playerName: string,
-  team: string,
-  startDate?: string,
-  endDate?: string,
-) {
+export async function fetchPlayerPitchCounts(playerName: string, team: string, range: DateRange) {
   return cachedQuery({
     key: createCacheKey('PitchCounts', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
-      ...buildRangeDescriptor(startDate, endDate),
+      ...toRangeDescriptor(range),
     }),
-    query: () => {
-      let query = supabase
+    query: () =>
+      supabase
         .from('PitchCounts')
         .select('*')
         .eq('Pitcher', playerName)
-        .eq('PitcherTeam', team);
-      if (startDate) query = query.gte('Date', startDate);
-      if (endDate) query = query.lte('Date', endDate);
-      return query.overrideTypes<PitchCountsTable[], { merge: false }>();
-    },
+        .eq('PitcherTeam', team)
+        .gte('Date', range.startDate)
+        .lte('Date', range.endDate)
+        .overrideTypes<PitchCountsTable[], { merge: false }>(),
   });
 }
 
@@ -128,17 +114,12 @@ const batterBinsSelect = `
   HitCount_FourSeam, HitCount_Sinker, HitCount_Slider, HitCount_Curveball, HitCount_Changeup, HitCount_Cutter, HitCount_Splitter, HitCount_Other
 `.trim();
 
-export async function fetchPitcherHeatMapBins(
-  playerName: string,
-  team: string,
-  startDate: string,
-  endDate: string,
-) {
+export async function fetchPitcherHeatMapBins(playerName: string, team: string, range: DateRange) {
   return cachedQuery({
     key: createCacheKey('PitcherPitchBins', {
       select: pitcherBinsSelect,
       eq: { Pitcher: playerName, PitcherTeam: team },
-      ...buildRangeDescriptor(startDate, endDate),
+      ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
@@ -146,23 +127,18 @@ export async function fetchPitcherHeatMapBins(
         .select(pitcherBinsSelect)
         .eq('Pitcher', playerName)
         .eq('PitcherTeam', team)
-        .gte('Date', startDate)
-        .lte('Date', endDate)
+        .gte('Date', range.startDate)
+        .lte('Date', range.endDate)
         .overrideTypes<PitcherPitchBinsTable[], { merge: false }>(),
   });
 }
 
-export async function fetchBatterHeatMapBins(
-  playerName: string,
-  team: string,
-  startDate: string,
-  endDate: string,
-) {
+export async function fetchBatterHeatMapBins(playerName: string, team: string, range: DateRange) {
   return cachedQuery({
     key: createCacheKey('BatterPitchBins', {
       select: batterBinsSelect,
       eq: { Batter: playerName, BatterTeam: team },
-      ...buildRangeDescriptor(startDate, endDate),
+      ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
@@ -170,24 +146,28 @@ export async function fetchBatterHeatMapBins(
         .select(batterBinsSelect)
         .eq('Batter', playerName)
         .eq('BatterTeam', team)
-        .gte('Date', startDate)
-        .lte('Date', endDate)
+        .gte('Date', range.startDate)
+        .lte('Date', range.endDate)
         .overrideTypes<BatterPitchBinsTable[], { merge: false }>(),
   });
 }
 
-export async function fetchAdvancedBattingStats(team: string, year: number) {
+export async function fetchAdvancedBattingStats(team: string, range: DateRange) {
+  const { startYear, endYear } = getYearRange(range);
+
   return cachedQuery({
     key: createCacheKey('AdvancedBattingStats', {
       select: '*',
-      eq: { BatterTeam: team, Year: year },
+      eq: { BatterTeam: team },
+      ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
         .from('AdvancedBattingStats')
         .select('*')
         .eq('BatterTeam', team)
-        .eq('Year', year)
+        .gte('Year', startYear)
+        .lte('Year', endYear)
         .overrideTypes<AdvancedBattingStatsTable[], { merge: false }>(),
   });
 }

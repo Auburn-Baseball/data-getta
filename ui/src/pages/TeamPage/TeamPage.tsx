@@ -6,12 +6,14 @@ import TeamInfo from '@/components/team/TeamInfo';
 import TableTabs from '@/components/team/TableTabs';
 import { fetchTeamByAbbreviation } from '@/services/teamService';
 import type { TeamsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 type TeamPageProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
-export default function TeamPage({ year }: TeamPageProps) {
+export default function TeamPage({ dateRange }: TeamPageProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [team, setTeam] = useState<TeamsTable | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,10 @@ export default function TeamPage({ year }: TeamPageProps) {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
         console.log('Fetching team:', decodedTrackmanAbbreviation);
 
-        const { data, error } = await fetchTeamByAbbreviation(year, decodedTrackmanAbbreviation);
+        const { data, error } = await fetchTeamByAbbreviation(
+          dateRange,
+          decodedTrackmanAbbreviation,
+        );
 
         if (error) throw error;
         setTeam(data);
@@ -37,7 +42,9 @@ export default function TeamPage({ year }: TeamPageProps) {
     }
 
     fetchTeam();
-  }, [trackmanAbbreviation, year]);
+  }, [dateRange, trackmanAbbreviation]);
+
+  const yearLabel = formatYearRange(dateRange);
 
   if (loading) return <div>Loading...</div>;
   if (!team) return <div>Team not found</div>;
@@ -56,7 +63,7 @@ export default function TeamPage({ year }: TeamPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo name={team.TeamName} conference={team.Conference} year={year} />
+        <TeamInfo name={team.TeamName} conference={team.Conference} seasonLabel={yearLabel} />
         <Outlet />
       </Box>
     </Box>

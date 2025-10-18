@@ -4,15 +4,17 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 import ConferenceTable from '@/components/ConferenceTable';
-import { fetchTeamsByYear } from '@/services/teamService';
+import { fetchTeamsByDateRange } from '@/services/teamService';
 import type { TeamsTable } from '@/types/db';
 import type { ConferenceGroup, ConferenceGroupTeam } from '@/types';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 type ConferencePageProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
-export default function ConferencePage({ year }: ConferencePageProps) {
+export default function ConferencePage({ dateRange }: ConferencePageProps) {
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function ConferencePage({ year }: ConferencePageProps) {
       try {
         setLoading(true);
 
-        const { data, error } = await fetchTeamsByYear(year);
+        const { data, error } = await fetchTeamsByDateRange(dateRange);
 
         if (error) {
           throw error;
@@ -58,7 +60,9 @@ export default function ConferencePage({ year }: ConferencePageProps) {
     };
 
     fetchData();
-  }, [year]);
+  }, [dateRange]);
+
+  const yearLabel = formatYearRange(dateRange);
 
   if (loading) {
     return (
@@ -81,7 +85,7 @@ export default function ConferencePage({ year }: ConferencePageProps) {
   return (
     <Box sx={{ px: 8, py: 4 }}>
       <Typography variant="h4" fontWeight={700} sx={{ pb: 4 }}>
-        Conferences ({year})
+        Conferences ({yearLabel})
       </Typography>
 
       <Grid container spacing={2}>

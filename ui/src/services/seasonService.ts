@@ -1,12 +1,8 @@
 import { supabase } from '@/lib/supabaseClient';
 import { cachedQuery, createCacheKey } from '@/services/cacheService';
 import type { SeasonDatesTable } from '@/types/db';
-
-export type SeasonDateRange = {
-  year: string;
-  startDate: string;
-  endDate: string;
-};
+import type { SeasonDateRange } from '@/types/dateRange';
+import { sortSeasonRangesDesc } from '@/utils/dateRange';
 
 type SeasonDateRangeResponse = {
   ranges: SeasonDateRange[];
@@ -41,13 +37,15 @@ export async function fetchSeasonDateRanges(): Promise<SeasonDateRangeResponse> 
 
     const rows = Array.isArray(data) ? data : [];
 
-    const ranges = rows
-      .filter((row) => row.season_start && row.season_end)
-      .map((row) => ({
-        year: String(row.year),
-        startDate: row.season_start as string,
-        endDate: row.season_end as string,
-      }));
+    const ranges = sortSeasonRangesDesc(
+      rows
+        .filter((row) => row.season_start && row.season_end)
+        .map((row) => ({
+          year: row.year,
+          startDate: row.season_start as string,
+          endDate: row.season_end as string,
+        })),
+    );
 
     console.debug('[seasonService] SeasonDates query result', { rowCount: rows.length, ranges });
 

@@ -1,33 +1,45 @@
 import { supabase } from '@/lib/supabaseClient';
 import { cachedQuery, createCacheKey } from '@/services/cacheService';
 import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { getYearRange } from '@/utils/dateRange';
 
-export async function fetchAdvancedBattingStatsByYear(year: number) {
+const toRangeDescriptor = (range: DateRange) => ({
+  range: { startDate: range.startDate, endDate: range.endDate },
+});
+
+export async function fetchAdvancedBattingStats(range: DateRange) {
+  const { startYear, endYear } = getYearRange(range);
+
   return cachedQuery({
     key: createCacheKey('AdvancedBattingStats', {
       select: '*',
-      eq: { Year: year },
+      ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
         .from('AdvancedBattingStats')
         .select('*')
-        .eq('Year', year)
+        .gte('Year', startYear)
+        .lte('Year', endYear)
         .overrideTypes<AdvancedBattingStatsTable[], { merge: false }>(),
   });
 }
 
-export async function fetchAdvancedPitchingStatsByYear(year: number) {
+export async function fetchAdvancedPitchingStats(range: DateRange) {
+  const { startYear, endYear } = getYearRange(range);
+
   return cachedQuery({
     key: createCacheKey('AdvancedPitchingStats', {
       select: '*',
-      eq: { Year: year },
+      ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
         .from('AdvancedPitchingStats')
         .select('*')
-        .eq('Year', year)
+        .gte('Year', startYear)
+        .lte('Year', endYear)
         .overrideTypes<AdvancedPitchingStatsTable[], { merge: false }>(),
   });
 }

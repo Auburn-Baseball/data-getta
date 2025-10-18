@@ -14,20 +14,15 @@ import PitchingTab from '@/pages/PitchingTab';
 import PlayerPage from '@/pages/PlayerPage';
 import TeamPerformancePage from '@/pages/TeamPerformancePage';
 import { HeatMapTab, PercentilesTab, StatsTab } from '@/pages/PlayerPage/tabs';
-import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
-
-export type DateRangeState = {
-  startDate: string;
-  endDate: string;
-};
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
 
 type AppRoutesProps = {
-  dateRange: DateRangeState;
-  onDateRangeChange: (range: DateRangeSelection) => void;
-  year: number;
+  dateRange: DateRange;
+  seasonRanges: SeasonDateRange[];
+  onDateRangeChange: (range: DateRange) => void;
 };
 
-export default function AppRoutes({ dateRange, onDateRangeChange, year }: AppRoutesProps) {
+export default function AppRoutes({ dateRange, seasonRanges, onDateRangeChange }: AppRoutesProps) {
   return (
     <Routes>
       <Route element={<PublicOnly />}>
@@ -38,12 +33,20 @@ export default function AppRoutes({ dateRange, onDateRangeChange, year }: AppRou
       </Route>
 
       <Route element={<RequireAuth />}>
-        <Route element={<MainLayout dateRange={dateRange} onDateRangeChange={onDateRangeChange} />}>
-          <Route path="conferences" element={<ConferencePage year={year} />} />
+        <Route
+          element={
+            <MainLayout
+              dateRange={dateRange}
+              seasonRanges={seasonRanges}
+              onDateRangeChange={onDateRangeChange}
+            />
+          }
+        >
+          <Route path="conferences" element={<ConferencePage dateRange={dateRange} />} />
 
           <Route
             path="team/:trackmanAbbreviation/player/:playerName"
-            element={<PlayerPage year={year} />}
+            element={<PlayerPage dateRange={dateRange} />}
           >
             <Route
               path="stats/:year"
@@ -53,12 +56,12 @@ export default function AppRoutes({ dateRange, onDateRangeChange, year }: AppRou
               path="heat-map/:year"
               element={<HeatMapTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
             />
-            <Route path="percentiles/:year" element={<PercentilesTab year={year} />} />
+            <Route path="percentiles/:year" element={<PercentilesTab dateRange={dateRange} />} />
           </Route>
 
-          <Route path="team/:trackmanAbbreviation" element={<TeamPage year={year} />}>
+          <Route path="team/:trackmanAbbreviation" element={<TeamPage dateRange={dateRange} />}>
             <Route index element={<Navigate to="roster" replace />} />
-            <Route path="roster" element={<RosterTab year={year} />} />
+            <Route path="roster" element={<RosterTab dateRange={dateRange} />} />
             <Route
               path="batting"
               element={<BattingTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
@@ -69,7 +72,7 @@ export default function AppRoutes({ dateRange, onDateRangeChange, year }: AppRou
             />
           </Route>
 
-          <Route path="teamperformance" element={<TeamPerformancePage year={year} />} />
+          <Route path="teamperformance" element={<TeamPerformancePage dateRange={dateRange} />} />
         </Route>
       </Route>
     </Routes>

@@ -5,12 +5,13 @@ import RosterTable from '@/components/team/RosterTable';
 import TableSkeleton from '@/components/team/TableSkeleton';
 import { fetchTeamRoster } from '@/services/teamService';
 import type { PlayersTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
 
 type RosterTabProps = {
-  year: number;
+  dateRange: DateRange;
 };
 
-export default function RosterTab({ year }: RosterTabProps) {
+export default function RosterTab({ dateRange }: RosterTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [players, setPlayers] = useState<PlayersTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ export default function RosterTab({ year }: RosterTabProps) {
 
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        const { data, error } = await fetchTeamRoster(year, decodedTrackmanAbbreviation);
+        const { data, error } = await fetchTeamRoster(dateRange, decodedTrackmanAbbreviation);
 
         if (error) throw error;
         setPlayers(data || []);
@@ -33,7 +34,7 @@ export default function RosterTab({ year }: RosterTabProps) {
     }
 
     fetchRoster();
-  }, [trackmanAbbreviation, year]);
+  }, [dateRange, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
   return <RosterTable players={players} />;

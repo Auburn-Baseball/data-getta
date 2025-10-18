@@ -3,19 +3,19 @@ import Toolbar from '@mui/material/Toolbar';
 import { Outlet } from 'react-router';
 
 import SideBar from '@/components/SideBar';
-import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
-
-type DateRangeState = {
-  startDate: string | null;
-  endDate: string | null;
-};
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
 
 type MainLayoutProps = {
-  dateRange: DateRangeState;
-  onDateRangeChange: (range: DateRangeSelection) => void;
+  dateRange: DateRange;
+  seasonRanges: SeasonDateRange[];
+  onDateRangeChange: (range: DateRange) => void;
 };
 
-export default function MainLayout({ dateRange, onDateRangeChange }: MainLayoutProps) {
+export default function MainLayout({
+  dateRange,
+  seasonRanges,
+  onDateRangeChange,
+}: MainLayoutProps) {
   const sidebarWidth = 240;
 
   return (
@@ -24,6 +24,7 @@ export default function MainLayout({ dateRange, onDateRangeChange }: MainLayoutP
         width={sidebarWidth}
         startDate={dateRange.startDate}
         endDate={dateRange.endDate}
+        seasonRanges={seasonRanges}
         onDateRangeChange={onDateRangeChange}
       />
 
