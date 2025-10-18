@@ -7,6 +7,7 @@ import json
 import numpy as np
 from typing import Dict, Tuple, List, Set
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -38,6 +39,8 @@ class NumpyEncoder(json.JSONEncoder):
             return int(obj)
         elif isinstance(obj, np.floating):
             return float(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         elif pd.isna(obj):
@@ -76,6 +79,15 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
     """Extract batter statistics from a CSV file in-memory"""
     try:
         df = pd.read_csv(buffer)
+
+        # Determines if this is practice data by checking the League column
+        is_practice = False
+        if "League" in df.columns:
+            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
+            is_practice = (league_values == "TEAM").any()
+        # Get game date from filename
+        date_parser = CSVFilenameParser()
+        game_date = str(date_parser.get_date_object(filename))
 
         # Check if required columns exist
         required_columns = [
@@ -148,6 +160,15 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
 
             # Calculate strikeouts
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
+
+            # Calculate singles
+            singles = len(group[group["PlayResult"] == "Single"])
+
+            # Calculate doubles
+            doubles = len(group[group["PlayResult"] == "Double"])
+
+            # Calculate triples
+            triples = len(group[group["PlayResult"] == "Triple"])
 
             # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
@@ -260,21 +281,47 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 else set()
             )
 
+            # Calculate total exit velocity
+            if "ExitSpeed" in group.columns:
+                # Convert to numeric (in case it's read as string)
+                group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
+
+                total_exit_velo = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ]["ExitSpeed"].sum()
+
+                # Optional: also count how many batted balls were included
+                batted_ball_count = group[
+                    (group["PitchCall"] == "InPlay") &
+                    (group["ExitSpeed"].notna())
+                ].shape[0]
+            else:
+                total_exit_velo = 0
+                batted_ball_count = 0
+
+
             batter_stats = {
                 "Batter": batter_name,
                 "BatterTeam": batter_team,
-                "Year": 2025,
+                "Date": game_date,
                 "hits": hits,
                 "at_bats": at_bats,
                 "strikes": strikes,
                 "walks": walks,
                 "strikeouts": strikeouts,
+                "singles": singles,
+                "doubles": doubles,
+                "triples": triples,
                 "homeruns": homeruns,
                 "extra_base_hits": extra_base_hits,
                 "plate_appearances": plate_appearances,
                 "hit_by_pitch": hit_by_pitch,
                 "sacrifice": sacrifice,
                 "total_bases": total_bases,
+                "is_practice": is_practice,
+                "total_exit_velo": round(total_exit_velo, 1),
+                "is_practice": is_practice,
                 "batting_average": round(batting_average, 3)
                 if batting_average is not None
                 else None,
@@ -336,7 +383,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Preparing to upload {len(batter_data)} unique batters...")
 
         # Insert data in batches to avoid request size limits
-        batch_size = 100
+        batch_size = 1000
         total_inserted = 0
 
         for i in range(0, len(batter_data), batch_size):
@@ -346,7 +393,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
                 # Use upsert to handle conflicts based on primary key
                 result = (
                     supabase.table(f"BatterStats")
-                    .upsert(batch, on_conflict="Batter,BatterTeam,Year")
+                    .upsert(batch, on_conflict="Batter,BatterTeam,Date")
                     .execute()
                 )
 
@@ -366,12 +413,11 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
         count_result = (
             supabase.table(f"BatterStats")
             .select("*", count="exact")
-            .eq("Year", 2025)
             .execute()
         )
 
         total_batters = count_result.count
-        print(f"Total 2025 batters in database: {total_batters}")
+        print(f"Total batters in database: {total_batters}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

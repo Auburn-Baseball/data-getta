@@ -33,20 +33,17 @@ export default function BattingStatsTable({
   const navigate = useNavigate();
   const params = useParams();
 
-  const [player, setPlayer] = useState<BatterStatsTable[]>([]);
+  const [playerStats, setPlayerStats] = useState<BatterStatsTable[]>([]);
+  const [advancedStats, setAdvancedStats] = useState<BatterStatsTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const teamParam = params.teamName || 'NULL';
   const [selectedDataType, setSelectedDataType] = useState<string>(teamParam);
 
-  // Default to current year if not specified
   const safeYear = year || 2025;
-
-  // Format the player name to match database format (replace underscores with commas)
   const formattedPlayerName = playerName?.replace('_', ', ');
 
-  // Debug the props being used
   useEffect(() => {
     console.log('BattingStatsTable props:', {
       teamName,
@@ -57,8 +54,7 @@ export default function BattingStatsTable({
   }, [teamName, playerName, formattedPlayerName, safeYear]);
 
   useEffect(() => {
-    async function fetchBatterStats() {
-      // Always set loading to false even if we return early
+    async function fetchStats() {
       if (!formattedPlayerName || !teamName) {
         console.log('Missing required props:', { formattedPlayerName, teamName });
         setLoading(false);
@@ -94,19 +90,29 @@ export default function BattingStatsTable({
               .overrideTypes<BatterStatsTable[], { merge: false }>(),
         });
 
-        if (error) throw error;
+        // if (playerError) throw playerError;
+        // setPlayerStats(playerData || []);
 
-        console.log('Batter stats fetched:', data);
-        setPlayer(data || []);
+        // Advanced stats (copying top table format exactly)
+        const { data: advData, error: advError } = await supabase
+          .from('AdvancedBattingStats')
+          .select('*')
+          .eq('Batter', formattedPlayerName)
+          .eq('BatterTeam', teamName)
+          .eq('Year', safeYear)
+          .overrideTypes<BatterStatsTable[], { merge: false }>();
+
+        if (advError) throw advError;
+        setAdvancedStats(advData || []);
       } catch (err) {
-        console.error('Error fetching batter stats:', err);
+        console.error('Error fetching stats:', err);
         setError('Failed to load batter stats');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchBatterStats();
+    fetchStats();
   }, [formattedPlayerName, teamName, safeYear]);
 
   useEffect(() => {
@@ -115,10 +121,10 @@ export default function BattingStatsTable({
   }, [params.teamName]);
 
   const safePlayerName = encodeURIComponent(
-    playerName || (player.length > 0 ? player[0].Batter : 'unknown-player'),
+    playerName || (playerStats.length > 0 ? playerStats[0].Batter : 'unknown-player'),
   );
 
-  const hasPracticePage = player.length > 0;
+  const hasPracticePage = playerStats.length > 0;
 
   const handleNavigation = (newTeamName: string) => {
     if (!newTeamName || !['AUB_TIG', 'AUB_PRC'].includes(newTeamName)) {
@@ -134,19 +140,14 @@ export default function BattingStatsTable({
     handleNavigation(newValue);
   };
 
-  // Add loading state monitoring
-  useEffect(() => {
-    console.log('Loading state:', loading, 'Player data length:', player.length);
-  }, [loading, player]);
-
   return (
     <Paper elevation={3} sx={{ paddingX: 2, paddingY: 2, width: '100%', overflowX: 'auto' }}>
-      {/* Section divider with title */}
+      {/* Standard NCAA Batting Stats Table */}
       <Divider textAlign="center" sx={{ mb: 2 }}>
         Standard NCAA Batting Stats
       </Divider>
+
       {hasPracticePage && ['AUB_TIG', 'AUB_PRC'].includes(selectedDataType) && (
-        // Render dropdown only for teams with practice data
         <FormControl fullWidth sx={{ marginBottom: '1rem' }}>
           <InputLabel id="data-type-select-label">Data Type</InputLabel>
           <Select
@@ -160,71 +161,23 @@ export default function BattingStatsTable({
           </Select>
         </FormControl>
       )}
+
       <TableContainer>
         <Table sx={{ minWidth: 800 }} size="small">
           <TableHead>
             <TableRow>
-              {/* Table headers with tooltips for clarity */}
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Games" arrow placement="top">
-                  <span>G</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Plate Appearances" arrow placement="top">
-                  <span>PA</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="At Bats" arrow placement="top">
-                  <span>AB</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Hits" arrow placement="top">
-                  <span>H</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Home Runs" arrow placement="top">
-                  <span>HR</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Base on Balls" arrow placement="top">
-                  <span>BB</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Strikeouts" arrow placement="top">
-                  <span>SO</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Hit By Pitch" arrow placement="top">
-                  <span>HBP</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Batting Average" arrow placement="top">
-                  <span>AVG</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="On‑Base Percentage" arrow placement="top">
-                  <span>OBP</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="Slugging Percentage" arrow placement="top">
-                  <span>SLG</span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}>
-                <Tooltip title="On‑Base Plus Slugging" arrow placement="top">
-                  <span>OPS</span>
-                </Tooltip>
-              </TableCell>
+              {['GP', 'PA', 'AB', 'H', 'HR', 'BB', 'SO', 'HBP', 'AVG', 'OBP', 'SLG', 'OPS'].map(
+                (header) => (
+                  <TableCell
+                    key={header}
+                    sx={{ fontWeight: 'bold', textAlign: 'center', width: 50 }}
+                  >
+                    <Tooltip title={header} arrow>
+                      <span>{header}</span>
+                    </Tooltip>
+                  </TableCell>
+                ),
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -240,38 +193,27 @@ export default function BattingStatsTable({
                   {error}
                 </TableCell>
               </TableRow>
-            ) : player.length > 0 ? (
+            ) : playerStats.length > 0 ? (
               <TableRow>
-                {/* Render batter statistics with proper formatting */}
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].games}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].plate_appearances}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].at_bats}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].hits}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].homeruns}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].walks}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].strikeouts}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{player[0].hit_by_pitch}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].games}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].plate_appearances}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].at_bats}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].hits}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].homeruns}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].walks}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].strikeouts}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].hit_by_pitch}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].batting_average === null
-                    ? '.000'
-                    : player[0].batting_average === 1
-                      ? player[0].batting_average.toFixed(3)
-                      : player[0].batting_average.toFixed(3).replace(/^0/, '')}
+                  {playerStats[0].batting_average?.toFixed(3).replace(/^0/, '') ?? '.000'}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].on_base_percentage === null
-                    ? '.000'
-                    : player[0].on_base_percentage.toFixed(3).replace(/^0/, '')}
+                  {playerStats[0].on_base_percentage?.toFixed(3).replace(/^0/, '') ?? '.000'}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].slugging_percentage === null
-                    ? '.000'
-                    : player[0].slugging_percentage.toFixed(3).replace(/^0/, '')}
+                  {playerStats[0].slugging_percentage?.toFixed(3).replace(/^0/, '') ?? '.000'}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {player[0].onbase_plus_slugging === null
-                    ? '.000'
-                    : player[0].onbase_plus_slugging.toFixed(3).replace(/^0/, '')}
+                  {playerStats[0].onbase_plus_slugging?.toFixed(3).replace(/^0/, '') ?? '.000'}
                 </TableCell>
               </TableRow>
             ) : (

@@ -8,6 +8,7 @@ import RosterTab from '@/pages/RosterTab';
 import BattingTab from '@/pages/BattingTab';
 import PitchingTab from '@/pages/PitchingTab';
 import PlayerPage from '@/pages/PlayerPage';
+import PercentilesTab from '@/pages/player/PercentilesTab';
 import StatsTab from '@/pages/player/StatsTab';
 import HeatMapTab from '@/pages/player/HeatMapTab';
 import RequireAuth from '@/utils/supabase/requireauth';

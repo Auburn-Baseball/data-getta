@@ -3,6 +3,7 @@ import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { BatterStatsTable, PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import { Typography, Box } from '@mui/material';
 import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
+import AdvancedBattingStatsTable from '@/components/player/Batting/AdvancedBattingStatsTable';
 import PitchingStatsTable from '@/components/player/Pitching/PitchingStatsTable';
 import { useState, useEffect } from 'react';
 import StatsTableSkeleton from '@/components/player/StatsTableSkeleton';
@@ -160,13 +161,15 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
       <Box sx={{ mt: 2, mb: 6 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {hasBatterData && (
-            <div>
-              <BattingStatsTable
-                teamName={decodedTeamName}
-                playerName={decodedPlayerName}
-                year={safeYear}
-              />
-            </div>
+            <>
+              <div>
+                <BattingStatsTable
+                  teamName={decodedTeamName}
+                  playerName={decodedPlayerName}
+                  year={safeYear}
+                />
+              </div>
+            </>
           )}
           {hasPitcherData && (
             <div>
