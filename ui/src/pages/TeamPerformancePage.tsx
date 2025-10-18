@@ -1,136 +1,131 @@
-// src/pages/TeamPerformancePage.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { supabase } from '@/utils/supabase/client';
 import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 import TeamPercent, { Row } from '@/components/team/TeamPercent';
-
-const PAGE_SIZE = 1000;
+import {
+  transformTeamPerformance,
+  TeamPerformanceRow,
+} from '@/transforms/teamPerformanceTransform';
+import { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/schemas';
 
 type TeamPerformancePageProps = {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 };
 
 export default function TeamPerformancePage({ startDate, endDate }: TeamPerformancePageProps) {
   const [params] = useSearchParams();
 
-  const year = useMemo(() => {
-    const y = params.get('year');
-    return y === '2024' || y === '2025' ? y : '2025';
-  }, [params]);
+  // Extract year from date for filtering and display purposes
+  const year = useMemo(() => new Date(startDate).getFullYear(), [startDate]);
 
   const mode = useMemo<'overall' | 'wl'>(() => {
     const m = (params.get('mode') || 'overall').toLowerCase();
     return m === 'wl' ? 'wl' : 'overall';
   }, [params]);
 
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<TeamPerformanceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchAll() {
+    async function fetchStats() {
       setLoading(true);
-      setErr(null);
+      setError(null);
 
-      // We still fetch the base data (so switching back to Overall is instant).
-      let all: any[] = [];
-      let from = 0;
-
-      const first = await cachedQuery({
-        key: createCacheKey('team_performance', {
-          select: ['team', 'label', 'raw_value', 'percentile'],
-          count: 'exact',
-          eq: { year: Number(year) },
-          order: [
-            { column: 'team', ascending: true },
-            { column: 'label', ascending: true },
-          ],
-          range: [from, from + PAGE_SIZE - 1],
-          filterRange: { startDate, endDate },
-        }),
-        query: () =>
-          supabase
-            .from('team_performance')
-            .select('team,label,raw_value,percentile', { count: 'exact' })
-            .eq('year', Number(year))
-            .order('team', { ascending: true })
-            .order('label', { ascending: true })
-            .range(from, from + PAGE_SIZE - 1),
-      });
-
-      if (first.error) {
-        setErr(first.error.message);
-        setLoading(false);
-        return;
-      }
-
-      all = first.data ?? [];
-      const total = first.count ?? all.length;
-
-      from += PAGE_SIZE;
-      while (!cancelled && from < total) {
-        const { data, error } = await cachedQuery({
-          key: createCacheKey('team_performance', {
-            select: ['team', 'label', 'raw_value', 'percentile'],
-            eq: { year: Number(year) },
-            order: [
-              { column: 'team', ascending: true },
-              { column: 'label', ascending: true },
-            ],
-            range: [from, from + PAGE_SIZE - 1],
-            filterRange: { startDate, endDate },
+      try {
+        // Fetch batting stats for the specific year
+        const { data: battingData, error: battingError } = await cachedQuery({
+          key: createCacheKey('AdvancedBattingStats', {
+            select: '*',
+            eq: { Year: year },
           }),
           query: () =>
             supabase
-              .from('team_performance')
-              .select('team,label,raw_value,percentile')
-              .eq('year', Number(year))
-              .order('team', { ascending: true })
-              .order('label', { ascending: true })
-              .range(from, from + PAGE_SIZE - 1),
+              .from('AdvancedBattingStats')
+              .select('*')
+              .eq('Year', year)
+              .overrideTypes<AdvancedBattingStatsTable[], { merge: false }>(),
         });
 
-        if (error) {
-          setErr(error.message);
-          setLoading(false);
-          return;
+        if (battingError) {
+          throw new Error(`Error fetching batting stats: ${battingError.message}`);
         }
-        all = all.concat(data ?? []);
-        from += PAGE_SIZE;
+
+        // Fetch pitching stats for the specific year
+        const { data: pitchingData, error: pitchingError } = await cachedQuery({
+          key: createCacheKey('AdvancedPitchingStats', {
+            select: '*',
+            eq: { Year: year },
+          }),
+          query: () =>
+            supabase
+              .from('AdvancedPitchingStats')
+              .select('*')
+              .eq('Year', year)
+              .overrideTypes<AdvancedPitchingStatsTable[], { merge: false }>(),
+        });
+
+        if (pitchingError) {
+          throw new Error(`Error fetching pitching stats: ${pitchingError.message}`);
+        }
+
+        // Transform data into the format expected by TeamPercent
+        const performanceRows = transformTeamPerformance(
+          battingData || [],
+          pitchingData || [],
+          year,
+        );
+
+        setRows(performanceRows);
+      } catch (err: any) {
+        console.error('Error in team performance:', err);
+        setError(err.message || 'An error occurred while fetching team performance data');
+      } finally {
+        setLoading(false);
       }
-
-      if (cancelled) return;
-
-      const casted = all.map((r: any) => ({
-        team: r.team,
-        label: r.label,
-        raw_value: typeof r.raw_value === 'string' ? Number(r.raw_value) : r.raw_value,
-        percentile: typeof r.percentile === 'string' ? Number(r.percentile) : r.percentile,
-      })) as Row[];
-
-      setRows(casted);
-      setLoading(false);
     }
 
-    fetchAll();
-    return () => {
-      cancelled = true;
-    };
-  }, [year, startDate, endDate]);
+    fetchStats();
+  }, [year]); // Only depend on year, not the full date range
 
   // If mode is W/L (no data yet), pass empty rows to show the empty state
   const rowsToShow = mode === 'wl' ? [] : rows;
 
   return (
-    <Box sx={{ bgcolor: 'white', color: 'white', minHeight: '100vh', px: 4, py: 4 }}>
-      {loading && <p>Loading team performance…</p>}
-      {err && <p style={{ color: 'salmon' }}>{err}</p>}
-      {!loading && !err && <TeamPercent year={year} rows={rowsToShow} mode={mode} />}
+    <Box sx={{ bgcolor: 'white', color: 'black', minHeight: '100vh', px: 4, py: 4 }}>
+      <Typography variant="h4" sx={{ mb: 1, color: 'black' }}>
+        Team Performance Metrics
+      </Typography>
+      <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
+        {year} Season
+      </Typography>
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: '4rem' }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Typography variant="body1" sx={{ color: 'error.main', py: 2 }}>
+          Error: {error}
+        </Typography>
+      )}
+
+      {!loading &&
+        !error &&
+        (rows.length > 0 ? (
+          <TeamPercent year={year.toString()} rows={rowsToShow} mode={mode} />
+        ) : (
+          <Typography variant="body1" sx={{ py: 2 }}>
+            No team performance data available for {year}
+          </Typography>
+        ))}
     </Box>
   );
 }
