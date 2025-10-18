@@ -53,7 +53,12 @@ export interface BatterStatsTable {
 export interface PitcherStatsTable {
   Pitcher: string;
   PitcherTeam: string;
+  Date?: string;
   Year: number;
+  hits?: number;
+  runs_allowed?: number;
+  homeruns?: number;
+  earned_runs?: number;
   total_strikeouts_pitcher: number;
   total_walks_pitcher: number;
   total_out_of_zone_pitches: number;
@@ -70,11 +75,16 @@ export interface PitcherStatsTable {
   in_zone_whiff_percentage: number;
   chase_percentage: number;
   games: number;
+  k_per_9?: number;
+  bb_per_9?: number;
+  whip?: number;
+  is_practice?: boolean;
 }
 
 export interface PitchCountsTable {
   Pitcher: string;
   PitcherTeam: string;
+  Date?: string;
   Year: number;
   total_pitches: number;
   curveball_count: number;
@@ -87,6 +97,7 @@ export interface PitchCountsTable {
   splitter_count: number;
   other_count: number;
   games: number;
+  is_practice?: boolean;
 }
 
 export interface SeasonDatesTable {

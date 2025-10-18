@@ -7,6 +7,7 @@ import PitchSumsTable from '@/components/team/PitchSumsTable';
 import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 import Box from '@mui/material/Box';
+import { pitcherStatsTransform, pitchCountsTransform } from '@/transforms/pitcherStatsTransforms';
 
 type PitchingTabProps = {
   startDate: string | null;
@@ -71,8 +72,10 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
         if (pitchersResponse.error) throw pitchersResponse.error;
         if (pitchesResponse.error) throw pitchesResponse.error;
 
-        setPitchers(pitchersResponse.data || []);
-        setPitches(pitchesResponse.data || []);
+        const transformedPitchers = pitcherStatsTransform(pitchersResponse.data || []);
+        const transformedPitches = pitchCountsTransform(pitchesResponse.data || []);
+        setPitchers(transformedPitchers);
+        setPitches(transformedPitches);
       } catch (error) {
         console.error('Error fetching pitchers:', error);
       } finally {
