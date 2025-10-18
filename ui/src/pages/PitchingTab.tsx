@@ -31,7 +31,7 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
           cachedQuery({
             key: createCacheKey('PitcherStats', {
               select: '*',
-              eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
+              eq: { PitcherTeam: decodedTrackmanAbbreviation },
               order: [{ column: 'total_innings_pitched', ascending: false }],
               range: {
                 startDate,
@@ -43,14 +43,14 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
                 .from('PitcherStats')
                 .select('*')
                 .eq('PitcherTeam', decodedTrackmanAbbreviation)
-                .eq('Year', 2025)
-                .order('total_innings_pitched', { ascending: false })
+                .gte('Date', startDate)
+                .lte('Date', endDate)
                 .overrideTypes<PitcherStatsTable[], { merge: false }>(),
           }),
           cachedQuery({
             key: createCacheKey('PitchCounts', {
               select: '*',
-              eq: { PitcherTeam: decodedTrackmanAbbreviation, Year: 2025 },
+              eq: { PitcherTeam: decodedTrackmanAbbreviation },
               order: [{ column: 'total_pitches', ascending: false }],
               range: {
                 startDate,
@@ -62,8 +62,8 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
                 .from('PitchCounts')
                 .select('*')
                 .eq('PitcherTeam', decodedTrackmanAbbreviation)
-                .eq('Year', 2025)
-                .order('total_pitches', { ascending: false })
+                .gte('Date', startDate)
+                .lte('Date', endDate)
                 .overrideTypes<PitchCountsTable[], { merge: false }>(),
           }),
         ]);

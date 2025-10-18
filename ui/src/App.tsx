@@ -20,12 +20,16 @@ import { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 type DateRangeState = {
-  startDate: string | null; // YYYY-MM-DD
-  endDate: string | null; // YYYY-MM-DD
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
 };
 
 export default function App() {
-  const [dateRange, setDateRange] = useState<DateRangeState>({ startDate: null, endDate: null });
+  const [dateRange, setDateRange] = useState<DateRangeState>({
+    startDate: '',
+    endDate: '',
+  });
+
   const year = dateRange.startDate
     ? new Date(dateRange.startDate).getFullYear()
     : new Date().getFullYear();

@@ -5,6 +5,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { common } from '@mui/material/colors';
 import { Theme } from '@/utils/theme';
 import SeasonDateRangeSelect, { DateRangeSelection } from '@/components/SeasonDateRangeSelect';
+import { CacheRefreshButton } from '@/components/CacheRefreshButton';
 
 type TopBarProps = {
   drawerToggle: () => void;
@@ -47,6 +48,7 @@ export default function TopBar({
           endDate={endDate}
           onDateRangeChange={onDateRangeChange}
         />
+        <CacheRefreshButton />
       </Toolbar>
     </AppBar>
   );

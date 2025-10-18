@@ -5,7 +5,10 @@ const CACHE_VERSION = 'v1';
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 type CacheKeyPrimitive = string | number | boolean | null;
-export type CacheKeyInput = CacheKeyPrimitive | CacheKeyInput[] | { [key: string]: CacheKeyInput };
+export type CacheKeyInput =
+  | CacheKeyPrimitive
+  | readonly CacheKeyInput[]
+  | { [key: string]: CacheKeyInput };
 
 interface CacheEntry<TResult> {
   timestamp: number;

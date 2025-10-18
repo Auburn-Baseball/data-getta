@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -36,50 +36,54 @@ async function fetchSeasonDateRanges(): Promise<{
     order: [{ column: 'year', ascending: false }],
   } as const;
 
-  const { data, error } = await cachedQuery<SeasonDatesTable[]>({
-    key: createCacheKey('SeasonDates', descriptor),
-    forceFresh: true,
-    query: () => {
-      console.debug('[SeasonDateRangeSelect] fetching SeasonDates from Supabase', {
-        descriptor,
-      });
+  try {
+    const { data, error } = await cachedQuery({
+      key: createCacheKey('SeasonDates', descriptor),
+      query: () => {
+        console.debug('[SeasonDateRangeSelect] fetching SeasonDates from Supabase', {
+          descriptor,
+        });
 
-      return supabase
-        .from('SeasonDates')
-        .select('year, season_start, season_end')
-        .order('year', { ascending: false })
-        .returns<SeasonDatesTable[]>();
-    },
-  });
+        return supabase
+          .from('SeasonDates')
+          .select('year, season_start, season_end')
+          .order('year', { ascending: false })
+          .returns<SeasonDatesTable[]>();
+      },
+    });
 
-  if (error) {
-    const message = error.message ?? 'Unknown error loading season dates';
-    console.error('Failed to load season date ranges:', error);
-    return { ranges: [], errorMessage: message };
+    if (error) {
+      const message = error.message ?? 'Unknown error loading season dates';
+      console.error('Failed to load season date ranges:', error);
+      return { ranges: [], errorMessage: message };
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+
+    const ranges = rows
+      .filter((row) => row.season_start && row.season_end)
+      .map((row) => ({
+        year: String(row.year),
+        startDate: row.season_start as string,
+        endDate: row.season_end as string,
+      }));
+
+    console.debug('SeasonDates query result', { rowCount: rows.length, ranges });
+
+    if (ranges.length === 0) {
+      return { ranges: [], errorMessage: 'No season dates available.' };
+    }
+
+    return { ranges };
+  } catch (err) {
+    console.error('Exception fetching season dates:', err);
+    return { ranges: [], errorMessage: 'Failed to load season dates.' };
   }
-
-  const rows = Array.isArray(data) ? data : [];
-
-  const ranges = rows
-    .filter((row) => row.season_start && row.season_end)
-    .map((row) => ({
-      year: String(row.year),
-      startDate: row.season_start as string,
-      endDate: row.season_end as string,
-    }));
-
-  console.debug('SeasonDates query result', { rowCount: rows.length, ranges });
-
-  if (ranges.length === 0) {
-    return { ranges: [], errorMessage: 'No season dates available.' };
-  }
-
-  return { ranges };
 }
 
 type SeasonDateRangeSelectProps = {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
   onDateRangeChange: (range: DateRangeSelection) => void;
 };
 
@@ -100,6 +104,7 @@ export default function SeasonDateRangeSelect({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Load season ranges on component mount
   useEffect(() => {
     let isMounted = true;
 
@@ -123,45 +128,51 @@ export default function SeasonDateRangeSelect({
         return;
       }
 
-      const sortedRanges = [...ranges].sort((a, b) => Number(b.year) - Number(a.year));
-      setSeasonOptions(sortedRanges);
+      // Set available season options
+      setSeasonOptions(ranges);
+      setIsLoading(false);
 
+      // Handle initial date selection
       const hasInitialSelection = Boolean(startDate && endDate);
 
       if (hasInitialSelection) {
-        const nextStart = dayjs(startDate as string);
-        const nextEnd = dayjs(endDate as string);
-        const matchedSeason = sortedRanges.find(
+        const nextStart = dayjs(startDate);
+        const nextEnd = dayjs(endDate);
+        const matchedSeason = ranges.find(
           (option) => option.startDate === startDate && option.endDate === endDate,
         );
 
         if (matchedSeason) {
+          // If the dates match a season, select that season
           setSelectedSeason(matchedSeason.year);
           setAppliedSelection(matchedSeason.year);
         } else {
+          // Otherwise it's a custom selection
           setSelectedSeason('custom');
           setAppliedSelection('custom');
         }
 
         setActiveRange({ start: nextStart, end: nextEnd });
         setCustomRange({ start: nextStart, end: nextEnd });
-        setIsLoading(false);
-        return;
+      } else {
+        // No initial selection, use the most recent season
+        const initial = ranges[0];
+        const initialStart = dayjs(initial.startDate);
+        const initialEnd = dayjs(initial.endDate);
+
+        setSelectedSeason(initial.year);
+        setAppliedSelection(initial.year);
+        setActiveRange({ start: initialStart, end: initialEnd });
+        setCustomRange({ start: initialStart, end: initialEnd });
+
+        // Notify parent of the default selection
+        onDateRangeChange({
+          startDate: initial.startDate,
+          endDate: initial.endDate,
+        });
       }
 
-      const initial = sortedRanges[0];
-      const initialStart = dayjs(initial.startDate);
-      const initialEnd = dayjs(initial.endDate);
-      setSelectedSeason(initial.year);
-      setAppliedSelection(initial.year);
-      setActiveRange({ start: initialStart, end: initialEnd });
-      setCustomRange({ start: initialStart, end: initialEnd });
-      onDateRangeChange({
-        startDate: initial.startDate,
-        endDate: initial.endDate,
-      });
-
-      setIsLoading(false);
+      // Set error if there was one during loading
       if (errorMessage) {
         setLoadError(errorMessage);
       }
@@ -172,16 +183,16 @@ export default function SeasonDateRangeSelect({
     return () => {
       isMounted = false;
     };
-  }, [onDateRangeChange, startDate, endDate]);
+  }, []); // Dependency array intentionally empty - only run on mount
 
+  // Update component state when props change (e.g., from parent)
   useEffect(() => {
-    if (!startDate || !endDate) {
-      return;
-    }
+    if (!startDate || !endDate || seasonOptions.length === 0) return;
 
     const nextStart = dayjs(startDate);
     const nextEnd = dayjs(endDate);
 
+    // Update active range if it changed
     setActiveRange((prev) => {
       if (prev && prev.start.isSame(nextStart, 'day') && prev.end.isSame(nextEnd, 'day')) {
         return prev;
@@ -189,6 +200,7 @@ export default function SeasonDateRangeSelect({
       return { start: nextStart, end: nextEnd };
     });
 
+    // Update custom range state
     setCustomRange((prev) => {
       if (prev?.start?.isSame(nextStart, 'day') && prev?.end?.isSame(nextEnd, 'day')) {
         return prev;
@@ -196,109 +208,117 @@ export default function SeasonDateRangeSelect({
       return { start: nextStart, end: nextEnd };
     });
 
+    // Determine if these dates match a season or are custom
     const matchingSeason = seasonOptions.find(
       (option) => option.startDate === startDate && option.endDate === endDate,
     );
 
     if (matchingSeason) {
-      if (selectedSeason !== matchingSeason.year) {
-        setSelectedSeason(matchingSeason.year);
-      }
-      if (appliedSelection !== matchingSeason.year) {
-        setAppliedSelection(matchingSeason.year);
-      }
+      setSelectedSeason(matchingSeason.year);
+      setAppliedSelection(matchingSeason.year);
     } else {
-      if (selectedSeason !== 'custom') {
-        setSelectedSeason('custom');
-      }
-      if (appliedSelection !== 'custom') {
-        setAppliedSelection('custom');
-      }
+      setSelectedSeason('custom');
+      setAppliedSelection('custom');
     }
-  }, [startDate, endDate, seasonOptions, selectedSeason, appliedSelection]);
+  }, [startDate, endDate, seasonOptions]);
 
-  const handleOptionChange = (event: SelectChangeEvent) => {
-    const value = event.target.value as string;
+  // Handle dropdown selection change
+  const handleOptionChange = useCallback(
+    (event: SelectChangeEvent) => {
+      const value = event.target.value as string;
 
-    if (value === 'custom') {
+      if (value === 'custom') {
+        setSelectedSeason(value);
+        if (activeRange) {
+          setCustomRange({ start: activeRange.start, end: activeRange.end });
+        }
+        setCustomDialogOpen(true);
+        return;
+      }
+
       setSelectedSeason(value);
-      if (activeRange) {
-        setCustomRange({ start: activeRange.start, end: activeRange.end });
+      setAppliedSelection(value);
+
+      const nextRange = seasonOptions.find((option) => option.year === value);
+      if (nextRange) {
+        const start = dayjs(nextRange.startDate);
+        const end = dayjs(nextRange.endDate);
+        setActiveRange({ start, end });
+        setCustomRange({ start, end });
+        onDateRangeChange({
+          startDate: nextRange.startDate,
+          endDate: nextRange.endDate,
+        });
       }
-      setCustomDialogOpen(true);
-      return;
-    }
+    },
+    [activeRange, onDateRangeChange, seasonOptions],
+  );
 
-    setSelectedSeason(value);
-    setAppliedSelection(value);
-
-    const nextRange = seasonOptions.find((option) => option.year === value);
-    if (nextRange) {
-      const start = dayjs(nextRange.startDate);
-      const end = dayjs(nextRange.endDate);
-      setActiveRange({ start, end });
-      setCustomRange({ start, end });
-      onDateRangeChange({
-        startDate: start.format('YYYY-MM-DD'),
-        endDate: end.format('YYYY-MM-DD'),
-      });
-    }
-  };
-
-  const handleCustomCancel = () => {
+  // Handle custom dialog cancel
+  const handleCustomCancel = useCallback(() => {
     setCustomDialogOpen(false);
     if (activeRange) {
       setCustomRange({ start: activeRange.start, end: activeRange.end });
     }
     setSelectedSeason(appliedSelection);
-  };
+  }, [activeRange, appliedSelection]);
 
-  const handleCustomApply = () => {
+  // Handle custom dialog apply button
+  const handleCustomApply = useCallback(() => {
     if (!customRange.start || !customRange.end) return;
 
     let start = customRange.start;
     let end = customRange.end;
 
+    // Ensure start is before end
     if (start.isAfter(end)) {
       [start, end] = [end, start];
     }
+
+    const formattedStart = start.format('YYYY-MM-DD');
+    const formattedEnd = end.format('YYYY-MM-DD');
 
     setCustomRange({ start, end });
     setActiveRange({ start, end });
     setAppliedSelection('custom');
     setSelectedSeason('custom');
     setCustomDialogOpen(false);
+
     onDateRangeChange({
-      startDate: start.format('YYYY-MM-DD'),
-      endDate: end.format('YYYY-MM-DD'),
+      startDate: formattedStart,
+      endDate: formattedEnd,
     });
-  };
+  }, [customRange.start, customRange.end, onDateRangeChange]);
 
-  const renderSelectedValue = (selected: unknown) => {
-    const value = selected as string;
+  // Format the displayed value in the select dropdown
+  const renderSelectedValue = useCallback(
+    (selected: unknown) => {
+      const value = selected as string;
 
-    if (!value) {
-      return 'Select date range';
-    }
-
-    if (value === 'custom') {
-      if (activeRange) {
-        return `Custom: ${activeRange.start.format('MM/DD/YYYY')} - ${activeRange.end.format(
-          'MM/DD/YYYY',
-        )}`;
+      if (!value) {
+        return 'Select date range';
       }
-      return 'Custom Range';
-    }
 
-    const season = seasonOptions.find((option) => option.year === value);
-    if (season) {
-      const start = dayjs(season.startDate).format('MM/DD/YYYY');
-      const end = dayjs(season.endDate).format('MM/DD/YYYY');
-      return `${season.year} Season: ${start} - ${end}`;
-    }
+      if (value === 'custom') {
+        if (activeRange) {
+          return `Custom: ${activeRange.start.format('MM/DD/YYYY')} - ${activeRange.end.format(
+            'MM/DD/YYYY',
+          )}`;
+        }
+        return 'Custom Range';
+      }
 
-    return value;
-  };
+      const season = seasonOptions.find((option) => option.year === value);
+      if (season) {
+        const start = dayjs(season.startDate).format('MM/DD/YYYY');
+        const end = dayjs(season.endDate).format('MM/DD/YYYY');
+        return `${season.year} Season: ${start} - ${end}`;
+      }
+
+      return value;
+    },
+    [activeRange, seasonOptions],
+  );
 
   const isApplyDisabled = !customRange.start || !customRange.end;
 

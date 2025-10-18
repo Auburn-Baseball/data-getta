@@ -18,77 +18,81 @@ export interface BatterStatsTable {
   Batter: string;
   BatterTeam: string;
   Date: string;
-  hits: number | null;
-  doubles: number | null;
-  triples: number | null;
-  at_bats: number | null;
-  strikes: number | null;
-  walks: number | null;
-  strikeouts: number | null;
-  homeruns: number | null;
-  extra_base_hits: number | null;
-  plate_appearances: number | null;
-  hit_by_pitch: number | null;
-  sacrifice: number | null;
-  total_bases: number | null;
-  batting_average: number | null;
-  on_base_percentage: number | null;
-  slugging_percentage: number | null;
-  onbase_plus_slugging: number | null;
-  isolated_power: number | null;
-  k_percentage: number | null;
-  base_on_ball_percentage: number | null;
-  chase_percentage: number | null;
-  in_zone_whiff_percentage: number | null;
-  games: number | null;
-  k_per: number | null;
-  bb_per: number | null;
-  avg_exit_velo: number | null;
+  hits: number;
+  doubles: number;
+  triples: number;
+  singles?: number;
+  at_bats: number;
+  strikes: number;
+  walks: number;
+  strikeouts: number;
+  homeruns: number;
+  extra_base_hits: number;
+  plate_appearances: number;
+  hit_by_pitch: number;
+  sacrifice: number;
+  total_bases: number;
+  batted_balls?: number;
+  total_exit_velo?: number;
+  batting_average: number;
+  on_base_percentage: number;
+  slugging_percentage: number;
+  onbase_plus_slugging: number;
+  isolated_power: number;
+  k_percentage: number;
+  base_on_ball_percentage: number;
+  chase_percentage: number;
+  in_zone_whiff_percentage: number;
+  games: number;
+  k_per: number;
+  bb_per: number;
+  avg_exit_velo: number;
+  is_practice?: boolean;
 }
 
 export interface PitcherStatsTable {
   Pitcher: string;
   PitcherTeam: string;
   Year: number;
-  total_strikeouts_pitcher: number | null;
-  total_walks_pitcher: number | null;
-  total_out_of_zone_pitches: number | null;
-  total_in_zone_pitches: number | null;
-  misses_in_zone: number | null;
-  swings_in_zone: number | null;
-  total_num_chases: number | null;
-  pitches: number | null;
-  games_started: number | null;
-  total_innings_pitched: number | null;
-  total_batters_faced: number | null;
-  k_percentage: number | null;
-  base_on_ball_percentage: number | null;
-  in_zone_whiff_percentage: number | null;
-  chase_percentage: number | null;
-  games: number | null;
+  total_strikeouts_pitcher: number;
+  total_walks_pitcher: number;
+  total_out_of_zone_pitches: number;
+  total_in_zone_pitches: number;
+  misses_in_zone: number;
+  swings_in_zone: number;
+  total_num_chases: number;
+  pitches: number;
+  games_started: number;
+  total_innings_pitched: number;
+  total_batters_faced: number;
+  k_percentage: number;
+  base_on_ball_percentage: number;
+  in_zone_whiff_percentage: number;
+  chase_percentage: number;
+  games: number;
 }
 
 export interface PitchCountsTable {
   Pitcher: string;
   PitcherTeam: string;
   Year: number;
-  total_pitches: number | null;
-  curveball_count: number | null;
-  fourseam_count: number | null;
-  sinker_count: number | null;
-  slider_count: number | null;
-  twoseam_count: number | null;
-  changeup_count: number | null;
-  cutter_count: number | null;
-  splitter_count: number | null;
-  other_count: number | null;
-  games: number | null;
+  total_pitches: number;
+  curveball_count: number;
+  fourseam_count: number;
+  sinker_count: number;
+  slider_count: number;
+  twoseam_count: number;
+  changeup_count: number;
+  cutter_count: number;
+  splitter_count: number;
+  other_count: number;
+  games: number;
 }
 
 export interface SeasonDatesTable {
   year: number;
-  season_start: string | null;
-  season_end: string | null;
+  season_start: string;
+  season_end: string;
 }
 
 export interface PitcherPitchBinsTable {
