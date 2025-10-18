@@ -78,6 +78,10 @@ export default function SeasonDateRangeSelect({
     [onDateRangeChange, seasonRanges],
   );
 
+  const openCustomDialog = useCallback(() => {
+    setCustomDialogOpen(true);
+  }, []);
+
   const handleCustomCancel = useCallback(() => {
     setCustomDialogOpen(false);
     setSelectedSeason(matchingSeason ? String(matchingSeason.year) : 'custom');
@@ -160,7 +164,12 @@ export default function SeasonDateRangeSelect({
                 {option.year} Season
               </MenuItem>
             ))}
-          <MenuItem value="custom">Custom Range</MenuItem>
+          <MenuItem 
+            value="custom"
+            onClick={openCustomDialog} // Add direct click handler to always open dialog
+          >
+            Custom Range
+          </MenuItem>
         </Select>
       </FormControl>
       <Dialog open={isCustomDialogOpen} onClose={handleCustomCancel} fullWidth maxWidth="sm">
