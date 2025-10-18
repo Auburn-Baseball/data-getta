@@ -23,7 +23,9 @@ load_dotenv(PROJECT_ROOT / f".env.{ENV}")
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("VITE_SUPABASE_PROJECT_URL and VITE_SUPABASE_API_KEY must be set")
+    raise RuntimeError(
+        "VITE_SUPABASE_PROJECT_URL and VITE_SUPABASE_API_KEY must be set"
+    )
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -145,7 +147,9 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     }
 
 
-def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
+def empty_row(
+    team: str, game_date, batter: str, zone_meta: Dict[str, object]
+) -> Dict[str, float]:
     row: Dict[str, float] = {
         "BatterTeam": team,
         "Date": game_date,
@@ -163,7 +167,9 @@ def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -
     return row
 
 
-def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str, float]]:
+def get_batter_bins_from_buffer(
+    buffer, filename: str
+) -> Dict[BinKey, Dict[str, float]]:
     df = pd.read_csv(buffer)
 
     # Get date from filename
@@ -183,7 +189,9 @@ def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str,
         print(f"Skipping {csv_path.name}: missing required columns")
         return {}
 
-    df = df.dropna(subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]).copy()
+    df = df.dropna(
+        subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]
+    ).copy()
     df["Date"] = game_date
 
     bins: Dict[BinKey, Dict[str, float]] = {}

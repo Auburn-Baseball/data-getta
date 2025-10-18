@@ -6,9 +6,11 @@ import {
   fetchPlayerPitchCounts,
   fetchPlayerPitcherStats,
 } from '@/services/playerService';
-import { batterStatsTransform } from '@/transforms/batterStatsTransform';
-import { pitchCountsTransform, pitcherStatsTransform } from '@/transforms/pitcherStatsTransforms';
-import type { BatterStatsTable, PitchCountsTable, PitcherStatsTable } from '@/types/db';
+import {
+  resolveBatterStats,
+  resolvePitchCounts,
+  resolvePitcherStats,
+} from '@/transforms/playerStatResolvers';
 
 export default async function CreateStatsDiagrams({
   player,
@@ -70,44 +72,4 @@ export default async function CreateStatsDiagrams({
       )}
     </Box>
   );
-}
-
-function resolveBatterStats(data?: BatterStatsTable[] | null): BatterStatsTable | null {
-  if (!data?.length) {
-    return null;
-  }
-
-  const transformed = batterStatsTransform(data);
-  if (transformed.length > 0) {
-    return transformed[0] ?? null;
-  }
-
-  // Fallback in case transform filtered everything out (e.g., only practice data)
-  return data[0] ?? null;
-}
-
-function resolvePitcherStats(data?: PitcherStatsTable[] | null): PitcherStatsTable | null {
-  if (!data?.length) {
-    return null;
-  }
-
-  const transformed = pitcherStatsTransform(data);
-  if (transformed.length > 0) {
-    return transformed[0] ?? null;
-  }
-
-  return data[0] ?? null;
-}
-
-function resolvePitchCounts(data?: PitchCountsTable[] | null): PitchCountsTable | null {
-  if (!data?.length) {
-    return null;
-  }
-
-  const transformed = pitchCountsTransform(data);
-  if (transformed.length > 0) {
-    return transformed[0] ?? null;
-  }
-
-  return data[0] ?? null;
 }

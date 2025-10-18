@@ -8,8 +8,8 @@ from pathlib import Path
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
+env = os.getenv("ENV", "development")
+load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")

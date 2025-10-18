@@ -11,8 +11,8 @@ from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
+env = os.getenv("ENV", "development")
+load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -31,6 +31,7 @@ MIN_PLATE_SIDE = -0.86
 MAX_PLATE_SIDE = 0.86
 MAX_PLATE_HEIGHT = 3.55
 MIN_PLATE_HEIGHT = 1.77
+
 
 # Custom encoder to handle numpy types
 class NumpyEncoder(json.JSONEncoder):
@@ -69,7 +70,9 @@ def calculate_innings_pitched(strikeouts, outs_on_play):
     return round(full_innings + (partial_outs / 10), 1)
 
 
-def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitcher_stats_from_buffer(
+    buffer, filename: str
+) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitcher statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
@@ -158,13 +161,25 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             decimal_innings = whole_innings + (partial_outs / 3.0)
 
             # Calculate k_per_9
-            k_per_9 = round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
+            k_per_9 = (
+                round(((total_strikeouts_pitcher * 9.0) / decimal_innings), 1)
+                if decimal_innings > 0
+                else None
+            )
 
             # Calculate bb_per_9
-            bb_per_9 = round(((total_walks_pitcher * 9.0) / decimal_innings), 1) if decimal_innings > 0 else None
+            bb_per_9 = (
+                round(((total_walks_pitcher * 9.0) / decimal_innings), 1)
+                if decimal_innings > 0
+                else None
+            )
 
             # Calculate WHIP
-            whip = round(((total_walks_pitcher + hits) / decimal_innings), 2) if decimal_innings > 0 else None
+            whip = (
+                round(((total_walks_pitcher + hits) / decimal_innings), 2)
+                if decimal_innings > 0
+                else None
+            )
 
             # Calculate batters faced (unique plate appearances)
             if "GameUID" in group.columns:
@@ -259,18 +274,22 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
                 "whip": whip,
                 "total_batters_faced": total_batters_faced,
                 "is_practice": is_practice,
-                "k_percentage": round(k_percentage, 3)
-                if k_percentage is not None
-                else None,
-                "base_on_ball_percentage": round(base_on_ball_percentage, 3)
-                if base_on_ball_percentage is not None
-                else None,
-                "in_zone_whiff_percentage": round(in_zone_whiff_percentage, 3)
-                if in_zone_whiff_percentage is not None
-                else None,
-                "chase_percentage": round(chase_percentage, 3)
-                if chase_percentage is not None
-                else None,
+                "k_percentage": (
+                    round(k_percentage, 3) if k_percentage is not None else None
+                ),
+                "base_on_ball_percentage": (
+                    round(base_on_ball_percentage, 3)
+                    if base_on_ball_percentage is not None
+                    else None
+                ),
+                "in_zone_whiff_percentage": (
+                    round(in_zone_whiff_percentage, 3)
+                    if in_zone_whiff_percentage is not None
+                    else None
+                ),
+                "chase_percentage": (
+                    round(chase_percentage, 3) if chase_percentage is not None else None
+                ),
                 "unique_games": unique_games,  # Store the set of unique games
                 "games": len(unique_games),  # This will be recalculated later
             }
@@ -333,9 +352,7 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
 
         # Get final count
         count_result = (
-            supabase.table(f"PitcherStats")
-            .select("*", count="exact")
-            .execute()
+            supabase.table(f"PitcherStats").select("*", count="exact").execute()
         )
         total_pitchers = count_result.count
         print(f"Total pitchers in database: {total_pitchers}")

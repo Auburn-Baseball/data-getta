@@ -11,8 +11,8 @@ from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
+env = os.getenv("ENV", "development")
+load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -31,6 +31,7 @@ MIN_PLATE_SIDE = -0.86
 MAX_PLATE_SIDE = 0.86
 MAX_PLATE_HEIGHT = 3.55
 MIN_PLATE_HEIGHT = 1.77
+
 
 # Custom encoder to handle numpy types
 class NumpyEncoder(json.JSONEncoder):
@@ -75,7 +76,9 @@ def calculate_total_bases(play_result):
         return 0
 
 
-def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
+def get_batter_stats_from_buffer(
+    buffer, filename: str
+) -> Dict[Tuple[str, str, int], Dict]:
     """Extract batter statistics from a CSV file in-memory"""
     try:
         df = pd.read_csv(buffer)
@@ -287,19 +290,16 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
 
                 total_exit_velo = group[
-                    (group["PitchCall"] == "InPlay") &
-                    (group["ExitSpeed"].notna())
+                    (group["PitchCall"] == "InPlay") & (group["ExitSpeed"].notna())
                 ]["ExitSpeed"].sum()
 
                 # Optional: also count how many batted balls were included
                 batted_ball_count = group[
-                    (group["PitchCall"] == "InPlay") &
-                    (group["ExitSpeed"].notna())
+                    (group["PitchCall"] == "InPlay") & (group["ExitSpeed"].notna())
                 ].shape[0]
             else:
                 total_exit_velo = 0
                 batted_ball_count = 0
-
 
             batter_stats = {
                 "Batter": batter_name,
@@ -322,33 +322,43 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "is_practice": is_practice,
                 "total_exit_velo": round(total_exit_velo, 1),
                 "is_practice": is_practice,
-                "batting_average": round(batting_average, 3)
-                if batting_average is not None
-                else None,
-                "on_base_percentage": round(on_base_percentage, 3)
-                if on_base_percentage is not None
-                else None,
-                "slugging_percentage": round(slugging_percentage, 3)
-                if slugging_percentage is not None
-                else None,
-                "onbase_plus_slugging": round(onbase_plus_slugging, 3)
-                if onbase_plus_slugging is not None
-                else None,
-                "isolated_power": round(isolated_power, 3)
-                if isolated_power is not None
-                else None,
-                "k_percentage": round(k_percentage, 3)
-                if k_percentage is not None
-                else None,
-                "base_on_ball_percentage": round(base_on_ball_percentage, 3)
-                if base_on_ball_percentage is not None
-                else None,
-                "chase_percentage": round(chase_percentage, 3)
-                if chase_percentage is not None
-                else None,
-                "in_zone_whiff_percentage": round(in_zone_whiff_percentage, 3)
-                if in_zone_whiff_percentage is not None
-                else None,
+                "batting_average": (
+                    round(batting_average, 3) if batting_average is not None else None
+                ),
+                "on_base_percentage": (
+                    round(on_base_percentage, 3)
+                    if on_base_percentage is not None
+                    else None
+                ),
+                "slugging_percentage": (
+                    round(slugging_percentage, 3)
+                    if slugging_percentage is not None
+                    else None
+                ),
+                "onbase_plus_slugging": (
+                    round(onbase_plus_slugging, 3)
+                    if onbase_plus_slugging is not None
+                    else None
+                ),
+                "isolated_power": (
+                    round(isolated_power, 3) if isolated_power is not None else None
+                ),
+                "k_percentage": (
+                    round(k_percentage, 3) if k_percentage is not None else None
+                ),
+                "base_on_ball_percentage": (
+                    round(base_on_ball_percentage, 3)
+                    if base_on_ball_percentage is not None
+                    else None
+                ),
+                "chase_percentage": (
+                    round(chase_percentage, 3) if chase_percentage is not None else None
+                ),
+                "in_zone_whiff_percentage": (
+                    round(in_zone_whiff_percentage, 3)
+                    if in_zone_whiff_percentage is not None
+                    else None
+                ),
                 "unique_games": unique_games,  # Store the set of unique games
                 "games": len(unique_games),  # This will be recalculated later
             }
@@ -411,9 +421,7 @@ def upload_batters_to_supabase(batters_dict: Dict[Tuple[str, str, int], Dict]):
 
         # Get final count
         count_result = (
-            supabase.table(f"BatterStats")
-            .select("*", count="exact")
-            .execute()
+            supabase.table(f"BatterStats").select("*", count="exact").execute()
         )
 
         total_batters = count_result.count

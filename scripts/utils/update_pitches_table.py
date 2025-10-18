@@ -11,8 +11,8 @@ from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
-env = os.getenv('ENV', 'development')
-load_dotenv(project_root / f'.env.{env}')
+env = os.getenv("ENV", "development")
+load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
@@ -25,6 +25,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # Custom encoder to handle numpy types
 class NumpyEncoder(json.JSONEncoder):
@@ -42,7 +43,9 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 
-def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitch_counts_from_buffer(
+    buffer, filename: str
+) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitch count statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
@@ -197,9 +200,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
 
         # Get final count
         count_result = (
-            supabase.table(f"PitchCounts")
-            .select("*", count="exact")
-            .execute()
+            supabase.table(f"PitchCounts").select("*", count="exact").execute()
         )
         total_pitchers = count_result.count
         print(f"Total pitcher pitch counts in database: {total_pitchers}")
