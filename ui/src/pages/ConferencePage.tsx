@@ -17,10 +17,6 @@ export default function ConferencePage({ year }: ConferencePageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  if (!year) {
-    year = new Date().getFullYear();
-  }
-
   useEffect(() => {
     const fetchData = async () => {
       try {

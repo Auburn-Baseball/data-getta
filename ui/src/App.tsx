@@ -26,6 +26,9 @@ type DateRangeState = {
 
 export default function App() {
   const [dateRange, setDateRange] = useState<DateRangeState>({ startDate: null, endDate: null });
+  const year = dateRange.startDate
+    ? new Date(dateRange.startDate).getFullYear()
+    : new Date().getFullYear();
 
   const handleDateRangeChange = useCallback((range: DateRangeSelection) => {
     setDateRange({ startDate: range.startDate, endDate: range.endDate });
@@ -45,18 +48,7 @@ export default function App() {
           <Route
             element={<AppLayout dateRange={dateRange} onDateRangeChange={handleDateRangeChange} />}
           >
-            <Route
-              path="conferences"
-              element={
-                <ConferencePage
-                  year={
-                    dateRange.startDate
-                      ? new Date(dateRange.startDate).getFullYear()
-                      : new Date().getFullYear()
-                  }
-                />
-              }
-            />
+            <Route path="conferences" element={<ConferencePage year={year} />} />
             <Route
               path="team/:trackmanAbbreviation/player/:playerName"
               element={<PlayerPage startDate={dateRange.startDate} endDate={dateRange.endDate} />}
@@ -71,15 +63,9 @@ export default function App() {
               />
               <Route path="percentiles/:year" element={<div>Percentiles Page</div>} />
             </Route>
-            <Route
-              path="team/:trackmanAbbreviation"
-              element={<TeamPage startDate={dateRange.startDate} endDate={dateRange.endDate} />}
-            >
+            <Route path="team/:trackmanAbbreviation" element={<TeamPage year={year} />}>
               <Route index element={<Navigate to="roster" replace />} />
-              <Route
-                path="roster"
-                element={<RosterTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
-              />
+              <Route path="roster" element={<RosterTab year={year} />} />
               <Route
                 path="batting"
                 element={<BattingTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}

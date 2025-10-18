@@ -7,11 +7,10 @@ import { PlayersTable } from '@/types/schemas';
 import TableSkeleton from '@/components/team/TableSkeleton';
 
 type RosterTabProps = {
-  startDate: string | null;
-  endDate: string | null;
+  year: number;
 };
 
-export default function RosterTab({ startDate, endDate }: RosterTabProps) {
+export default function RosterTab({ year }: RosterTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [players, setPlayers] = useState<PlayersTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,17 +25,17 @@ export default function RosterTab({ startDate, endDate }: RosterTabProps) {
         const { data, error } = await cachedQuery({
           key: createCacheKey('Players', {
             select: '*',
-            eq: { TeamTrackmanAbbreviation: decodedTrackmanAbbreviation },
-            order: [{ column: 'Name', ascending: true }],
-            range: {
-              startDate,
-              endDate,
+            eq: {
+              Year: year,
+              TeamTrackmanAbbreviation: decodedTrackmanAbbreviation,
             },
+            order: [{ column: 'Name', ascending: true }],
           }),
           query: () =>
             supabase
               .from('Players')
               .select('*')
+              .eq('Year', year)
               .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
               .order('Name', { ascending: true })
               .overrideTypes<PlayersTable[], { merge: false }>(),
@@ -52,7 +51,7 @@ export default function RosterTab({ startDate, endDate }: RosterTabProps) {
     }
 
     fetchRoster();
-  }, [trackmanAbbreviation, startDate, endDate]);
+  }, [trackmanAbbreviation, year]);
 
   if (loading) return <TableSkeleton />;
   return <RosterTable players={players} />;

@@ -8,11 +8,10 @@ import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { TeamsTable } from '@/types/schemas';
 
 type TeamPageProps = {
-  startDate: string | null;
-  endDate: string | null;
+  year: number;
 };
 
-export default function TeamPage({ startDate, endDate }: TeamPageProps) {
+export default function TeamPage({ year }: TeamPageProps) {
   const [searchParams] = useSearchParams();
   const playerParam = searchParams.get('player');
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
@@ -32,11 +31,7 @@ export default function TeamPage({ startDate, endDate }: TeamPageProps) {
             select: ['TeamName', 'TrackmanAbbreviation', 'Conference'],
             eq: {
               TrackmanAbbreviation: decodedTrackmanAbbreviation,
-              Year: 2025,
-            },
-            range: {
-              startDate,
-              endDate,
+              Year: year,
             },
             single: true,
           }),
@@ -45,7 +40,7 @@ export default function TeamPage({ startDate, endDate }: TeamPageProps) {
               .from('Teams')
               .select('TeamName, TrackmanAbbreviation, Conference')
               .eq('TrackmanAbbreviation', decodedTrackmanAbbreviation)
-              .eq('Year', 2025) // change this to match the year passed into the page
+              .eq('Year', year)
               .single()
               .overrideTypes<TeamsTable, { merge: false }>(),
         });
@@ -60,7 +55,7 @@ export default function TeamPage({ startDate, endDate }: TeamPageProps) {
     }
 
     fetchTeam();
-  }, [trackmanAbbreviation, startDate, endDate]);
+  }, [trackmanAbbreviation, year]);
 
   if (loading) return <div>Loading...</div>;
   if (!team) return <div>Team not found</div>;
@@ -79,7 +74,7 @@ export default function TeamPage({ startDate, endDate }: TeamPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo name={team.TeamName} conference={team.Conference} />
+        <TeamInfo name={team.TeamName} conference={team.Conference} year={year} />
         <Outlet />
       </Box>
     </Box>
