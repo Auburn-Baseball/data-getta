@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 
 import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
-import { fetchPlayer } from '@/services/playerService';
+import { fetchPlayerByYear } from '@/services/playerService';
 import type { PlayersTable } from '@/types/db';
 
 type PlayerPageProps = {
@@ -41,7 +41,7 @@ export default function PlayerPage({ year }: PlayerPageProps) {
         const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
         setLoading(true);
 
-        const { data, error } = await fetchPlayer(
+        const { data, error } = await fetchPlayerByYear(
           year,
           decodedTrackmanAbbreviation,
           decodedPlayerName,

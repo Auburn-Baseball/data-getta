@@ -8,6 +8,11 @@ import type {
   TeamsTable,
 } from '@/types/db';
 
+type RangeDescriptor = { range: { startDate: string | null; endDate: string | null } };
+
+const buildRangeDescriptor = (startDate?: string, endDate?: string): Partial<RangeDescriptor> =>
+  startDate || endDate ? { range: { startDate: startDate ?? null, endDate: endDate ?? null } } : {};
+
 export async function fetchTeamsByYear(year: number) {
   return cachedQuery({
     key: createCacheKey('Teams', {
@@ -76,7 +81,7 @@ export async function fetchTeamBattingStats(team: string, startDate?: string, en
     key: createCacheKey('BatterStats', {
       select: '*',
       eq: { BatterTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase.from('BatterStats').select('*').eq('BatterTeam', team);
@@ -96,7 +101,7 @@ export async function fetchTeamPitcherStats(team: string, startDate?: string, en
     key: createCacheKey('PitcherStats', {
       select: '*',
       eq: { PitcherTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase.from('PitcherStats').select('*').eq('PitcherTeam', team);
@@ -116,7 +121,7 @@ export async function fetchTeamPitchCounts(team: string, startDate?: string, end
     key: createCacheKey('PitchCounts', {
       select: '*',
       eq: { PitcherTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase.from('PitchCounts').select('*').eq('PitcherTeam', team);

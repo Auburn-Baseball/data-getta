@@ -1,4 +1,4 @@
-import Link from '@/utils/Link';
+import Link from '@/components/ui/Link';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Theme } from '@/styles/theme';
 import { BatterStatsTable } from '@/types/db';

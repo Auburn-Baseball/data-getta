@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Link from '@/utils/Link';
+import Link from '@/components/ui/Link';
 import { useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 

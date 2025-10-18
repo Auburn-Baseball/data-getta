@@ -10,7 +10,12 @@ import type {
   PlayersTable,
 } from '@/types/db';
 
-export async function fetchPlayer(year: number, team: string, playerName: string) {
+type RangeDescriptor = { range: { startDate: string | null; endDate: string | null } };
+
+const buildRangeDescriptor = (startDate?: string, endDate?: string): Partial<RangeDescriptor> =>
+  startDate || endDate ? { range: { startDate: startDate ?? null, endDate: endDate ?? null } } : {};
+
+export async function fetchPlayerByYear(year: number, team: string, playerName: string) {
   return cachedQuery({
     key: createCacheKey('Players', {
       select: '*',
@@ -42,7 +47,7 @@ export async function fetchPlayerBatterStats(
     key: createCacheKey('BatterStats', {
       select: '*',
       eq: { Batter: playerName, BatterTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase
@@ -67,7 +72,7 @@ export async function fetchPlayerPitcherStats(
     key: createCacheKey('PitcherStats', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase
@@ -92,7 +97,7 @@ export async function fetchPlayerPitchCounts(
     key: createCacheKey('PitchCounts', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () => {
       let query = supabase
@@ -133,7 +138,7 @@ export async function fetchPitcherHeatMapBins(
     key: createCacheKey('PitcherPitchBins', {
       select: pitcherBinsSelect,
       eq: { Pitcher: playerName, PitcherTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () =>
       supabase
@@ -157,7 +162,7 @@ export async function fetchBatterHeatMapBins(
     key: createCacheKey('BatterPitchBins', {
       select: batterBinsSelect,
       eq: { Batter: playerName, BatterTeam: team },
-      range: { startDate, endDate },
+      ...buildRangeDescriptor(startDate, endDate),
     }),
     query: () =>
       supabase
@@ -183,6 +188,6 @@ export async function fetchAdvancedBattingStats(team: string, year: number) {
         .select('*')
         .eq('BatterTeam', team)
         .eq('Year', year)
-        .returns<AdvancedBattingStatsTable[]>(),
+        .overrideTypes<AdvancedBattingStatsTable[], { merge: false }>(),
   });
 }

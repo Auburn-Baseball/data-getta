@@ -1,5 +1,5 @@
 import { Link as RouterLink } from 'react-router';
-import Tabs from './Tabs';
+import Tabs from '../Tabs';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import eyeLogo from '@/assets/TheEyeLogo.svg';
