@@ -64,8 +64,8 @@ const PercentilesTab: React.FC = () => {
         console.log('Player stats fetched:', playerStats);
 
         setStats(playerStats as AdvancedBattingStatsTable | null);
-      } catch (err: any) {
-        console.error(err);
+      } catch (error: unknown) {
+        console.error(error);
         setError('Failed to load player stats');
       } finally {
         setLoading(false);

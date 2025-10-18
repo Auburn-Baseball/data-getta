@@ -1,19 +1,23 @@
-import Drawer from '@mui/material/Drawer';
+import { type TransitionEventHandler } from 'react';
+
+import Drawer, { type DrawerProps } from '@mui/material/Drawer';
 import { Theme } from '@/styles/theme';
 import { common } from '@mui/material/colors';
 import TabGroup from '@/components/TabGroup';
+
+type MobileSideBarProps = {
+  open: boolean;
+  onTransitionEnd?: TransitionEventHandler<HTMLDivElement>;
+  onClose?: DrawerProps['onClose'];
+  width: number;
+};
 
 export default function MobileSideBar({
   open,
   onTransitionEnd,
   onClose,
   width,
-}: {
-  open: boolean;
-  onTransitionEnd: any;
-  onClose: any;
-  width: number;
-}) {
+}: MobileSideBarProps) {
   return (
     <Drawer
       variant="temporary"

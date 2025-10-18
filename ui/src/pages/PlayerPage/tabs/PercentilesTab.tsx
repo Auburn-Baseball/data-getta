@@ -68,8 +68,8 @@ export default function PercentilesTab({ year }: PercentilesTabProps) {
         }
 
         setStats(playerStats);
-      } catch (err: any) {
-        console.error('Error fetching percentile stats:', err);
+      } catch (error: unknown) {
+        console.error('Error fetching percentile stats:', error);
         setError('Failed to load player stats');
       } finally {
         setLoading(false);

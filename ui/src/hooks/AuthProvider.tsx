@@ -1,23 +1,8 @@
-import { createContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabaseClient';
-
-type AuthCtx = {
-  user: User | null;
-  recovery: boolean;
-  loading: boolean;
-  setUser: (u: User | null) => void;
-  setRecovery: (v: boolean) => void;
-};
-
-export const AuthContext = createContext<AuthCtx>({
-  user: null,
-  recovery: false,
-  loading: true,
-  setUser: () => {},
-  setRecovery: () => {},
-});
+import { AuthContext } from './AuthContext';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -34,7 +19,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hs = new URLSearchParams(url.hash.startsWith('#') ? url.hash.slice(1) : url.hash);
       const type = qs.get('type') || hs.get('type');
       if (type === 'recovery') setRecovery(true);
-    } catch {}
+    } catch (error) {
+      console.error('Failed to parse auth recovery status from URL:', error);
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!isMounted) return;

@@ -21,10 +21,9 @@ type StatsTabProps = {
 };
 
 export default function StatsTab({ startDate, endDate }: StatsTabProps) {
-  const { trackmanAbbreviation, playerName, year } = useParams<{
+  const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
-    year: string;
   }>();
 
   const [batterStats, setBatterStats] = useState<BatterStatsTable | null>(null);
@@ -134,17 +133,17 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {hasBatterData && (
             <div>
-              <BattingStatsTable stats={batterStats} teamName={decodedTeamName} />
+              <BattingStatsTable stats={batterStats} />
             </div>
           )}
           {hasPitcherData && (
             <div>
-              <PitchingStatsTable stats={pitcherStats} teamName={decodedTeamName} />
+              <PitchingStatsTable stats={pitcherStats} />
             </div>
           )}
           {hasPitchCountsData && (
             <div>
-              <PitchCountTable stats={pitchCounts} teamName={decodedTeamName} />
+              <PitchCountTable stats={pitchCounts} />
             </div>
           )}
         </div>

@@ -10,7 +10,6 @@ export interface TeamPerformanceRow {
 export function transformTeamPerformance(
   battingStats: AdvancedBattingStatsTable[],
   pitchingStats: AdvancedPitchingStatsTable[],
-  year: number,
 ): TeamPerformanceRow[] {
   if (!battingStats.length && !pitchingStats.length) {
     return [];

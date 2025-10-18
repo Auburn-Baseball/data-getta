@@ -1,5 +1,4 @@
 import Grid from '@mui/material/Grid';
-import { Box } from '@mui/material';
 import PitchingStatsTable from './PitchingStatsTable';
 import { pitcher_stats_forTable, pitch_sums_forTable } from '@/utils/types';
 
@@ -10,10 +9,15 @@ export default function CreatePitcherDiagrams({
   stats: pitcher_stats_forTable[];
   sums: pitch_sums_forTable[];
 }) {
+  const hasPitchSummary = sums.length > 0;
+
   return (
     <>
       {/* The grid container centers the PitchingStatsTable component */}
-      <Grid sx={{ display: 'flex', justifyContent: 'center', paddingY: 2, width: '100%' }}>
+      <Grid
+        sx={{ display: 'flex', justifyContent: 'center', paddingY: 2, width: '100%' }}
+        aria-label={hasPitchSummary ? 'Pitching stats with summary data' : 'Pitching stats'}
+      >
         <PitchingStatsTable
           player={stats}
           teamName={undefined} // Default value; can be updated when real team data is provided

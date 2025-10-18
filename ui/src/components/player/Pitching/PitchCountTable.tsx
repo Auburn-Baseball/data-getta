@@ -9,13 +9,12 @@ import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 
-export default function PitchCountTable({
-  stats,
-  teamName,
-}: {
+type PitchCountTableProps = {
   stats: PitchCountsTableType | null;
-  teamName: string;
-}) {
+  teamName?: string;
+};
+
+export default function PitchCountTable({ stats }: PitchCountTableProps) {
   // Calculate percentages
   const calculatePercentage = (
     count: number | null | undefined,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -42,9 +42,15 @@ export default function SeasonDateRangeSelect({
   const [isCustomDialogOpen, setCustomDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   // Load season ranges on component mount
   useEffect(() => {
+    if (hasLoadedRef.current) {
+      return;
+    }
+    hasLoadedRef.current = true;
+
     let isMounted = true;
 
     const loadSeasonRanges = async () => {
@@ -122,7 +128,7 @@ export default function SeasonDateRangeSelect({
     return () => {
       isMounted = false;
     };
-  }, []); // Dependency array intentionally empty - only run on mount
+  }, [endDate, onDateRangeChange, startDate]);
 
   // Update component state when props change (e.g., from parent)
   useEffect(() => {

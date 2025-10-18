@@ -30,7 +30,7 @@ export default function PlayerPage({ year }: PlayerPageProps) {
         navigate(`${playerPath}/stats/${year}`, { replace: true });
       }
     }
-  }, [location.pathname, trackmanAbbreviation, playerName, navigate]);
+  }, [location.pathname, trackmanAbbreviation, playerName, navigate, year]);
 
   useEffect(() => {
     async function fetchPlayer() {

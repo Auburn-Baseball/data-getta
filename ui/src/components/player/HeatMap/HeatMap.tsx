@@ -74,7 +74,7 @@ export default function HeatMap({
           p.x <= xMax &&
           p.y <= yMax,
       ),
-    [pitches],
+    [pitches, xMax, xMin, yMax],
   );
 
   const filteredPitches = useMemo(() => {

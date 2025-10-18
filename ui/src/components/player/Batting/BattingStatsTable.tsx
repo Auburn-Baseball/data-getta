@@ -12,13 +12,12 @@ import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import { useParams, useNavigate } from 'react-router';
 
-export default function BattingStatsTable({
-  stats,
-  teamName,
-}: {
+type BattingStatsTableProps = {
   stats: BatterStatsTable | null;
-  teamName: string;
-}) {
+  teamName?: string;
+};
+
+export default function BattingStatsTable({ stats }: BattingStatsTableProps) {
   const navigate = useNavigate();
   const params = useParams();
 

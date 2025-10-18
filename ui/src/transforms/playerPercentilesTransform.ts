@@ -31,7 +31,7 @@ export function transformPercentileStats(
   // Aggregate stats for each player
   const aggregatedPlayers: AdvancedBattingStatsTable[] = [];
 
-  playerMap.forEach((playerData, batter) => {
+  playerMap.forEach((playerData) => {
     if (playerData.length === 0) return;
 
     // Use first record as base
@@ -176,7 +176,7 @@ export function transformPercentileStats(
 function calculatePercentileRank(
   data: AdvancedBattingStatsTable[],
   field: keyof AdvancedBattingStatsTable,
-  value: any,
+  value: number | null | undefined,
   higherIsBetter: boolean,
 ): number {
   if (value === null || value === undefined) return 50;

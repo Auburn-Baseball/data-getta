@@ -4,7 +4,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 const pitchOptions = ['Fastball', 'Curveball', 'Slider', 'Changeup', 'Sinker'];
 const yearOptions = ['2024', '2025'];
 const viewOptions = ['Individual', 'Density']; // 🆕 View Mode options
-const batterType = ['Both', 'Left', 'Right']; // batter handedness
 
 export default function FilterDropdowns({ player }: { player: string }) {
   const searchParams = useSearchParams();

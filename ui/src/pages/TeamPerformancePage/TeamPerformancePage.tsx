@@ -9,7 +9,6 @@ import {
   fetchAdvancedBattingStatsByYear,
   fetchAdvancedPitchingStatsByYear,
 } from '@/services/teamPerformanceService';
-import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 import {
   transformTeamPerformance,
   TeamPerformanceRow,
@@ -57,16 +56,13 @@ export default function TeamPerformancePage({ year }: TeamPerformancePageProps) 
         }
 
         // Transform data into the format expected by TeamPercent
-        const performanceRows = transformTeamPerformance(
-          battingData || [],
-          pitchingData || [],
-          safeYear,
-        );
+        const performanceRows = transformTeamPerformance(battingData || [], pitchingData || []);
 
         setRows(performanceRows);
-      } catch (err: any) {
-        console.error('Error in team performance:', err);
-        setError(err.message || 'An error occurred while fetching team performance data');
+      } catch (error: unknown) {
+        console.error('Error in team performance:', error);
+        const message = error instanceof Error ? error.message : null;
+        setError(message || 'An error occurred while fetching team performance data');
       } finally {
         setLoading(false);
       }

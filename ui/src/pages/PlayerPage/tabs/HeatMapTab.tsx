@@ -22,16 +22,10 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
     year: string;
   }>();
 
-  if (!trackmanAbbreviation || !playerName || !year) {
-    return (
-      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
-        <strong>Error!</strong>
-      </Typography>
-    );
-  }
-
-  const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-  const decodedPlayerName = decodeURIComponent(playerName).split('_').join(', ');
+  const decodedTrackmanAbbreviation = trackmanAbbreviation
+    ? decodeURIComponent(trackmanAbbreviation)
+    : '';
+  const decodedPlayerName = playerName ? decodeURIComponent(playerName).split('_').join(', ') : '';
 
   const [pitcherBins, setPitcherBins] = useState<PitcherPitchBinsTable[]>([]);
   const [batterBins, setBatterBins] = useState<BatterPitchBinsTable[]>([]);
@@ -41,6 +35,12 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
 
   useEffect(() => {
     async function fetchBins() {
+      if (!trackmanAbbreviation || !playerName || !year) {
+        setPitcherBins([]);
+        setPitcherLoading(false);
+        return;
+      }
+
       try {
         setPitcherLoading(true);
         setError(null);
@@ -56,19 +56,34 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
         // Transform the data before setting state
         const transformedData = transformPitcherPitchBins(data || []);
         setPitcherBins(transformedData);
-      } catch (e: any) {
-        console.error('Error fetching pitcher bins:', e);
-        setError(e.message || 'Failed to load binned pitch data');
+      } catch (error: unknown) {
+        console.error('Error fetching pitcher bins:', error);
+        const message = error instanceof Error ? error.message : null;
+        setError(message || 'Failed to load binned pitch data');
       } finally {
         setPitcherLoading(false);
       }
     }
 
     fetchBins();
-  }, [decodedPlayerName, year, decodedTrackmanAbbreviation, startDate, endDate]);
+  }, [
+    decodedPlayerName,
+    decodedTrackmanAbbreviation,
+    endDate,
+    playerName,
+    startDate,
+    trackmanAbbreviation,
+    year,
+  ]);
 
   useEffect(() => {
     async function fetchBatterBins() {
+      if (!trackmanAbbreviation || !playerName || !year) {
+        setBatterBins([]);
+        setBatterLoading(false);
+        return;
+      }
+
       try {
         setBatterLoading(true);
         const { data, error } = await fetchBatterHeatMapBins(
@@ -83,15 +98,32 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
         // Transform the data before setting state
         const transformedData = transformBatterPitchBins(data || []);
         setBatterBins(transformedData);
-      } catch (e: any) {
-        console.error('Error fetching batter bins:', e);
+      } catch (error: unknown) {
+        console.error('Error fetching batter bins:', error);
+        setError('Failed to load batter heat-map data');
       } finally {
         setBatterLoading(false);
       }
     }
 
     fetchBatterBins();
-  }, [decodedPlayerName, decodedTrackmanAbbreviation, startDate, endDate]);
+  }, [
+    decodedPlayerName,
+    decodedTrackmanAbbreviation,
+    endDate,
+    playerName,
+    startDate,
+    trackmanAbbreviation,
+    year,
+  ]);
+
+  if (!trackmanAbbreviation || !playerName || !year) {
+    return (
+      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
+        <strong>Error!</strong>
+      </Typography>
+    );
+  }
 
   if (error) {
     return (
