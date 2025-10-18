@@ -7,10 +7,12 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 import { CircularProgress, Typography } from '@mui/material';
 import { PitcherPitchBinsTable, BatterPitchBinsTable } from '@/types/schemas';
+import { transformPitcherPitchBins } from '@/transforms/pitcherPitchBinTransform';
+import { transformBatterPitchBins } from '@/transforms/batterPitchBinTransform';
 
 type HeatMapTabProps = {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 };
 
 export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
@@ -43,18 +45,18 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
         setPitcherLoading(true);
         setError(null);
         const pitcherSelect = `
-            ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
+            PitcherTeam, Date, Pitcher, ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel, ZoneVersion,
             TotalPitchCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
             Count_L_FourSeam, Count_L_Sinker, Count_L_Slider, Count_L_Curveball, Count_L_Changeup, Count_L_Cutter, Count_L_Splitter, Count_L_Other,
             Count_R_FourSeam, Count_R_Sinker, Count_R_Slider, Count_R_Curveball, Count_R_Changeup, Count_R_Cutter, Count_R_Splitter, Count_R_Other
           `.trim();
+
         const { data, error } = await cachedQuery({
           key: createCacheKey('PitcherPitchBins', {
             select: pitcherSelect,
             eq: {
               Pitcher: decodedPlayerName,
-              Year: Number(year),
               PitcherTeam: decodedTrackmanAbbreviation,
             },
             range: {
@@ -67,15 +69,19 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
               .from('PitcherPitchBins')
               .select(pitcherSelect)
               .eq('Pitcher', decodedPlayerName)
-              .eq('Year', Number(year))
               .eq('PitcherTeam', decodedTrackmanAbbreviation)
+              .gte('Date', startDate)
+              .lte('Date', endDate)
               .overrideTypes<PitcherPitchBinsTable[], { merge: false }>(),
         });
 
         if (error) throw error;
-        setPitcherBins(data);
+
+        // Transform the data before setting state
+        const transformedData = transformPitcherPitchBins(data || []);
+        setPitcherBins(transformedData);
       } catch (e: any) {
-        console.error('Error fetching bins:', e);
+        console.error('Error fetching pitcher bins:', e);
         setError(e.message || 'Failed to load binned pitch data');
       } finally {
         setPitcherLoading(false);
@@ -85,33 +91,23 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
     fetchBins();
   }, [decodedPlayerName, year, decodedTrackmanAbbreviation, startDate, endDate]);
 
-  if (error) {
-    return (
-      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
-        <strong>Error!</strong>
-        <br />
-        {error}
-      </Typography>
-    );
-  }
-
   useEffect(() => {
     async function fetchBatterBins() {
       try {
         setBatterLoading(true);
         const batterSelect = `
-            ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel,
+            BatterTeam, Date, Batter, ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel, ZoneVersion,
             TotalPitchCount, TotalSwingCount, TotalHitCount,
             Count_FourSeam, Count_Sinker, Count_Slider, Count_Curveball, Count_Changeup, Count_Cutter, Count_Splitter, Count_Other,
             SwingCount_FourSeam, SwingCount_Sinker, SwingCount_Slider, SwingCount_Curveball, SwingCount_Changeup, SwingCount_Cutter, SwingCount_Splitter, SwingCount_Other,
             HitCount_FourSeam, HitCount_Sinker, HitCount_Slider, HitCount_Curveball, HitCount_Changeup, HitCount_Cutter, HitCount_Splitter, HitCount_Other
           `.trim();
+
         const { data, error } = await cachedQuery({
           key: createCacheKey('BatterPitchBins', {
             select: batterSelect,
             eq: {
               Batter: decodedPlayerName,
-              Year: Number(year),
               BatterTeam: decodedTrackmanAbbreviation,
             },
             range: {
@@ -124,13 +120,17 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
               .from('BatterPitchBins')
               .select(batterSelect)
               .eq('Batter', decodedPlayerName)
-              .eq('Year', Number(year))
               .eq('BatterTeam', decodedTrackmanAbbreviation)
+              .gte('Date', startDate)
+              .lte('Date', endDate)
               .overrideTypes<BatterPitchBinsTable[], { merge: false }>(),
         });
 
         if (error) throw error;
-        setBatterBins(data);
+
+        // Transform the data before setting state
+        const transformedData = transformBatterPitchBins(data || []);
+        setBatterBins(transformedData);
       } catch (e: any) {
         console.error('Error fetching batter bins:', e);
       } finally {
@@ -139,7 +139,17 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
     }
 
     fetchBatterBins();
-  }, [decodedPlayerName, year, decodedTrackmanAbbreviation, startDate, endDate]);
+  }, [decodedPlayerName, decodedTrackmanAbbreviation, startDate, endDate]);
+
+  if (error) {
+    return (
+      <Typography variant="h6" color="#d32f2f" sx={{ py: '2rem' }}>
+        <strong>Error!</strong>
+        <br />
+        {error}
+      </Typography>
+    );
+  }
 
   if (pitcherLoading || batterLoading) {
     return (
@@ -167,10 +177,10 @@ export default function HeatMapTab({ startDate, endDate }: HeatMapTabProps) {
       {!pitcherBins.length && !batterBins.length && (
         <>
           <Typography variant="body1" color="text.secondary">
-            No pitcher heat-map data available.
+            No pitcher heat-map data available between {startDate} and {endDate}.
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            No batter heat-map data available.
+            No batter heat-map data available between {startDate} and {endDate}.
           </Typography>
         </>
       )}

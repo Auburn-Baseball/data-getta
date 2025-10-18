@@ -4,7 +4,7 @@ import { PitchCountsTable } from '@/types/schemas';
 import { Theme } from '@/utils/theme';
 import Box from '@mui/material/Box';
 
-const playerURL: string = '/player/';
+const playerURL: string = '/team/';
 
 const columns: GridColDef[] = [
   {

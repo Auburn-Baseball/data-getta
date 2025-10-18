@@ -106,9 +106,10 @@ export interface SeasonDatesTable {
   season_end: string;
 }
 
+// Updated PitcherPitchBinsTable to include Date field
 export interface PitcherPitchBinsTable {
   PitcherTeam: string;
-  Year: number;
+  Date: string; // Added Date field
   Pitcher: string;
   ZoneId: number; // 1..13 (1..9 inner; 10..13 outer)
   InZone: boolean; // true for inner
@@ -144,9 +145,10 @@ export interface PitcherPitchBinsTable {
   Count_R_Other: number;
 }
 
+// Updated BatterPitchBinsTable to include Date field
 export interface BatterPitchBinsTable {
   BatterTeam: string;
-  Year: number;
+  Date: string; // Added Date field
   Batter: string;
   ZoneId: number; // 1..13 (1..9 inner; 10..13 outer)
   InZone: boolean; // true for inner
@@ -182,4 +184,86 @@ export interface BatterPitchBinsTable {
   HitCount_Cutter: number;
   HitCount_Splitter: number;
   HitCount_Other: number;
+}
+
+export interface AdvancedBattingStatsTable {
+  Batter: string;
+  BatterTeam: string;
+  Year: number;
+  plate_app?: number;
+  batted_balls?: number;
+  k_per: number | null;
+  bb_per: number | null;
+  avg_exit_velo: number | null;
+  created_at?: string;
+  la_sweet_spot_per: number | null;
+  hard_hit_per: number | null;
+  avg_exit_velo_rank: number | null;
+  k_per_rank: number | null;
+  bb_per_rank: number | null;
+  la_sweet_spot_per_rank: number | null;
+  hard_hit_per_rank: number | null;
+  in_zone_pitches?: number;
+  out_of_zone_pitches?: number;
+  whiff_per: number | null;
+  chase_per: number | null;
+  whiff_per_rank: number | null;
+  chase_per_rank: number | null;
+  infield_left_slice?: number;
+  infield_left_per?: number;
+  infield_lc_slice?: number;
+  infield_lc_per?: number;
+  infield_center_slice?: number;
+  infield_center_per?: number;
+  infield_rc_slice?: number;
+  infield_rc_per?: number;
+  infield_right_slice?: number;
+  infield_right_per?: number;
+  xba_per?: number;
+  xba_per_rank?: number;
+  xslg_per?: number;
+  xslg_per_rank?: number;
+  at_bats?: number;
+  xwoba_per?: number;
+  xwoba_per_rank?: number;
+  barrel_per?: number;
+  barrel_per_rank?: number;
+}
+
+export interface AdvancedPitchingStatsTable {
+  Pitcher: string;
+  PitcherTeam: string;
+  Year: number;
+  fastballs?: number;
+  batted_balls?: number;
+  k_per: number | null;
+  bb_per: number | null;
+  avg_exit_velo: number | null;
+  created_at?: string;
+  la_sweet_spot_per: number | null;
+  hard_hit_per: number | null;
+  avg_exit_velo_rank: number | null;
+  k_per_rank: number | null;
+  bb_per_rank: number | null;
+  la_sweet_spot_per_rank: number | null;
+  hard_hit_per_rank: number | null;
+  in_zone_pitches?: number;
+  out_of_zone_pitches?: number;
+  whiff_per: number | null;
+  chase_per: number | null;
+  whiff_per_rank: number | null;
+  chase_per_rank: number | null;
+  plate_app?: number;
+  avg_fastball_velo?: number;
+  avg_fastball_rank?: number;
+  ground_balls?: number;
+  gb_per?: number;
+  gb_per_rank?: number;
+  xba_per?: number;
+  xba_per_rank?: number;
+  xwoba_per?: number;
+  xwoba_per_rank?: number;
+  xslg_per?: number;
+  xslg_per_rank?: number;
+  at_bats?: number;
 }

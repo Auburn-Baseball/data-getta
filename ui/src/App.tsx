@@ -55,7 +55,7 @@ export default function App() {
             <Route path="conferences" element={<ConferencePage year={year} />} />
             <Route
               path="team/:trackmanAbbreviation/player/:playerName"
-              element={<PlayerPage startDate={dateRange.startDate} endDate={dateRange.endDate} />}
+              element={<PlayerPage year={year} />}
             >
               <Route
                 path="stats/:year"
@@ -65,7 +65,7 @@ export default function App() {
                 path="heat-map/:year"
                 element={<HeatMapTab startDate={dateRange.startDate} endDate={dateRange.endDate} />}
               />
-              <Route path="percentiles/:year" element={<div>Percentiles Page</div>} />
+              <Route path="percentiles/:year" element={<PercentilesTab year={year} />} />
             </Route>
             <Route path="team/:trackmanAbbreviation" element={<TeamPage year={year} />}>
               <Route index element={<Navigate to="roster" replace />} />

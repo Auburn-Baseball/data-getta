@@ -3,15 +3,17 @@ import { cachedQuery, createCacheKey } from '@/utils/supabase/cache';
 import { BatterStatsTable, PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
 import { Typography, Box } from '@mui/material';
 import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
-import AdvancedBattingStatsTable from '@/components/player/Batting/AdvancedBattingStatsTable';
 import PitchingStatsTable from '@/components/player/Pitching/PitchingStatsTable';
+import PitchCountTable from '@/components/player/Pitching/PitchCountTable';
 import { useState, useEffect } from 'react';
 import StatsTableSkeleton from '@/components/player/StatsTableSkeleton';
 import { useParams } from 'react-router';
+import { batterStatsTransform } from '@/transforms/batterStatsTransform';
+import { pitcherStatsTransform, pitchCountsTransform } from '@/transforms/pitcherStatsTransforms';
 
 type StatsTabProps = {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 };
 
 export default function StatsTab({ startDate, endDate }: StatsTabProps) {
@@ -21,32 +23,32 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
     year: string;
   }>();
 
-  const [batter, setBatter] = useState<BatterStatsTable[]>([]);
-  const [pitcher, setPitcher] = useState<PitcherStatsTable[]>([]);
-  const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
+  const [batterStats, setBatterStats] = useState<BatterStatsTable | null>(null);
+  const [pitcherStats, setPitcherStats] = useState<PitcherStatsTable | null>(null);
+  const [pitchCounts, setPitchCounts] = useState<PitchCountsTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Parse the player name correctly
   const decodedPlayerName = playerName ? decodeURIComponent(playerName).replace('_', ', ') : '';
   const decodedTeamName = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
-  const safeYear = year || '2025';
 
   useEffect(() => {
     async function fetchStats() {
-      if (!decodedPlayerName || !decodedTeamName) return;
+      if (!decodedPlayerName || !decodedTeamName || !startDate || !endDate) return;
 
       try {
         setLoading(true);
         setError(null);
 
+        console.log(`Fetching stats for ${decodedPlayerName} from ${startDate} to ${endDate}`);
+
+        // Fetch batting stats
         const { data: batterData, error: batterError } = await cachedQuery({
           key: createCacheKey('BatterStats', {
             select: '*',
             eq: {
               Batter: decodedPlayerName,
               BatterTeam: decodedTeamName,
-              Year: safeYear,
             },
             range: {
               startDate,
@@ -59,19 +61,20 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
               .select('*')
               .eq('Batter', decodedPlayerName)
               .eq('BatterTeam', decodedTeamName)
-              .eq('Year', safeYear)
+              .gte('Date', startDate)
+              .lte('Date', endDate)
               .overrideTypes<BatterStatsTable[], { merge: false }>(),
         });
 
         if (batterError) throw batterError;
 
+        // Fetch pitching stats
         const { data: pitcherData, error: pitcherError } = await cachedQuery({
           key: createCacheKey('PitcherStats', {
             select: '*',
             eq: {
               Pitcher: decodedPlayerName,
               PitcherTeam: decodedTeamName,
-              Year: safeYear,
             },
             range: {
               startDate,
@@ -84,19 +87,20 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
               .select('*')
               .eq('Pitcher', decodedPlayerName)
               .eq('PitcherTeam', decodedTeamName)
-              .eq('Year', safeYear)
+              .gte('Date', startDate)
+              .lte('Date', endDate)
               .overrideTypes<PitcherStatsTable[], { merge: false }>(),
         });
 
         if (pitcherError) throw pitcherError;
 
+        // Fetch pitch count data
         const { data: pitchData, error: pitchError } = await cachedQuery({
           key: createCacheKey('PitchCounts', {
             select: '*',
             eq: {
               Pitcher: decodedPlayerName,
               PitcherTeam: decodedTeamName,
-              Year: safeYear,
             },
             range: {
               startDate,
@@ -109,15 +113,30 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
               .select('*')
               .eq('Pitcher', decodedPlayerName)
               .eq('PitcherTeam', decodedTeamName)
-              .eq('Year', safeYear)
+              .gte('Date', startDate)
+              .lte('Date', endDate)
               .overrideTypes<PitchCountsTable[], { merge: false }>(),
         });
 
         if (pitchError) throw pitchError;
 
-        setBatter(batterData || []);
-        setPitcher(pitcherData || []);
-        setPitches(pitchData || []);
+        // Transform data using the appropriate transforms
+        const transformedBatterStats = batterData?.length
+          ? (batterStatsTransform(batterData)[0] ?? null)
+          : null;
+
+        const transformedPitcherStats = pitcherData?.length
+          ? (pitcherStatsTransform(pitcherData)[0] ?? null)
+          : null;
+
+        const transformedPitchCounts = pitchData?.length
+          ? (pitchCountsTransform(pitchData)[0] ?? null)
+          : null;
+
+        // Set state with transformed data
+        setBatterStats(transformedBatterStats);
+        setPitcherStats(transformedPitcherStats);
+        setPitchCounts(transformedPitchCounts);
       } catch (err) {
         console.error('Error fetching stats:', err);
         setError('Failed to load player stats');
@@ -127,7 +146,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
     }
 
     fetchStats();
-  }, [decodedPlayerName, decodedTeamName, safeYear, startDate, endDate]);
+  }, [decodedPlayerName, decodedTeamName, startDate, endDate]);
 
   if (loading) return <StatsTableSkeleton />;
 
@@ -141,43 +160,37 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
     );
   }
 
-  const hasBatterData = batter.length > 0;
-  const hasPitcherData = pitcher.length > 0;
-  const hasPitchData = pitches.length > 0;
+  const hasBatterData = !!batterStats;
+  const hasPitcherData = !!pitcherStats;
+  const hasPitchCountsData = !!pitchCounts;
 
-  if (!hasBatterData && !hasPitcherData && !hasPitchData) {
+  if (!hasBatterData && !hasPitcherData && !hasPitchCountsData) {
     return (
       <Typography variant="h6" color="#d32f2f">
         <strong>Strikeout!</strong>
         <br />
-        No stats found for this player.
+        No stats found for this player between {startDate} and {endDate}.
       </Typography>
     );
   }
 
   return (
     <>
-      {/* Stats Tables */}
       <Box sx={{ mt: 2, mb: 6 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {hasBatterData && (
-            <>
-              <div>
-                <BattingStatsTable
-                  teamName={decodedTeamName}
-                  playerName={decodedPlayerName}
-                  year={safeYear}
-                />
-              </div>
-            </>
+            <div>
+              <BattingStatsTable stats={batterStats} teamName={decodedTeamName} />
+            </div>
           )}
           {hasPitcherData && (
             <div>
-              <PitchingStatsTable
-                teamName={decodedTeamName}
-                playerName={decodedPlayerName}
-                year={safeYear}
-              />
+              <PitchingStatsTable stats={pitcherStats} teamName={decodedTeamName} />
+            </div>
+          )}
+          {hasPitchCountsData && (
+            <div>
+              <PitchCountTable stats={pitchCounts} teamName={decodedTeamName} />
             </div>
           )}
         </div>

@@ -8,11 +8,10 @@ import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
 
 type PlayerPageProps = {
-  startDate: string | null;
-  endDate: string | null;
+  year: number;
 };
 
-export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
+export default function PlayerPage({ year }: PlayerPageProps) {
   const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
@@ -23,14 +22,12 @@ export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
   const [player, setPlayer] = useState<PlayersTable | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Handle stats redirect - changed to use year instead of date range
   useEffect(() => {
     if (trackmanAbbreviation && playerName) {
       const playerPath = `/team/${trackmanAbbreviation}/player/${playerName}`;
 
       if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
-        // Use the current year (2025) instead of date range
-        navigate(`${playerPath}/stats/2025`, { replace: true });
+        navigate(`${playerPath}/stats/${year}`, { replace: true });
       }
     }
   }, [location.pathname, trackmanAbbreviation, playerName, navigate]);
@@ -51,13 +48,9 @@ export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
             eq: {
               TeamTrackmanAbbreviation: decodedTrackmanAbbreviation,
               Name: decodedPlayerName,
-              Year: 2025,
+              Year: year,
             },
             maybeSingle: true,
-            range: {
-              startDate,
-              endDate,
-            },
           }),
           query: () =>
             supabase
@@ -65,7 +58,7 @@ export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
               .select('*')
               .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
               .eq('Name', decodedPlayerName)
-              .eq('Year', 2025)
+              .eq('Year', year)
               .maybeSingle(),
         });
 
@@ -80,7 +73,7 @@ export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
     }
 
     fetchPlayer();
-  }, [trackmanAbbreviation, playerName, startDate, endDate]);
+  }, [trackmanAbbreviation, playerName, year]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -107,7 +100,7 @@ export default function PlayerPage({ startDate, endDate }: PlayerPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <PlayerInfo name={player.Name} team={player.TeamTrackmanAbbreviation} />
+        <PlayerInfo name={player.Name} team={player.TeamTrackmanAbbreviation} year={year} />
         <Outlet />
       </Box>
     </Box>

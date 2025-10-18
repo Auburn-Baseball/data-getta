@@ -33,7 +33,6 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
             key: createCacheKey('PitcherStats', {
               select: '*',
               eq: { PitcherTeam: decodedTrackmanAbbreviation },
-              order: [{ column: 'total_innings_pitched', ascending: false }],
               range: {
                 startDate,
                 endDate,
@@ -52,7 +51,6 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
             key: createCacheKey('PitchCounts', {
               select: '*',
               eq: { PitcherTeam: decodedTrackmanAbbreviation },
-              order: [{ column: 'total_pitches', ascending: false }],
               range: {
                 startDate,
                 endDate,
