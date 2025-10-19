@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_advanced_batting_table import (
+from utils.advanced_batting_stats_upload import (
     combine_advanced_batting_stats,
     get_advanced_batting_stats_from_buffer,
     is_in_strike_zone,

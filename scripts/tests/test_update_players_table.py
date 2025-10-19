@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_players_table import get_players_from_buffer
+from utils.players_upload import get_players_from_buffer
 
 
 def test_get_players_from_buffer_combines_pitcher_and_batter():

@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_pitches_table import get_pitch_counts_from_buffer
+from utils.pitch_counts_upload import get_pitch_counts_from_buffer
 
 
 def test_get_pitch_counts_from_buffer():

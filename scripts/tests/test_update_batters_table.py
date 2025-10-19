@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_batters_table import (
+from utils.batter_stats_upload import (
     calculate_total_bases,
     get_batter_stats_from_buffer,
     is_in_strike_zone,

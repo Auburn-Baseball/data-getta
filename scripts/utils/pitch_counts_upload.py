@@ -61,6 +61,7 @@ def get_pitch_counts_from_buffer(
         if game_date_obj is None:
             raise ValueError(f"Unable to parse game date from filename: {filename}")
         game_date = str(game_date_obj)
+        season_year = game_date_obj.year
 
         # Check if required columns exist
         required_columns = [
@@ -88,12 +89,7 @@ def get_pitch_counts_from_buffer(
             if not pitcher_name or not pitcher_team:
                 continue
 
-            season_date = date_parser.get_date_object(filename)
-            if season_date is None:
-                raise ValueError(
-                    f"Unable to determine game date from filename: {filename}"
-                )
-            key = (pitcher_name, pitcher_team, season_date.year)
+            key = (pitcher_name, pitcher_team, season_year)
 
             # Count total pitches
             total_pitches = len(group)

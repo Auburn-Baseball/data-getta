@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_advanced_pitching_table import (
+from utils.advanced_pitching_stats_upload import (
     combine_advanced_pitching_stats,
     get_advanced_pitching_stats_from_buffer,
     is_in_strike_zone,

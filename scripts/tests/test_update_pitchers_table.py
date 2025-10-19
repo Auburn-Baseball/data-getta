@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_pitchers_table import (
+from utils.pitcher_stats_upload import (
     calculate_innings_pitched,
     get_pitcher_stats_from_buffer,
     is_in_strike_zone,

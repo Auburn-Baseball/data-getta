@@ -36,6 +36,10 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
             return {}
 
         date_parser = CSVFilenameParser()
+        key_date = date_parser.get_date_object(filename)
+        if key_date is None:
+            raise ValueError(f"Unable to parse game date from filename: {filename}")
+        season_year = key_date.year
         players_dict = {}
 
         # Extract pitchers
@@ -48,12 +52,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
 
                 if pitcher_name and pitcher_id and pitcher_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
-                    key_date = date_parser.get_date_object(filename)
-                    if key_date is None:
-                        raise ValueError(
-                            f"Unable to determine game date from filename: {filename}"
-                        )
-                    key = (pitcher_name, pitcher_team, key_date.year)
+                    key = (pitcher_name, pitcher_team, season_year)
 
                     # If player already exists, update IDs if not already set
                     if key in players_dict:
@@ -65,7 +64,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
                             "PitcherId": pitcher_id,
                             "BatterId": None,
                             "TeamTrackmanAbbreviation": pitcher_team,
-                            "Year": 2025,
+                            "Year": season_year,
                         }
 
         # Extract batters
@@ -78,12 +77,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
 
                 if batter_name and batter_id and batter_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
-                    key_date = date_parser.get_date_object(filename)
-                    if key_date is None:
-                        raise ValueError(
-                            f"Unable to determine game date from filename: {filename}"
-                        )
-                    key = (batter_name, batter_team, key_date.year)
+                    key = (batter_name, batter_team, season_year)
 
                     # If player already exists, update IDs if not already set
                     if key in players_dict:
@@ -95,7 +89,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
                             "PitcherId": None,
                             "BatterId": batter_id,
                             "TeamTrackmanAbbreviation": batter_team,
-                            "Year": 2025,
+                            "Year": season_year,
                         }
 
         return players_dict
@@ -141,15 +135,15 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
 
         print(f"Successfully processed {total_inserted} player records")
 
-        # Get final count
-        count_result = (
-            supabase.table(f"Players")
-            .select("*", count="exact")
-            .eq("Year", 2025)
-            .execute()
-        )
-        total_players = count_result.count
-        print(f"Total 2025 players in database: {total_players}")
+        years = sorted({record["Year"] for record in player_data})
+        for yr in years:
+            count_result = (
+                supabase.table("Players")
+                .select("Name", count="exact")
+                .eq("Year", yr)
+                .execute()
+            )
+            print(f"Total players in database for {yr}: {count_result.count}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

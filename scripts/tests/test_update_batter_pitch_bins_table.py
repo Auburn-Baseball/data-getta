@@ -1,6 +1,6 @@
 from io import StringIO
 
-from utils.update_batter_pitch_bins_table import (
+from utils.batter_pitch_bins_upload import (
     classify_zone,
     get_batter_bins_from_buffer,
     norm_pitch_type,
