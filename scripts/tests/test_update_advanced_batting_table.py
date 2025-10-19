@@ -37,6 +37,7 @@ Doe,AUB_TIG,Walk,BallCalled,,0,0,1.0,1.2,0,0
     assert record["chase_per"] == 0
     assert record["infield_rc_slice"] == 1
     assert record["infield_rc_per"] == 1.0
+    assert record["processed_dates"] == ["2024-02-16"]
 
 
 def test_combine_advanced_batting_stats():
@@ -60,6 +61,7 @@ def test_combine_advanced_batting_stats():
         "infield_center_slice": 20,
         "infield_rc_slice": 25,
         "infield_right_slice": 20,
+        "processed_dates": ["2024-02-14"],
     }
     new = {
         "Batter": "Doe",
@@ -81,6 +83,7 @@ def test_combine_advanced_batting_stats():
         "infield_center_slice": 6,
         "infield_rc_slice": 8,
         "infield_right_slice": 10,
+        "processed_dates": ["2024-02-15"],
     }
 
     combined = combine_advanced_batting_stats(existing, new)
@@ -116,3 +119,27 @@ def test_combine_advanced_batting_stats():
     assert combined["infield_rc_per"] == round(
         combined["infield_rc_slice"] / total_infield, 3
     )
+    assert combined["processed_dates"] == ["2024-02-14", "2024-02-15"]
+
+
+def test_combine_advanced_batting_stats_skips_duplicate_dates():
+    existing = {
+        "Batter": "Doe",
+        "BatterTeam": "AUB_TIG",
+        "Year": 2024,
+        "plate_app": 10,
+        "batted_balls": 5,
+        "processed_dates": ["2024-02-16"],
+    }
+    new = {
+        "Batter": "Doe",
+        "BatterTeam": "AUB_TIG",
+        "Year": 2024,
+        "plate_app": 5,
+        "batted_balls": 2,
+        "processed_dates": ["2024-02-16"],
+    }
+
+    combined = combine_advanced_batting_stats(existing, new)
+    # Expect unchanged reference since date was already processed
+    assert combined == existing

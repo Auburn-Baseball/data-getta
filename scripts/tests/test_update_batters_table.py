@@ -28,7 +28,7 @@ Doe,AUB_TIG,HomeRun,,InPlay,2.8,0.2,FlyBall,G1,105
 """
     buffer = StringIO(csv)
     stats = get_batter_stats_from_buffer(buffer, "20240216-Game-1.csv")
-    key = ("Doe", "AUB_TIG", 2025)
+    key = ("Doe", "AUB_TIG", 2024)
     assert key in stats
     record = stats[key]
 

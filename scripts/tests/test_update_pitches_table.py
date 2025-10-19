@@ -13,7 +13,7 @@ Ace,AUB_TIG,,Fastball,G2
 Ace,AUB_TIG,Changeup,Changeup,G2
 """
     stats = get_pitch_counts_from_buffer(StringIO(csv), "20240216-Game-1.csv")
-    key = ("Ace", "AUB_TIG", 2025)
+    key = ("Ace", "AUB_TIG", 2024)
     assert key in stats
     record = stats[key]
 

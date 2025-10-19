@@ -40,6 +40,7 @@ Ace,AUB_TIG,Walk,BallCalled,,0,0,1.0,1.2,,Fastball,97
     assert record["whiff_per"] == 0.5
     assert record["out_of_zone_pitches"] == 1
     assert record["chase_per"] == 0
+    assert record["processed_dates"] == ["2024-02-16"]
 
 
 def test_combine_advanced_pitching_stats():
@@ -62,6 +63,7 @@ def test_combine_advanced_pitching_stats():
         "chase_per": 0.18,
         "fastballs": 100,
         "avg_fastball_velo": 94,
+        "processed_dates": ["2024-02-14"],
     }
     new = {
         "Pitcher": "Ace",
@@ -82,6 +84,7 @@ def test_combine_advanced_pitching_stats():
         "chase_per": 0.15,
         "fastballs": 40,
         "avg_fastball_velo": 97,
+        "processed_dates": ["2024-02-15"],
     }
 
     combined = combine_advanced_pitching_stats(existing, new)
@@ -103,3 +106,26 @@ def test_combine_advanced_pitching_stats():
     assert combined["chase_per"] == round(expected_chase, 3)
     expected_fastball_velo = ((94 * 100) + (97 * 40)) / 140
     assert combined["avg_fastball_velo"] == round(expected_fastball_velo, 1)
+    assert combined["processed_dates"] == ["2024-02-14", "2024-02-15"]
+
+
+def test_combine_advanced_pitching_stats_skips_duplicate_dates():
+    existing = {
+        "Pitcher": "Ace",
+        "PitcherTeam": "AUB_TIG",
+        "Year": 2024,
+        "plate_app": 10,
+        "batted_balls": 5,
+        "processed_dates": ["2024-02-16"],
+    }
+    new = {
+        "Pitcher": "Ace",
+        "PitcherTeam": "AUB_TIG",
+        "Year": 2024,
+        "plate_app": 5,
+        "batted_balls": 3,
+        "processed_dates": ["2024-02-16"],
+    }
+
+    combined = combine_advanced_pitching_stats(existing, new)
+    assert combined == existing

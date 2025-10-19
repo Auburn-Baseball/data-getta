@@ -86,16 +86,17 @@ def get_advanced_pitching_stats_from_buffer(
             print(f"Warning: Missing required columns in {filename}")
             return {}
 
-        # Extract year from filename
+        # Extract year and game date from filename
         file_date_parser = CSVFilenameParser()
         date_components = file_date_parser.get_date_components(filename)
         if not date_components:
-            print(
-                f"Warning: Could not extract date from filename {filename}, defaulting to 2025"
-            )
-            year = 2025
-        else:
-            year = date_components[0]
+            raise ValueError(f"Unable to extract date from filename: {filename}")
+        year = date_components[0]
+
+        game_date_obj = file_date_parser.get_date_object(filename)
+        if game_date_obj is None:
+            raise ValueError(f"Unable to parse game date from filename: {filename}")
+        game_date_str = str(game_date_obj)
 
         pitchers_dict = {}
 
@@ -273,6 +274,7 @@ def get_advanced_pitching_stats_from_buffer(
                 ),
                 "ground_balls": ground_balls,
                 "gb_per": round(gb_per, 3) if gb_per is not None else None,
+                "processed_dates": [game_date_str],
             }
 
             pitchers_dict[key] = pitcher_stats
@@ -289,6 +291,12 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
 
     if not existing_stats:
         return new_stats
+
+    existing_dates = set(existing_stats.get("processed_dates") or [])
+    new_dates = set(new_stats.get("processed_dates") or [])
+
+    if new_dates and new_dates.issubset(existing_dates):
+        return existing_stats
 
     # Helper to safely get numeric values
     def safe_get(d, key):
@@ -412,6 +420,8 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
         else None
     )
 
+    combined_dates = sorted(existing_dates.union(new_dates))
+
     return {
         "Pitcher": new_stats["Pitcher"],
         "PitcherTeam": new_stats["PitcherTeam"],
@@ -451,6 +461,7 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
         ),
         "ground_balls": combined_ground_balls,
         "gb_per": round(combined_gb_per, 3) if combined_gb_per is not None else None,
+        "processed_dates": combined_dates,
     }
 
 
@@ -491,6 +502,8 @@ def upload_advanced_pitching_to_supabase(
                 combined = combine_advanced_pitching_stats(
                     existing_stats[key], new_stat
                 )
+                if combined is existing_stats[key]:
+                    continue
                 updated_count += 1
             else:
                 combined = new_stat

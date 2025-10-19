@@ -5,6 +5,7 @@ from supabase import create_client, Client
 import re
 from typing import Dict, Tuple, List
 from pathlib import Path
+from .file_date import CSVFilenameParser
 
 # Load environment variables
 project_root = Path(__file__).parent.parent.parent
@@ -34,6 +35,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
             print(f"Warning: No Pitcher or Batter columns found in {filename}")
             return {}
 
+        date_parser = CSVFilenameParser()
         players_dict = {}
 
         # Extract pitchers
@@ -46,7 +48,12 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
 
                 if pitcher_name and pitcher_id and pitcher_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
-                    key = (pitcher_name, pitcher_team, 2025)
+                    key_date = date_parser.get_date_object(filename)
+                    if key_date is None:
+                        raise ValueError(
+                            f"Unable to determine game date from filename: {filename}"
+                        )
+                    key = (pitcher_name, pitcher_team, key_date.year)
 
                     # If player already exists, update IDs if not already set
                     if key in players_dict:
@@ -71,7 +78,12 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
 
                 if batter_name and batter_id and batter_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
-                    key = (batter_name, batter_team, 2025)
+                    key_date = date_parser.get_date_object(filename)
+                    if key_date is None:
+                        raise ValueError(
+                            f"Unable to determine game date from filename: {filename}"
+                        )
+                    key = (batter_name, batter_team, key_date.year)
 
                     # If player already exists, update IDs if not already set
                     if key in players_dict:

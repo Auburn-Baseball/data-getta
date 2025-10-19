@@ -260,7 +260,12 @@ def upload_batter_pitch_bins(bins: Dict[BinKey, Dict[str, float]]):
 
 def main():
     csv_root = PROJECT_ROOT / "scripts" / "csv"
-    year = int(os.getenv("BINS_YEAR", "2025"))
+    year_value = os.getenv("BINS_YEAR")
+    if not year_value:
+        raise RuntimeError(
+            "BINS_YEAR environment variable must be set to process batter bins."
+        )
+    year = int(year_value)
 
     year_folder = csv_root / str(year)
     if not year_folder.exists():

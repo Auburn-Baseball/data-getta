@@ -16,7 +16,7 @@ def test_pitcher_is_in_strike_zone():
 def test_calculate_innings_pitched():
     assert calculate_innings_pitched(3, 0) == 1.0
     assert calculate_innings_pitched(2, 0) == 0.2
-    assert calculate_innings_pitched(1, 1) == 0.4
+    assert calculate_innings_pitched(1, 1) == 0.2
 
 
 def test_get_pitcher_stats_from_buffer():
@@ -28,7 +28,7 @@ Ace,AUB_TIG,HomeRun,,InPlay,2.8,0.2,1,0,0,0,4,0,H4,G1
 Ace,AUB_TIG,,Strikeout,StrikeSwinging,3.0,0.0,1,1,0,0,5,0,H5,G1
 """
     stats = get_pitcher_stats_from_buffer(StringIO(csv), "20240216-Game-1.csv")
-    key = ("Ace", "AUB_TIG", 2025)
+    key = ("Ace", "AUB_TIG", 2024)
     assert key in stats
     record = stats[key]
 

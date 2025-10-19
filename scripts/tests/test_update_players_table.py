@@ -10,7 +10,7 @@ Smith,S789,AUB_TIG,,,
 ,,,
 """
     players = get_players_from_buffer(StringIO(csv), "20240216-Game-1.csv")
-    key = ("Doe", "AUB_TIG", 2025)
+    key = ("Doe", "AUB_TIG", 2024)
     assert key in players
     record = players[key]
     assert record["PitcherId"] == "D123"

@@ -90,12 +90,13 @@ def get_advanced_batting_stats_from_buffer(
         file_date_parser = CSVFilenameParser()
         date_components = file_date_parser.get_date_components(filename)
         if not date_components:
-            print(
-                f"Warning: Could not extract date from filename {filename}, defaulting to 2025"
-            )
-            year = 2025
-        else:
-            year = date_components[0]
+            raise ValueError(f"Unable to extract date from filename: {filename}")
+        year = date_components[0]
+
+        game_date_obj = file_date_parser.get_date_object(filename)
+        if game_date_obj is None:
+            raise ValueError(f"Unable to parse game date from filename: {filename}")
+        game_date_str = str(game_date_obj)
 
         batters_dict = {}
 
@@ -215,6 +216,8 @@ def get_advanced_batting_stats_from_buffer(
             # Compute infield slices
             for _, row in group.iterrows():
                 try:
+                    if row.get("PitchCall") != "InPlay":
+                        continue
                     distance = (
                         float(row["Distance"]) if pd.notna(row["Distance"]) else None
                     )
@@ -331,6 +334,7 @@ def get_advanced_batting_stats_from_buffer(
                     if infield_right_per is not None
                     else None
                 ),
+                "processed_dates": [game_date_str],
             }
 
             batters_dict[key] = batter_stats
@@ -346,6 +350,12 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
     """Merge existing and new batting stats, updating rates and percentages"""
     if not existing_stats:
         return new_stats
+
+    existing_dates = set(existing_stats.get("processed_dates") or [])
+    new_dates = set(new_stats.get("processed_dates") or [])
+
+    if new_dates and new_dates.issubset(existing_dates):
+        return existing_stats
 
     # Combine plate appearances and batted balls
     combined_plate_app = existing_stats.get("plate_app", 0) + new_stats.get(
@@ -499,6 +509,8 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         else None
     )
 
+    combined_dates = sorted(existing_dates.union(new_dates))
+
     return {
         "Batter": new_stats["Batter"],
         "BatterTeam": new_stats["BatterTeam"],
@@ -560,6 +572,7 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
             if combined_infield_right_per is not None
             else None
         ),
+        "processed_dates": combined_dates,
     }
 
 
@@ -596,6 +609,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
         for key, new_stat in batters_dict.items():
             if key in existing_stats:
                 combined = combine_advanced_batting_stats(existing_stats[key], new_stat)
+                if combined is existing_stats[key]:
+                    # Date already processed; skip to avoid duplicate uploads
+                    continue
                 updated_count += 1
             else:
                 combined = new_stat

@@ -306,7 +306,12 @@ def upload_pitcher_pitch_bins(bins: Dict[PitchKey, dict]):
 def main():
     print("Starting pitch bins CSV processing...")
     csv_folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "csv")
-    year = 2025
+    year_value = os.getenv("BINS_YEAR")
+    if not year_value:
+        raise RuntimeError(
+            "BINS_YEAR environment variable must be set to process pitcher bins."
+        )
+    year = int(year_value)
     print(f"Looking for CSV files in: {csv_folder_path}\\{year}")
     bins = process_csv_folder(csv_folder_path, year=year)
     print(f"\nTotal unique bins: {len(bins)}")

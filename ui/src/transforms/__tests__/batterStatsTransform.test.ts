@@ -121,7 +121,7 @@ describe('batterStatsTransform', () => {
     expect(aggregated.isolated_power).toBeCloseTo(0.429, 3);
     expect(aggregated.k_percentage).toBeCloseTo(0.25, 3);
     expect(aggregated.base_on_ball_percentage).toBeCloseTo(0.125, 3);
-    expect(aggregated.chase_percentage).toBeCloseTo(0.163, 3);
+    expect(aggregated.chase_percentage).toBeCloseTo(0.1625, 3);
     expect(aggregated.in_zone_whiff_percentage).toBeCloseTo(0.27, 3);
     expect(aggregated.k_per).toBeCloseTo(1);
     expect(aggregated.bb_per).toBeCloseTo(0.5);
