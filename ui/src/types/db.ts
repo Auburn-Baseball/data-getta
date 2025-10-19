@@ -84,7 +84,7 @@ export interface PitcherStatsTable {
 export interface PitchCountsTable {
   Pitcher: string;
   PitcherTeam: string;
-  Date?: string;
+  Date: string;
   Year: number;
   total_pitches: number;
   curveball_count: number;
@@ -97,7 +97,7 @@ export interface PitchCountsTable {
   splitter_count: number;
   other_count: number;
   games: number;
-  is_practice?: boolean;
+  is_practice: boolean;
 }
 
 export interface SeasonDatesTable {

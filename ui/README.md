@@ -10,6 +10,24 @@ npm install
 npm run dev
 ```
 
+## Building
+
+```bash
+npm run build
+```
+
+## Linting
+
+```bash
+npm run lint
+```
+
+## Formatting
+
+```bash
+npm run format
+```
+
 ## Project Structure
 
 ```
@@ -31,22 +49,4 @@ src/
 ├── transforms/            # Helpers that shape DB rows into view models
 ├── types/                 # Shared TypeScript types
 └── utils/                 # Generic helpers/utilities
-```
-
-## Building
-
-```bash
-npm run build
-```
-
-## Linting
-
-```bash
-npm run lint
-```
-
-## Formatting
-
-```bash
-npm run format
 ```
