@@ -116,6 +116,16 @@ const PercentilesTab: React.FC = () => {
                 const rankKey = `${key}_rank` as keyof AdvancedBattingStatsTable;
                 const rankValue = stats[rankKey];
                 const rank = typeof rankValue === 'number' ? rankValue : 1;
+                const rawValue = stats[key];
+                let statValue: string | number = '-';
+
+                if (typeof rawValue === 'number') {
+                  if (key.endsWith('per') || key === 'k_per' || key === 'bb_per') {
+                    statValue = `${(rawValue * 100).toFixed(1)}%`;
+                  } else {
+                    statValue = rawValue;
+                  }
+                }
 
                 return (
                   <StatBar
@@ -123,13 +133,7 @@ const PercentilesTab: React.FC = () => {
                     statName={label}
                     percentile={Math.round(rank)}
                     color={getRankColor(Math.round(rank))}
-                    statValue={
-                      typeof stats[key] === 'number'
-                        ? key.endsWith('per') || key === 'k_per' || key === 'bb_per'
-                          ? `${(stats[key] * 100).toFixed(1)}%`
-                          : stats[key]
-                        : '-'
-                    }
+                    statValue={statValue}
                   />
                 );
               })}
