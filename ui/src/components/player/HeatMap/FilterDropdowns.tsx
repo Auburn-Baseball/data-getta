@@ -1,24 +1,25 @@
 import { Box, MenuItem, Select, Typography } from '@mui/material';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'react-router';
 
 const pitchOptions = ['Fastball', 'Curveball', 'Slider', 'Changeup', 'Sinker'];
 const yearOptions = ['2024', '2025'];
-const viewOptions = ['Individual', 'Density']; // 🆕 View Mode options
+const viewOptions = ['Individual', 'Density'];
 
 export default function FilterDropdowns({ player }: { player: string }) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const pitch = searchParams.get('pitch') || '';
   const year = searchParams.get('year') || '2024';
-  const view = searchParams.get('view') || 'Density'; // 🆕 default to Density
-  const batter = searchParams.get('batter') || 'Both'; // default to both
+  const view = searchParams.get('view') || 'Density';
+  const batter = searchParams.get('batter') || 'Both';
 
   const handleChange = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('player', player);
-    params.set(key, value);
-    router.push(`?${params.toString()}`);
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
+      params.set('player', player);
+      params.set(key, value);
+      return params;
+    });
   };
 
   return (
