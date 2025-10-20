@@ -1,7 +1,7 @@
 """
 Author: Joshua Reed
 Created: 15 October 2025
-Updated: 15 October 2025
+Updated: 19 October 2025
 
 Advanced Pitching Stats Utility Module
 - Loads environment variables and initializes Supabase client

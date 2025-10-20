@@ -1,7 +1,7 @@
 """
 Author: Joshua Reed
 Created: 08 October 2025
-Updated: 14 October 2025
+Updated: 19 October 2025
 
 Advanced Batting Stats Utility Module
 - Loads environment variables and initializes Supabase client
