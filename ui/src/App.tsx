@@ -1,51 +1,150 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
-import LoginPage from '@/pages/LoginPage';
-import ConferencePage from '@/pages/ConferencePage';
-import AppLayout from '@/layouts/AppLayout';
-import TeamPage from '@/pages/TeamPage';
-import RosterTab from '@/pages/RosterTab';
-import BattingTab from '@/pages/BattingTab';
-import PitchingTab from '@/pages/PitchingTab';
-import PlayerPage from '@/pages/PlayerPage';
-import PercentilesTab from '@/pages/player/PercentilesTab';
-import StatsTab from '@/pages/player/StatsTab';
-import HeatMapTab from '@/pages/player/HeatMapTab';
-import RequireAuth from '@/utils/supabase/requireauth';
-import PublicOnly from '@/utils/supabase/publiconly';
-import ResetPasswordPage from '@/pages/ResetPasswordPage';
-import TeamPerformancePage from '@/pages/TeamPerformancePage';
+import { useCallback, useEffect, useState } from 'react';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router';
+
+import AppRoutes from '@/router/routes';
+import { fetchSeasonDateRanges } from '@/services/seasonService';
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
+import { areDateRangesEqual } from '@/utils/dateRange';
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 export default function App() {
   return (
     <BrowserRouter basename={basename}>
-      <Routes>
-        {/* Public-only group: if signed in, redirect to /conferences */}
-        <Route element={<PublicOnly />}>
-          <Route index element={<LoginPage />} />
-          <Route path="reset-password" element={<ResetPasswordPage />} />
-        </Route>
-
-        {/* Auth-only group */}
-        <Route element={<RequireAuth />}>
-          <Route element={<AppLayout />}>
-            <Route path="conferences" element={<ConferencePage />} />
-            <Route path="team/:trackmanAbbreviation/player/:playerName" element={<PlayerPage />}>
-              <Route path="stats/:year" element={<StatsTab />} />
-              <Route path="heat-map/:year" element={<HeatMapTab />} />
-              <Route path="percentiles/:year" element={<PercentilesTab />} />
-            </Route>
-            <Route path="team/:trackmanAbbreviation" element={<TeamPage />}>
-              <Route index element={<Navigate to="roster" replace />} />
-              <Route path="roster" element={<RosterTab />} />
-              <Route path="batting" element={<BattingTab />} />
-              <Route path="pitching" element={<PitchingTab />} />
-            </Route>
-            <Route path="teamperformance" element={<TeamPerformancePage />} />
-          </Route>
-        </Route>
-      </Routes>
+      <AppShell />
     </BrowserRouter>
+  );
+}
+
+function AppShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [seasonRanges, setSeasonRanges] = useState<SeasonDateRange[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSeasonRanges = async () => {
+      try {
+        setLoading(true);
+        const { ranges, errorMessage } = await fetchSeasonDateRanges();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (errorMessage) {
+          setError(errorMessage);
+        }
+
+        if (!ranges.length) {
+          setSeasonRanges([]);
+          return;
+        }
+
+        setSeasonRanges(ranges);
+      } catch (err) {
+        if (isMounted) {
+          setError('Failed to load season dates.');
+          console.error('[App] Failed to fetch season dates', err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadSeasonRanges();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateSearchParams = useCallback(
+    (range: DateRange, replace = false) => {
+      const params = new URLSearchParams(location.search);
+      params.set('start', range.startDate);
+      params.set('end', range.endDate);
+
+      navigate(
+        {
+          pathname: location.pathname,
+          search: `?${params.toString()}`,
+        },
+        { replace },
+      );
+    },
+    [location.pathname, location.search, navigate],
+  );
+
+  useEffect(() => {
+    if (!seasonRanges.length) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const startParam = params.get('start');
+    const endParam = params.get('end');
+
+    const nextRange: DateRange =
+      startParam && endParam
+        ? { startDate: startParam, endDate: endParam }
+        : {
+            startDate: seasonRanges[0].startDate,
+            endDate: seasonRanges[0].endDate,
+          };
+
+    setDateRange((prev) => {
+      if (prev && areDateRangesEqual(prev, nextRange)) {
+        return prev;
+      }
+      return nextRange;
+    });
+
+    if (!startParam || !endParam) {
+      updateSearchParams(nextRange, true);
+    }
+  }, [location.search, seasonRanges, updateSearchParams]);
+
+  const handleDateRangeChange = useCallback(
+    (range: DateRange) => {
+      setDateRange((prev) => {
+        if (prev && areDateRangesEqual(prev, range)) {
+          return prev;
+        }
+        return range;
+      });
+
+      if (!dateRange || !areDateRangesEqual(dateRange, range)) {
+        updateSearchParams(range, false);
+      }
+    },
+    [dateRange, updateSearchParams],
+  );
+
+  if (loading) {
+    return <div>Loading seasons…</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  if (!dateRange) {
+    return <div>No season data available.</div>;
+  }
+
+  return (
+    <AppRoutes
+      dateRange={dateRange}
+      onDateRangeChange={handleDateRangeChange}
+      seasonRanges={seasonRanges}
+    />
   );
 }

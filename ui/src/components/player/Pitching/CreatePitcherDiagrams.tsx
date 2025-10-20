@@ -1,27 +1,36 @@
 import Grid from '@mui/material/Grid';
-import { Box } from '@mui/material';
+import type { PitchCountsTable, PitcherStatsTable } from '@/types/db';
 import PitchingStatsTable from './PitchingStatsTable';
-import { pitcher_stats_forTable, pitch_sums_forTable } from '@/utils/types';
+import PitchCountTable from './PitchCountTable';
 
-export default function CreatePitcherDiagrams({
-  stats,
-  sums,
-}: {
-  stats: pitcher_stats_forTable[];
-  sums: pitch_sums_forTable[];
-}) {
+type CreatePitcherDiagramsProps = {
+  stats: PitcherStatsTable | null;
+  pitchCounts: PitchCountsTable | null;
+};
+
+export default function CreatePitcherDiagrams({ stats, pitchCounts }: CreatePitcherDiagramsProps) {
+  if (!stats && !pitchCounts) {
+    return null;
+  }
+
   return (
     <>
-      {/* The grid container centers the PitchingStatsTable component */}
-      <Grid sx={{ display: 'flex', justifyContent: 'center', paddingY: 2, width: '100%' }}>
-        <PitchingStatsTable
-          player={stats}
-          teamName={undefined} // Default value; can be updated when real team data is provided
-          playerName={undefined} // Default value; placeholder until a valid player name is available
-          startDate={undefined} // Default start date is managed within PitchingStatsTable
-          endDate={undefined} // Default end date is calculated in PitchingStatsTable
-        />
-      </Grid>
+      {stats && (
+        <Grid
+          sx={{ display: 'flex', justifyContent: 'center', paddingY: 2, width: '100%' }}
+          aria-label="Pitching stats"
+        >
+          <PitchingStatsTable stats={stats} />
+        </Grid>
+      )}
+      {pitchCounts && (
+        <Grid
+          sx={{ display: 'flex', justifyContent: 'center', paddingY: 2, width: '100%' }}
+          aria-label="Pitch count summary"
+        >
+          <PitchCountTable stats={pitchCounts} />
+        </Grid>
+      )}
     </>
   );
 }

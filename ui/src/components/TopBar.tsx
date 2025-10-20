@@ -3,9 +3,29 @@ import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import { common } from '@mui/material/colors';
-import { Theme } from '@/utils/theme';
 
-export default function TopBar({ drawerToggle, width }: { drawerToggle: any; width: number }) {
+import CacheRefreshButton from '@/components/CacheRefreshButton';
+import SeasonDateRangeSelect from '@/components/SeasonDateRangeSelect';
+import { Theme } from '@/styles/theme';
+import type { DateRange, SeasonDateRange } from '@/types/dateRange';
+
+type TopBarProps = {
+  drawerToggle: () => void;
+  width: number;
+  startDate: string;
+  endDate: string;
+  seasonRanges: SeasonDateRange[];
+  onDateRangeChange: (range: DateRange) => void;
+};
+
+export default function TopBar({
+  drawerToggle,
+  width,
+  startDate,
+  endDate,
+  seasonRanges,
+  onDateRangeChange,
+}: TopBarProps) {
   return (
     <AppBar
       component="header"
@@ -16,7 +36,7 @@ export default function TopBar({ drawerToggle, width }: { drawerToggle: any; wid
         backgroundColor: common.white,
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ display: 'flex' }}>
         <IconButton
           onClick={drawerToggle}
           sx={{
@@ -27,6 +47,12 @@ export default function TopBar({ drawerToggle, width }: { drawerToggle: any; wid
         >
           <MenuIcon />
         </IconButton>
+        <SeasonDateRangeSelect
+          value={{ startDate, endDate }}
+          seasonRanges={seasonRanges}
+          onDateRangeChange={onDateRangeChange}
+        />
+        <CacheRefreshButton />
       </Toolbar>
     </AppBar>
   );

@@ -6,8 +6,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import Link from '@/utils/Link';
-import { ConferenceGroup } from '@/types/types';
+import Link from '@/components/ui/Link';
+import { ConferenceGroup } from '@/types';
 
 interface ConferenceTableProps {
   conferenceGroup: ConferenceGroup;

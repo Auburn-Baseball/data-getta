@@ -1,5 +1,13 @@
 // src/components/team/TeamPercent.tsx
-import { Box, Typography, LinearProgress, Stack, Divider, FormControl, Select, MenuItem, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import {
+  Box,
+  Typography,
+  LinearProgress,
+  Stack,
+  Divider,
+  ToggleButtonGroup,
+  ToggleButton,
+} from '@mui/material';
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -8,24 +16,6 @@ export interface Row {
   label: string;
   raw_value: number | string;
   percentile: number | string;
-}
-
-function YearDropdown({ year }: { year: string }) {
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const setYear = (y: string) => {
-    const next = new URLSearchParams(params);
-    next.set('year', y);
-    navigate({ search: `?${next.toString()}` }, { replace: false });
-  };
-  return (
-    <FormControl size="small" sx={{ minWidth: 140 }}>
-      <Select value={year} onChange={(e) => setYear(String(e.target.value))}>
-        <MenuItem value="2024">2024</MenuItem>
-        <MenuItem value="2025">2025</MenuItem>
-      </Select>
-    </FormControl>
-  );
 }
 
 // NEW: Mode toggle (overall vs wl)
@@ -54,7 +44,7 @@ function ModeToggle({ mode }: { mode: 'overall' | 'wl' }) {
 // ---------- helpers ----------
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toUpperCase();
 const asNum = (x: number | string | null | undefined) =>
-  x == null ? NaN : (typeof x === 'number' ? x : Number(x));
+  x == null ? NaN : typeof x === 'number' ? x : Number(x);
 
 const getBarColor = (value: number) => {
   if (value >= 90) return '#c62828';
@@ -76,11 +66,11 @@ const formatRaw = (label: string, v: number | string) => {
 };
 
 export default function CreateTeamPercent({
-  year,
+  seasonLabel,
   rows,
   mode,
 }: {
-  year: string;
+  seasonLabel: string;
   rows: Row[];
   mode: 'overall' | 'wl';
 }) {
@@ -89,17 +79,20 @@ export default function CreateTeamPercent({
 
   // Group rows by team code
   const groupedByTeam = useMemo(() => {
-    return rows.reduce((acc, row) => {
-      (acc[row.team] ||= []).push(row);
-      return acc;
-    }, {} as Record<string, Row[]>);
+    return rows.reduce(
+      (acc, row) => {
+        (acc[row.team] ||= []).push(row);
+        return acc;
+      },
+      {} as Record<string, Row[]>,
+    );
   }, [rows]);
 
   // Rank teams by average percentile
   const rankedTeams = useMemo(() => {
     return Object.entries(groupedByTeam)
       .map(([team, stats]) => {
-        const nums = stats.map(s => asNum(s.percentile)).filter(v => Number.isFinite(v));
+        const nums = stats.map((s) => asNum(s.percentile)).filter((v) => Number.isFinite(v));
         const avg = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
         return { team, average: avg };
       })
@@ -111,9 +104,9 @@ export default function CreateTeamPercent({
   const restRanked = top10.slice(3);
 
   const teamVisualOrder = useMemo(() => {
-    const top10Teams = top10.map(t => t.team);
+    const top10Teams = top10.map((t) => t.team);
     return top10Teams.includes('AUB_TIG')
-      ? ['AUB_TIG', ...top10Teams.filter(t => t !== 'AUB_TIG')]
+      ? ['AUB_TIG', ...top10Teams.filter((t) => t !== 'AUB_TIG')]
       : top10Teams;
   }, [top10]);
 
@@ -126,9 +119,7 @@ export default function CreateTeamPercent({
         <Box key={`${prefix}-${stat.label}-${i}`}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography>{stat.label}</Typography>
-            <Typography fontWeight={600}>
-              {formatRaw(stat.label, stat.raw_value)}
-            </Typography>
+            <Typography fontWeight={600}>{formatRaw(stat.label, stat.raw_value)}</Typography>
           </Box>
           <Box sx={{ position: 'relative' }}>
             <LinearProgress
@@ -175,7 +166,9 @@ export default function CreateTeamPercent({
 
       {/* Filters row */}
       <Box display="flex" justifyContent="center" alignItems="center" mt={1} mb={3}>
-        <YearDropdown year={year} />
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {seasonLabel}
+        </Typography>
         <ModeToggle mode={mode} />
       </Box>
 
@@ -184,9 +177,7 @@ export default function CreateTeamPercent({
           <Typography variant="h6" fontWeight={600} gutterBottom>
             No data to show yet
           </Typography>
-          <Typography variant="body2">
-            TODO: Implement a W/L leaderboard
-          </Typography>
+          <Typography variant="body2">TODO: Implement a W/L leaderboard</Typography>
         </Box>
       ) : (
         <>
@@ -234,9 +225,25 @@ export default function CreateTeamPercent({
               >
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', padding: '8px 12px', backgroundColor: '#233954' }}>#</th>
-                    <th style={{ textAlign: 'left', padding: '8px 12px', backgroundColor: '#233954' }}>Team</th>
-                    <th style={{ textAlign: 'right', padding: '8px 12px', backgroundColor: '#233954' }}>Avg %</th>
+                    <th
+                      style={{ textAlign: 'left', padding: '8px 12px', backgroundColor: '#233954' }}
+                    >
+                      #
+                    </th>
+                    <th
+                      style={{ textAlign: 'left', padding: '8px 12px', backgroundColor: '#233954' }}
+                    >
+                      Team
+                    </th>
+                    <th
+                      style={{
+                        textAlign: 'right',
+                        padding: '8px 12px',
+                        backgroundColor: '#233954',
+                      }}
+                    >
+                      Avg %
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,7 +251,9 @@ export default function CreateTeamPercent({
                     <tr key={team.team} style={{ borderBottom: '1px solid #2c3e50' }}>
                       <td style={{ padding: '8px 12px' }}>{idx + 4}.</td>
                       <td style={{ padding: '8px 12px' }}>{team.team}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{team.average.toFixed(1)}%</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                        {team.average.toFixed(1)}%
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,8 +265,8 @@ export default function CreateTeamPercent({
           {teamVisualOrder.map((teamCode) => {
             const stats = groupedByTeam[teamCode];
             if (!stats) return null;
-            const offensive = stats.filter(s => offensiveSet.has(norm(s.label)));
-            const defensive = stats.filter(s => defensiveSet.has(norm(s.label)));
+            const offensive = stats.filter((s) => offensiveSet.has(norm(s.label)));
+            const defensive = stats.filter((s) => defensiveSet.has(norm(s.label)));
             return (
               <Box key={teamCode} sx={{ mt: 6 }}>
                 <Typography variant="h5" fontWeight={700} gutterBottom>

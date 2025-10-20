@@ -1,20 +1,20 @@
 import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { cn } from '@/utils/cn';
+import Button from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 
-import { login, signup } from '@/utils/supabase/auth';
-import { supabase } from '@/utils/supabase/client';
+import { login, signup } from '@/services/authService';
+import { supabase } from '@/lib/supabaseClient';
 import { buildUrl } from '@/utils/url';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
@@ -35,12 +35,13 @@ const forgotSchema = z.object({
   email: z.string().email(),
 });
 
-type SignInValues = z.infer<typeof signInSchema>;
-type SignUpValues = z.infer<typeof signUpSchema>;
-type ForgotValues = z.infer<typeof forgotSchema>;
-type AuthValues = SignInValues | SignUpValues | ForgotValues;
+type AuthFormValues = {
+  email: string;
+  password?: string;
+  confirmPassword?: string;
+};
 
-export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
+export default function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const theme = useTheme();
 
   const [mode, setMode] = useState<Mode>('sign-in');
@@ -72,30 +73,38 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   const submitText = isSignIn ? 'Login' : isSignUp ? 'Sign up' : 'Send reset link';
 
-  const resolver = useMemo(() => {
-    if (isSignIn) return zodResolver(signInSchema);
-    if (isSignUp) return zodResolver(signUpSchema);
-    return zodResolver(forgotSchema);
+  const resolver = useMemo<Resolver<AuthFormValues>>(() => {
+    if (isSignIn) return zodResolver(signInSchema) as Resolver<AuthFormValues>;
+    if (isSignUp) return zodResolver(signUpSchema) as Resolver<AuthFormValues>;
+    return zodResolver(forgotSchema) as Resolver<AuthFormValues>;
+  }, [isSignIn, isSignUp]);
+
+  const defaultValues = useMemo<AuthFormValues>(() => {
+    if (isSignIn) {
+      return { email: '', password: '' };
+    }
+    if (isSignUp) {
+      return { email: '', password: '', confirmPassword: '' };
+    }
+    return { email: '' };
   }, [isSignIn, isSignUp]);
 
   const {
     register,
     handleSubmit,
     control,
+    getValues,
     formState: { errors },
-  } = useForm({
+  } = useForm<AuthFormValues>({
     resolver,
-    defaultValues: isSignIn
-      ? ({ email: '', password: '' } as any)
-      : isSignUp
-        ? ({ email: '', password: '', confirmPassword: '' } as any)
-        : ({ email: '' } as any),
+    defaultValues,
   });
 
-  const password = useWatch({ control, name: 'password' as const }) as string | undefined;
-  const confirmPassword = useWatch({ control, name: 'confirmPassword' as any }) as
-    | string
-    | undefined;
+  const password = useWatch<AuthFormValues, 'password'>({ control, name: 'password' });
+  const confirmPassword = useWatch<AuthFormValues, 'confirmPassword'>({
+    control,
+    name: 'confirmPassword',
+  });
   const mismatch = isSignUp && !!confirmPassword && password !== confirmPassword;
 
   async function sendReset(email: string) {
@@ -115,22 +124,28 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
     });
   }
 
-  const onSubmit = async (values: Record<string, any>) => {
+  const onSubmit = async (values: AuthFormValues) => {
     setIsLoading(true);
     setErrorMessage('');
     setBanner({ kind: null, text: '' });
 
     try {
       if (isSignIn) {
-        const v = values as SignInValues;
-        await login(v.email, v.password);
+        const { email, password } = values;
+        if (!password) {
+          throw new Error('Password is required');
+        }
+        await login(email, password);
         navigate('/conferences');
         return;
       }
 
       if (isSignUp) {
-        const v = values as SignUpValues;
-        await signup(v.email, v.password);
+        const { email, password } = values;
+        if (!password) {
+          throw new Error('Password is required');
+        }
+        await signup(email, password);
 
         setBanner({
           kind: 'info',
@@ -140,15 +155,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       }
 
       if (isForgot) {
-        const v = values as ForgotValues;
-        if (!v.email.trim()) {
+        if (!values.email.trim()) {
           setForgotSent('error');
           return;
         }
-        await sendReset(v.email);
+        await sendReset(values.email);
       }
-    } catch (e: any) {
-      setErrorMessage(e?.message || 'Something went wrong. Please try again.');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message || 'Something went wrong. Please try again.');
+      } else {
+        setErrorMessage('Something went wrong. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -320,16 +338,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                     type="password"
                     required
                     className={inputClasses}
-                    {...register('confirmPassword' as any, {
+                    {...register('confirmPassword', {
                       onChange: () => errorMessage && setErrorMessage(''),
                     })}
                   />
-                  {(errors as any).confirmPassword && (
+                  {errors.confirmPassword && (
                     <p className="text-sm font-medium text-destructive">
-                      {String((errors as any).confirmPassword?.message)}
+                      {String(errors.confirmPassword.message)}
                     </p>
                   )}
-                  {!(errors as any).confirmPassword && mismatch && (
+                  {!errors.confirmPassword && mismatch && (
                     <p className="text-sm font-medium text-destructive">Passwords do not match!</p>
                   )}
 
@@ -353,7 +371,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
                             type="button"
                             className={`text-[var(--secondary-main)] ${linkish.replace('underline underline-offset-4 ', '')}`}
                             onClick={() => {
-                              const email = (control._formValues as any)?.email as string;
+                              const email = getValues('email');
                               if (email) void sendReset(email);
                             }}
                           >

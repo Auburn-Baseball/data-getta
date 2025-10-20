@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/utils/supabase/client';
-import { useAuth } from '@/utils/supabase/useauth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import Button from '@/components/ui/Button';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
@@ -26,7 +26,7 @@ const schema = z
 
 type Values = z.infer<typeof schema>;
 
-export function ResetPasswordForm({ className }: { className?: string }) {
+export default function ResetPasswordForm({ className }: { className?: string }) {
   const theme = useTheme();
   const [search] = useSearchParams();
   const navigate = useNavigate();

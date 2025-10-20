@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase/client';
-import PitcherTable from '@/components/team/PitcherTable';
-import PitchSumsTable from '@/components/team/PitchSumsTable';
-import { PitcherStatsTable, PitchCountsTable } from '@/types/schemas';
-import TableSkeleton from '@/components/team/TableSkeleton';
 import Box from '@mui/material/Box';
 
-export default function PitchingTab() {
+import PitcherTable from '@/components/team/PitcherTable';
+import PitchSumsTable from '@/components/team/PitchSumsTable';
+import TableSkeleton from '@/components/team/TableSkeleton';
+import { fetchTeamPitchCounts, fetchTeamPitcherStats } from '@/services/teamService';
+import type { PitchCountsTable, PitcherStatsTable } from '@/types/db';
+import { pitcherStatsTransform, pitchCountsTransform } from '@/transforms/pitcherStatsTransforms';
+
+type PitchingTabProps = {
+  startDate: string;
+  endDate: string;
+};
+
+export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [pitchers, setPitchers] = useState<PitcherStatsTable[]>([]);
   const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
@@ -18,31 +25,23 @@ export default function PitchingTab() {
       if (!trackmanAbbreviation) return;
 
       try {
+        setLoading(true);
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        console.log(decodedTrackmanAbbreviation);
+
+        const range = { startDate, endDate };
 
         const [pitchersResponse, pitchesResponse] = await Promise.all([
-          supabase
-            .from('PitcherStats')
-            .select('*')
-            .eq('PitcherTeam', decodedTrackmanAbbreviation)
-            .eq('Year', 2025)
-            .order('total_innings_pitched', { ascending: false })
-            .overrideTypes<PitcherStatsTable[], { merge: false }>(),
-          supabase
-            .from('PitchCounts')
-            .select('*')
-            .eq('PitcherTeam', decodedTrackmanAbbreviation)
-            .eq('Year', 2025)
-            .order('total_pitches', { ascending: false })
-            .overrideTypes<PitchCountsTable[], { merge: false }>(),
+          fetchTeamPitcherStats(decodedTrackmanAbbreviation, range),
+          fetchTeamPitchCounts(decodedTrackmanAbbreviation, range),
         ]);
 
         if (pitchersResponse.error) throw pitchersResponse.error;
         if (pitchesResponse.error) throw pitchesResponse.error;
 
-        setPitchers(pitchersResponse.data || []);
-        setPitches(pitchesResponse.data || []);
+        const transformedPitchers = pitcherStatsTransform(pitchersResponse.data || []);
+        const transformedPitches = pitchCountsTransform(pitchesResponse.data || []);
+        setPitchers(transformedPitchers);
+        setPitches(transformedPitches);
       } catch (error) {
         console.error('Error fetching pitchers:', error);
       } finally {
@@ -51,7 +50,7 @@ export default function PitchingTab() {
     }
 
     fetchPitchers();
-  }, [trackmanAbbreviation]);
+  }, [endDate, startDate, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
 

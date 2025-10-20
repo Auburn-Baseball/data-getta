@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import BaseHeatMap from '@/components/player/HeatMap/BaseHeatMap';
 import { PITCH_TYPES, type PitchKey } from '@/components/player/HeatMap/constants';
 import { buildZoneMap, zoneValuesArray } from '@/components/player/HeatMap/zoneHelpers';
-import type { PitcherPitchBinsTable } from '@/types/schemas';
+import type { PitcherPitchBinsTable } from '@/types/db';
 import { HEATMAP_ZONE_DESCRIPTION, ensureRows, selectedPitchLabel, toNumeric } from './utils';
 import { useHeatMapSelections } from './useHeatMapSelections';
 

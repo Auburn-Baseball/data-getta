@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import ConferenceTable from '@/components/ConferenceTable';
-import { supabase } from '@/utils/supabase/client';
-import { TeamsTable } from '@/types/schemas';
-import { ConferenceGroup, ConferenceGroupTeam } from '@/types/types';
 
-export default function ConferencePage() {
+import ConferenceTable from '@/components/ConferenceTable';
+import { fetchTeamsByDateRange } from '@/services/teamService';
+import type { TeamsTable } from '@/types/db';
+import type { ConferenceGroup, ConferenceGroupTeam } from '@/types';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
+
+type ConferencePageProps = {
+  dateRange: DateRange;
+};
+
+export default function ConferencePage({ dateRange }: ConferencePageProps) {
   const [conferences, setConferences] = useState<ConferenceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,13 +24,7 @@ export default function ConferencePage() {
       try {
         setLoading(true);
 
-        const { data, error } = await supabase
-          .from('Teams')
-          .select('*')
-          .eq('Year', 2025) // change this to match the year passed into the page
-          .order('Conference', { ascending: true })
-          .order('TeamName', { ascending: true })
-          .overrideTypes<TeamsTable[], { merge: false }>();
+        const { data, error } = await fetchTeamsByDateRange(dateRange);
 
         if (error) {
           throw error;
@@ -59,7 +60,9 @@ export default function ConferencePage() {
     };
 
     fetchData();
-  }, []);
+  }, [dateRange]);
+
+  const yearLabel = formatYearRange(dateRange);
 
   if (loading) {
     return (
@@ -82,7 +85,7 @@ export default function ConferencePage() {
   return (
     <Box sx={{ px: 8, py: 4 }}>
       <Typography variant="h4" fontWeight={700} sx={{ pb: 4 }}>
-        Conferences
+        Conferences ({yearLabel})
       </Typography>
 
       <Grid container spacing={2}>

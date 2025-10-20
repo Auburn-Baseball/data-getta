@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "format": "prettier --write .",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dicebear/identicon": "^9.2.4",
@@ -41,6 +42,8 @@
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@tailwindcss/vite": "^4.1.13",
+    "@types/d3": "^7.4.3",
+    "@types/d3-contour": "^3.0.6",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
@@ -56,6 +59,7 @@
     "prettier": "^3.6.2",
     "typescript": "~5.2.2",
     "typescript-eslint": "^8.39.1",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "vitest": "^2.1.5"
   }
 }

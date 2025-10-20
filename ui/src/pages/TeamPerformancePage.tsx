@@ -1,107 +1,109 @@
-// src/pages/TeamPerformancePage.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { supabase } from '@/utils/supabase/client';
 import Box from '@mui/material/Box';
-import TeamPercent, { Row } from '@/components/team/TeamPercent';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 
-const PAGE_SIZE = 1000;
+import TeamPercent from '@/components/team/TeamPercent';
+import {
+  fetchAdvancedBattingStats,
+  fetchAdvancedPitchingStats,
+} from '@/services/teamPerformanceService';
+import {
+  transformTeamPerformance,
+  TeamPerformanceRow,
+} from '@/transforms/teamPerformanceTransform';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
-export default function TeamPerformancePage() {
+type TeamPerformancePageProps = {
+  dateRange: DateRange;
+};
+
+export default function TeamPerformancePage({ dateRange }: TeamPerformancePageProps) {
   const [params] = useSearchParams();
-
-  const year = useMemo(() => {
-    const y = params.get('year');
-    return y === '2024' || y === '2025' ? y : '2025';
-  }, [params]);
+  const seasonLabel = useMemo(() => formatYearRange(dateRange), [dateRange]);
 
   const mode = useMemo<'overall' | 'wl'>(() => {
     const m = (params.get('mode') || 'overall').toLowerCase();
     return m === 'wl' ? 'wl' : 'overall';
   }, [params]);
 
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<TeamPerformanceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchAll() {
+    async function fetchStats() {
       setLoading(true);
-      setErr(null);
+      setError(null);
 
-      // We still fetch the base data (so switching back to Overall is instant).
-      let all: any[] = [];
-      let from = 0;
+      try {
+        // Fetch batting stats for the specific year
+        const { data: battingData, error: battingError } =
+          await fetchAdvancedBattingStats(dateRange);
 
-      const first = await supabase
-        .from('team_performance')
-        .select('team,label,raw_value,percentile', { count: 'exact' })
-        .eq('year', Number(year))
-        .order('team', { ascending: true })
-        .order('label', { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (first.error) {
-        setErr(first.error.message);
-        setLoading(false);
-        return;
-      }
-
-      all = (first.data ?? []);
-      const total = first.count ?? all.length;
-
-      from += PAGE_SIZE;
-      while (!cancelled && from < total) {
-        const { data, error } = await supabase
-          .from('team_performance')
-          .select('team,label,raw_value,percentile')
-          .eq('year', Number(year))
-          .order('team', { ascending: true })
-          .order('label', { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
-
-        if (error) {
-          setErr(error.message);
-          setLoading(false);
-          return;
+        if (battingError) {
+          throw new Error(`Error fetching batting stats: ${battingError.message}`);
         }
-        all = all.concat(data ?? []);
-        from += PAGE_SIZE;
+
+        // Fetch pitching stats for the specific year
+        const { data: pitchingData, error: pitchingError } =
+          await fetchAdvancedPitchingStats(dateRange);
+
+        if (pitchingError) {
+          throw new Error(`Error fetching pitching stats: ${pitchingError.message}`);
+        }
+
+        // Transform data into the format expected by TeamPercent
+        const performanceRows = transformTeamPerformance(battingData || [], pitchingData || []);
+
+        setRows(performanceRows);
+      } catch (error: unknown) {
+        console.error('Error in team performance:', error);
+        const message = error instanceof Error ? error.message : null;
+        setError(message || 'An error occurred while fetching team performance data');
+      } finally {
+        setLoading(false);
       }
-
-      if (cancelled) return;
-
-      const casted = all.map((r: any) => ({
-        team: r.team,
-        label: r.label,
-        raw_value: typeof r.raw_value === 'string' ? Number(r.raw_value) : r.raw_value,
-        percentile: typeof r.percentile === 'string' ? Number(r.percentile) : r.percentile,
-      })) as Row[];
-
-      setRows(casted);
-      setLoading(false);
     }
 
-    fetchAll();
-    return () => { cancelled = true; };
-  }, [year]);
+    fetchStats();
+  }, [dateRange]);
 
   // If mode is W/L (no data yet), pass empty rows to show the empty state
   const rowsToShow = mode === 'wl' ? [] : rows;
 
   return (
-    <Box sx={{ bgcolor: 'white', color: 'white', minHeight: '100vh', px: 4, py: 4 }}>
-      {loading && <p>Loading team performance…</p>}
-      {err && <p style={{ color: 'salmon' }}>{err}</p>}
-      {!loading && !err && (
-        <TeamPercent
-          year={year}
-          rows={rowsToShow}
-          mode={mode}
-        />
+    <Box sx={{ bgcolor: 'white', color: 'black', minHeight: '100vh', px: 4, py: 4 }}>
+      <Typography variant="h4" sx={{ mb: 1, color: 'black' }}>
+        Team Performance Metrics
+      </Typography>
+      <Typography variant="subtitle1" sx={{ mb: 3, color: 'text.secondary' }}>
+        {seasonLabel} Season
+      </Typography>
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: '4rem' }}>
+          <CircularProgress />
+        </Box>
       )}
+
+      {error && (
+        <Typography variant="body1" sx={{ color: 'error.main', py: 2 }}>
+          Error: {error}
+        </Typography>
+      )}
+
+      {!loading &&
+        !error &&
+        (rows.length > 0 ? (
+          <TeamPercent seasonLabel={seasonLabel} rows={rowsToShow} mode={mode} />
+        ) : (
+          <Typography variant="body1" sx={{ py: 2 }}>
+            No team performance data available for {seasonLabel}
+          </Typography>
+        ))}
     </Box>
   );
 }

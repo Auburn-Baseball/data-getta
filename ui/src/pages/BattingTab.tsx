@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase/client';
-import BatterTable from '@/components/team/BatterTable';
-import { BatterStatsTable } from '@/types/schemas';
-import TableSkeleton from '@/components/team/TableSkeleton';
 
-export default function BattingTab() {
+import BatterTable from '@/components/team/BatterTable';
+import TableSkeleton from '@/components/team/TableSkeleton';
+import { fetchTeamBattingStats } from '@/services/teamService';
+import type { BatterStatsTable } from '@/types/db';
+import { batterStatsTransform, createBatterStatsSummary } from '@/transforms/batterStatsTransform';
+
+type BattingTabProps = {
+  startDate: string;
+  endDate: string;
+};
+
+export default function BattingTab({ startDate, endDate }: BattingTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [batters, setBatters] = useState<BatterStatsTable[]>([]);
+  const [summary, setSummary] = useState<BatterStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,16 +23,21 @@ export default function BattingTab() {
       if (!trackmanAbbreviation) return;
 
       try {
+        setLoading(true);
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
 
-        const { data, error } = await supabase
-          .from('BatterStats')
-          .select('*')
-          .eq('BatterTeam', decodedTrackmanAbbreviation)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
+        const { data, error } = await fetchTeamBattingStats(decodedTrackmanAbbreviation, {
+          startDate,
+          endDate,
+        });
 
         if (error) throw error;
-        setBatters(data || []);
+
+        const transformedData = batterStatsTransform(data);
+        setBatters(transformedData);
+
+        const summaryRow = createBatterStatsSummary(transformedData);
+        setSummary(summaryRow);
       } catch (error) {
         console.error('Error fetching batters:', error);
       } finally {
@@ -33,8 +46,8 @@ export default function BattingTab() {
     }
 
     fetchBatters();
-  }, [trackmanAbbreviation]);
+  }, [endDate, startDate, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
-  return <BatterTable players={batters} />;
+  return <BatterTable players={batters} summaryRow={summary || createBatterStatsSummary([])} />;
 }

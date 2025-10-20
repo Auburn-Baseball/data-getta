@@ -1,5 +1,5 @@
 import Drawer from '@mui/material/Drawer';
-import { Theme } from '@/utils/theme';
+import { Theme } from '@/styles/theme';
 import { common } from '@mui/material/colors';
 import TabGroup from '@/components/TabGroup';
 

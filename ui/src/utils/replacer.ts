@@ -1,51 +1,49 @@
-export const batter_replacer = (key: any, value: any) => {
+export const batter_replacer = (key: string, value: unknown) => {
   if (typeof value === 'bigint') {
     return Number(value.toString());
-  } else if (typeof value === 'string') {
+  }
+
+  if (typeof value === 'string') {
     if (key === 'Batter' || key === 'BatterTeam') {
       return value;
-    } else {
-      return Number(Number(value).toFixed(3));
     }
-  } else {
-    return value;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Number(numeric.toFixed(3)) : value;
   }
+
+  return value;
 };
 
-export const pitcher_replacer = (key: any, value: any) => {
+export const pitcher_replacer = (key: string, value: unknown) => {
   if (typeof value === 'bigint') {
     return Number(value.toString());
-  } else if (typeof value === 'string') {
+  }
+
+  if (typeof value === 'string') {
     if (key === 'Pitcher' || key === 'PitcherTeam') {
       return value;
-    } else {
-      return Number(value);
     }
-  } else {
-    return value;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : value;
   }
+
+  return value;
 };
 
-export const pitcherRunValue_replacer = (key: any, value: any) => {
-  if (typeof value === 'string') {
-    if (key === 'Score') {
-      return Number(value);
-    } else {
-      return value;
-    }
-  } else {
-    return value;
+export const pitcherRunValue_replacer = (key: string, value: unknown) => {
+  if (typeof value === 'string' && key === 'Score') {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : value;
   }
+
+  return value;
 };
 
-export const batterRunValue_replacer = (key: any, value: any) => {
-  if (typeof value === 'string') {
-    if (key === 'NumPitches' || key === 'Score') {
-      return Number(value);
-    } else {
-      return value;
-    }
-  } else {
-    return value;
+export const batterRunValue_replacer = (key: string, value: unknown) => {
+  if (typeof value === 'string' && (key === 'NumPitches' || key === 'Score')) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : value;
   }
+
+  return value;
 };

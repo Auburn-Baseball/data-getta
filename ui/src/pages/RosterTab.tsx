@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { supabase } from '@/utils/supabase/client';
-import RosterTable from '@/components/team/RosterTable';
-import { PlayersTable } from '@/types/schemas';
-import TableSkeleton from '@/components/team/TableSkeleton';
 
-export default function RosterTab() {
+import RosterTable from '@/components/team/RosterTable';
+import TableSkeleton from '@/components/team/TableSkeleton';
+import { fetchTeamRoster } from '@/services/teamService';
+import type { PlayersTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+
+type RosterTabProps = {
+  dateRange: DateRange;
+};
+
+export default function RosterTab({ dateRange }: RosterTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [players, setPlayers] = useState<PlayersTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,13 +22,7 @@ export default function RosterTab() {
 
       try {
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
-        console.log(decodedTrackmanAbbreviation);
-        const { data, error } = await supabase
-          .from('Players')
-          .select('*')
-          .eq('TeamTrackmanAbbreviation', decodedTrackmanAbbreviation)
-          .order('Name', { ascending: true })
-          .overrideTypes<PlayersTable[], { merge: false }>();
+        const { data, error } = await fetchTeamRoster(dateRange, decodedTrackmanAbbreviation);
 
         if (error) throw error;
         setPlayers(data || []);
@@ -34,7 +34,7 @@ export default function RosterTab() {
     }
 
     fetchRoster();
-  }, [trackmanAbbreviation]);
+  }, [dateRange, trackmanAbbreviation]);
 
   if (loading) return <TableSkeleton />;
   return <RosterTable players={players} />;

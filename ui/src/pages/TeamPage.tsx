@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useParams, Outlet, useSearchParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Outlet, useParams } from 'react-router';
 import Box from '@mui/material/Box';
+
 import TeamInfo from '@/components/team/TeamInfo';
 import TableTabs from '@/components/team/TableTabs';
-import { supabase } from '@/utils/supabase/client';
-import { TeamsTable } from '@/types/schemas';
-import PlayerPage from '@/pages/PlayerPage';
+import { fetchTeamByAbbreviation } from '@/services/teamService';
+import type { TeamsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
-export default function TeamPage() {
-  const [searchParams] = useSearchParams();
-  const playerParam = searchParams.get('player');
+type TeamPageProps = {
+  dateRange: DateRange;
+};
+
+export default function TeamPage({ dateRange }: TeamPageProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
   const [team, setTeam] = useState<TeamsTable | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,16 +23,14 @@ export default function TeamPage() {
       if (!trackmanAbbreviation) return;
 
       try {
+        setLoading(true);
         const decodedTrackmanAbbreviation = decodeURIComponent(trackmanAbbreviation);
         console.log('Fetching team:', decodedTrackmanAbbreviation);
 
-        const { data, error } = await supabase
-          .from('Teams')
-          .select('TeamName, TrackmanAbbreviation, Conference')
-          .eq('TrackmanAbbreviation', decodedTrackmanAbbreviation)
-          .eq('Year', 2025) // change this to match the year passed into the page
-          .single()
-          .overrideTypes<TeamsTable, { merge: false }>();
+        const { data, error } = await fetchTeamByAbbreviation(
+          dateRange,
+          decodedTrackmanAbbreviation,
+        );
 
         if (error) throw error;
         setTeam(data);
@@ -40,7 +42,9 @@ export default function TeamPage() {
     }
 
     fetchTeam();
-  }, [trackmanAbbreviation]);
+  }, [dateRange, trackmanAbbreviation]);
+
+  const yearLabel = formatYearRange(dateRange);
 
   if (loading) return <div>Loading...</div>;
   if (!team) return <div>Team not found</div>;
@@ -59,7 +63,7 @@ export default function TeamPage() {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo name={team.TeamName} conference={team.Conference} />
+        <TeamInfo name={team.TeamName} conference={team.Conference} seasonLabel={yearLabel} />
         <Outlet />
       </Box>
     </Box>

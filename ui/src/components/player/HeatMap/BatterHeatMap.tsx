@@ -1,9 +1,9 @@
-﻿import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import BaseHeatMap from '@/components/player/HeatMap/BaseHeatMap';
 import { PITCH_TYPES, type PitchKey } from '@/components/player/HeatMap/constants';
 import { buildZoneMap, zoneValuesArray } from '@/components/player/HeatMap/zoneHelpers';
-import type { BatterPitchBinsTable } from '@/types/schemas';
+import type { BatterPitchBinsTable } from '@/types/db';
 import { HEATMAP_ZONE_DESCRIPTION, ensureRows, selectedPitchLabel, toNumeric } from './utils';
 import { useHeatMapSelections } from './useHeatMapSelections';
 
@@ -70,7 +70,6 @@ export default function BatterHeatMap({ data }: { data: BatterPitchBinsTable[] }
   const [view, setView] = useState<Side>('Swing');
 
   const sourceRows = ensureRows(data);
-  const batterName = sourceRows[0]?.Batter ?? 'Batter';
 
   const normalizedRows = useMemo(() => sourceRows.map(normalizeBatterBin), [sourceRows]);
   const zoneMap = useMemo(

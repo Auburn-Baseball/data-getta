@@ -1,4 +1,4 @@
-import { BatterStatsTable } from '@/types/schemas';
+import { BatterStatsTable } from '@/types/db';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -6,115 +6,37 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import {
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  SelectChangeEvent,
-  CircularProgress,
-} from '@mui/material';
+import { MenuItem, Select, FormControl, InputLabel, SelectChangeEvent } from '@mui/material';
 import { useState, useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import { supabase } from '@/utils/supabase/client';
-import { useNavigate, useParams } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 
-export default function BattingStatsTable({
-  teamName,
-  playerName,
-  year,
-}: {
-  teamName: string | undefined;
-  playerName: string | undefined;
-  year: string | number | undefined;
-}) {
+type BattingStatsTableProps = {
+  stats: BatterStatsTable | null;
+  teamName?: string;
+};
+
+export default function BattingStatsTable({ stats }: BattingStatsTableProps) {
   const navigate = useNavigate();
   const params = useParams();
 
-  const [playerStats, setPlayerStats] = useState<BatterStatsTable[]>([]);
-  const [advancedStats, setAdvancedStats] = useState<BatterStatsTable[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const teamParam = params.teamName || 'NULL';
   const [selectedDataType, setSelectedDataType] = useState<string>(teamParam);
-
-  const safeYear = year || 2025;
-  const formattedPlayerName = playerName?.replace('_', ', ');
-
-  useEffect(() => {
-    console.log('BattingStatsTable props:', {
-      teamName,
-      playerName,
-      formattedPlayerName,
-      year: safeYear,
-    });
-  }, [teamName, playerName, formattedPlayerName, safeYear]);
-
-  useEffect(() => {
-    async function fetchStats() {
-      if (!formattedPlayerName || !teamName) {
-        console.log('Missing required props:', { formattedPlayerName, teamName });
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Standard stats
-        const { data: playerData, error: playerError } = await supabase
-          .from('BatterStats')
-          .select('*')
-          .eq('Batter', formattedPlayerName)
-          .eq('BatterTeam', teamName)
-          .eq('Year', safeYear)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
-
-        if (playerError) throw playerError;
-        setPlayerStats(playerData || []);
-
-        // Advanced stats (copying top table format exactly)
-        const { data: advData, error: advError } = await supabase
-          .from('AdvancedBattingStats')
-          .select('*')
-          .eq('Batter', formattedPlayerName)
-          .eq('BatterTeam', teamName)
-          .eq('Year', safeYear)
-          .overrideTypes<BatterStatsTable[], { merge: false }>();
-
-        if (advError) throw advError;
-        setAdvancedStats(advData || []);
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-        setError('Failed to load batter stats');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchStats();
-  }, [formattedPlayerName, teamName, safeYear]);
+  const playerName = params.playerName || '';
+  const year = params.year || '';
 
   useEffect(() => {
     const newTeam = params.teamName || 'NULL';
     setSelectedDataType(newTeam);
   }, [params.teamName]);
 
-  const safePlayerName = encodeURIComponent(
-    playerName || (playerStats.length > 0 ? playerStats[0].Batter : 'unknown-player'),
-  );
-
-  const hasPracticePage = playerStats.length > 0;
-
   const handleNavigation = (newTeamName: string) => {
     if (!newTeamName || !['AUB_TIG', 'AUB_PRC'].includes(newTeamName)) {
       alert('Invalid team selected.');
       return;
     }
-    navigate(`/team/${newTeamName}/player/${safePlayerName}/stats/${safeYear}`);
+    navigate(`/team/${newTeamName}/player/${playerName}/stats/${year}`);
   };
 
   const handleSelectChange = (event: SelectChangeEvent<string>) => {
@@ -123,14 +45,20 @@ export default function BattingStatsTable({
     handleNavigation(newValue);
   };
 
+  // Format stats for display
+  const formatStat = (value: number | null | undefined, decimals: number = 3): string => {
+    if (value === null || value === undefined) return '.000';
+    if (value === 1 && decimals === 3) return value.toFixed(3);
+    return value.toFixed(decimals).replace(/^0/, '');
+  };
+
   return (
     <Paper elevation={3} sx={{ paddingX: 2, paddingY: 2, width: '100%', overflowX: 'auto' }}>
-      {/* Standard NCAA Batting Stats Table */}
       <Divider textAlign="center" sx={{ mb: 2 }}>
         Standard NCAA Batting Stats
       </Divider>
 
-      {hasPracticePage && ['AUB_TIG', 'AUB_PRC'].includes(selectedDataType) && (
+      {stats && ['AUB_TIG', 'AUB_PRC'].includes(selectedDataType) && (
         <FormControl fullWidth sx={{ marginBottom: '1rem' }}>
           <InputLabel id="data-type-select-label">Data Type</InputLabel>
           <Select
@@ -164,39 +92,27 @@ export default function BattingStatsTable({
             </TableRow>
           </TableHead>
           <TableBody>
-            {loading ? (
+            {stats ? (
               <TableRow>
-                <TableCell colSpan={12} sx={{ textAlign: 'center', padding: 2 }}>
-                  <CircularProgress size={24} />
-                </TableCell>
-              </TableRow>
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={12} sx={{ textAlign: 'center', color: 'error.main' }}>
-                  {error}
-                </TableCell>
-              </TableRow>
-            ) : playerStats.length > 0 ? (
-              <TableRow>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].games}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].plate_appearances}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].at_bats}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].hits}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].homeruns}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].walks}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].strikeouts}</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>{playerStats[0].hit_by_pitch}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.games}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.plate_appearances}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.at_bats}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.hits}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.homeruns}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.walks}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.strikeouts}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>{stats.hit_by_pitch}</TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {playerStats[0].batting_average?.toFixed(3).replace(/^0/, '') ?? '.000'}
+                  {formatStat(stats.batting_average)}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {playerStats[0].on_base_percentage?.toFixed(3).replace(/^0/, '') ?? '.000'}
+                  {formatStat(stats.on_base_percentage)}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {playerStats[0].slugging_percentage?.toFixed(3).replace(/^0/, '') ?? '.000'}
+                  {formatStat(stats.slugging_percentage)}
                 </TableCell>
                 <TableCell sx={{ textAlign: 'center' }}>
-                  {playerStats[0].onbase_plus_slugging?.toFixed(3).replace(/^0/, '') ?? '.000'}
+                  {formatStat(stats.onbase_plus_slugging)}
                 </TableCell>
               </TableRow>
             ) : (

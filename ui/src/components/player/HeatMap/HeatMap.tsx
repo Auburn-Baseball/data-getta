@@ -1,6 +1,6 @@
 import { Box, Typography, Grid, Chip } from '@mui/material';
 import FilterDropdowns from './FilterDropdowns';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'react-router';
 import * as d3 from 'd3';
 import * as d3Contour from 'd3-contour';
 import { useMemo } from 'react';
@@ -11,6 +11,8 @@ type Pitch = {
   pitchType: string;
   batterSide: string;
 };
+
+type DensityContour = d3Contour.ContourMultiPolygon & { value: number };
 
 const pitchColors: Record<string, string> = {
   Fastball: '#e6194B',
@@ -35,7 +37,7 @@ export default function HeatMap({
   batterFilter: string;
   pitches: Pitch[];
 }) {
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const viewMode = searchParams.get('view') || 'Density';
   const showDensity = viewMode === 'Density';
 
@@ -61,7 +63,7 @@ export default function HeatMap({
   const strikeZoneBottom = 1.5;
   const strikeZoneHalfWidth = 1.417 / 2;
 
-  const validPitches = useMemo(
+  const validPitches = useMemo<Pitch[]>(
     () =>
       pitches.filter(
         (p) =>
@@ -74,33 +76,42 @@ export default function HeatMap({
           p.x <= xMax &&
           p.y <= yMax,
       ),
-    [pitches],
+    [pitches, xMin, xMax, yMax],
   );
 
-  const filteredPitches = useMemo(() => {
+  const filteredPitches = useMemo<Pitch[]>(() => {
     if (batterFilter === 'Both') return validPitches;
     console.log(`Filtering by batter side: ${batterFilter}`);
     return validPitches.filter((p) => p.batterSide === batterFilter);
   }, [validPitches, batterFilter]);
 
-  const densityContours = useMemo(() => {
+  const densityContours = useMemo<DensityContour[]>(() => {
     if (!showDensity || filteredPitches.length === 0) return [];
     const thresholds = Math.min(filteredPitches.length, 20);
-    const raw = d3Contour
+    const rawContours: d3Contour.ContourMultiPolygon[] = d3Contour
       .contourDensity<Pitch>()
-      .x((d) => svgX(d.x))
-      .y((d) => svgY(d.y))
+      .x((d: Pitch) => svgX(d.x))
+      .y((d: Pitch) => svgY(d.y))
       .size([width, height])
       .bandwidth(20)
       .thresholds(thresholds)(filteredPitches);
 
     // Scale density values to sum to the point count
-    const total = d3.sum(raw, (d) => d.value) || 1;
-    return raw.map((d) => ({ ...d, value: (d.value * filteredPitches.length) / total }));
+    const total: number =
+      d3.sum<d3Contour.ContourMultiPolygon>(rawContours, (contour: d3Contour.ContourMultiPolygon) => contour.value) || 1;
+    return rawContours.map(
+      (contour: d3Contour.ContourMultiPolygon): DensityContour =>
+      ({
+        ...contour,
+        value: (contour.value * filteredPitches.length) / total,
+      }) as DensityContour,
+    );
   }, [filteredPitches, showDensity, svgX, svgY, width, height]);
 
-  const maxCount = Math.round(d3.max(densityContours.map((d) => d.value)) ?? 1);
-  const colorScale = d3.scaleSequential((t) => customAuburnInterpolator(t)).domain([0, maxCount]);
+  const maxCount: number = Math.round(d3.max(densityContours, (contour: DensityContour) => contour.value) ?? 1);
+  const colorScale = d3
+    .scaleSequential((t: number) => customAuburnInterpolator(t))
+    .domain([0, maxCount]);
 
   return (
     <Box textAlign="center">
@@ -127,10 +138,14 @@ export default function HeatMap({
           <svg width={width + 100} height={height}>
             <defs>
               <linearGradient id="color-gradient" x1="0" y1="1" x2="0" y2="0">
-                {[...Array(20)].map((_, i) => {
-                  const t = i / 19;
+                {Array.from({ length: 20 }, (_, index) => {
+                  const t = index / 19;
                   return (
-                    <stop key={i} offset={`${t * 100}%`} stopColor={colorScale(t * maxCount)} />
+                    <stop
+                      key={index}
+                      offset={`${t * 100}%`}
+                      stopColor={colorScale(t * maxCount)}
+                    />
                   );
                 })}
               </linearGradient>

@@ -1,33 +1,41 @@
-import React, { useEffect, useState } from "react";
-import StatBar from "@/components/player/StatBar";
-import { useParams } from "react-router";
-import { supabase } from "@/utils/supabase/client";
+import React, { useEffect, useState } from 'react';
+import { useOutletContext, useParams } from 'react-router';
+
+import StatBar from '@/components/player/StatBar';
+import { fetchAdvancedBattingStats } from '@/services/playerService';
+import type { AdvancedBattingStatsTable } from '@/types/db';
+import type { DateRange } from '@/types/dateRange';
+import { formatYearRange } from '@/utils/dateRange';
 
 const boxStyle: React.CSSProperties = {
   flex: 1,
-  minHeight: "400px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  margin: "0 12px",
+  minHeight: '400px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  margin: '0 12px',
 };
 
-const advancedStatKeys = [
-  { key: "avg_exit_velo", label: "EV" },
-  { key: "k_per", label: "K%" },
-  { key: "bb_per", label: "BB%" },
-  { key: "la_sweet_spot_per", label: "LA Sweet Spot %" },
-  { key: "hard_hit_per", label: "Hard Hit %" },
+const advancedStatKeys: Array<{
+  key: keyof AdvancedBattingStatsTable;
+  label: string;
+}> = [
+  { key: 'avg_exit_velo', label: 'EV' },
+  { key: 'k_per', label: 'K%' },
+  { key: 'bb_per', label: 'BB%' },
+  { key: 'la_sweet_spot_per', label: 'LA Sweet Spot %' },
+  { key: 'hard_hit_per', label: 'Hard Hit %' },
 ];
 
 const PercentilesTab: React.FC = () => {
-  const { trackmanAbbreviation, playerName, year } = useParams<{
+  const { trackmanAbbreviation, playerName } = useParams<{
     trackmanAbbreviation: string;
     playerName: string;
-    year: string;
   }>();
+  const dateRange = useOutletContext<DateRange>();
+  const seasonLabel = formatYearRange(dateRange);
 
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AdvancedBattingStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,41 +45,37 @@ const PercentilesTab: React.FC = () => {
       setError(null);
 
       try {
-        const safeYear = year || "2025";
         const formattedPlayerName = playerName
-          ? decodeURIComponent(playerName).replace("_", ", ")
-          : "";
+          ? decodeURIComponent(playerName).replace('_', ', ')
+          : '';
         const decodedTeamName = trackmanAbbreviation
           ? decodeURIComponent(trackmanAbbreviation)
-          : "";
+          : '';
 
-        console.log("Fetching stats for:", formattedPlayerName, decodedTeamName, safeYear);
+        console.log('Fetching stats for:', formattedPlayerName, decodedTeamName, dateRange);
 
-        const { data: allBatters, error } = await supabase
-          .from("AdvancedBattingStats")
-          .select("*")
-          .eq("BatterTeam", decodedTeamName)
-          .eq("Year", safeYear);
+        const { data: allBatters, error } = await fetchAdvancedBattingStats(
+          decodedTeamName,
+          dateRange,
+        );
 
         if (error) throw error;
 
-        const playerStats = allBatters.find(
-          (b: any) => b.Batter === formattedPlayerName
-        );
+        const playerStats = allBatters?.find((b) => b.Batter === formattedPlayerName) ?? null;
 
-        console.log("Player stats fetched:", playerStats);
+        console.log('Player stats fetched:', playerStats);
 
-        setStats(playerStats);
-      } catch (err: any) {
-        console.error(err);
-        setError("Failed to load player stats");
+        setStats(playerStats as AdvancedBattingStatsTable | null);
+      } catch (error: unknown) {
+        console.error(error);
+        setError('Failed to load player stats');
       } finally {
         setLoading(false);
       }
     }
 
     fetchStats();
-  }, [trackmanAbbreviation, playerName, year]);
+  }, [dateRange, trackmanAbbreviation, playerName]);
 
   // Compute color based on rank
   const getRankColor = (rank: number): string => {
@@ -91,33 +95,27 @@ const PercentilesTab: React.FC = () => {
   return (
     <div
       style={{
-        display: "flex",
-        width: "100%",
+        display: 'flex',
+        width: '100%',
         maxWidth: 1200,
-        margin: "40px auto",
+        margin: '40px auto',
         gap: 24,
       }}
     >
       <div style={boxStyle}></div>
       <div style={boxStyle}>
-        <div style={{ width: "100%", maxWidth: 400 }}>
-          <h2 style={{ textAlign: "center", marginBottom: 24 }}>
-            Advanced Stats
-          </h2>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Advanced Stats ({seasonLabel})</h2>
           {loading ? (
-            <div style={{ textAlign: "center", padding: 32 }}>Loading...</div>
+            <div style={{ textAlign: 'center', padding: 32 }}>Loading...</div>
           ) : error ? (
-            <div
-              style={{ color: "#d32f2f", textAlign: "center", padding: 32 }}
-            >
-              {error}
-            </div>
+            <div style={{ color: '#d32f2f', textAlign: 'center', padding: 32 }}>{error}</div>
           ) : stats ? (
             <div>
               {advancedStatKeys.map(({ key, label }) => {
-                const rankKey = `${key}_rank`;
-                const rank =
-                  typeof stats[rankKey] === "number" ? stats[rankKey] : 1;
+                const rankKey = `${key}_rank` as keyof AdvancedBattingStatsTable;
+                const rankValue = stats[rankKey];
+                const rank = typeof rankValue === 'number' ? rankValue : 1;
 
                 return (
                   <StatBar
@@ -126,20 +124,18 @@ const PercentilesTab: React.FC = () => {
                     percentile={Math.round(rank)}
                     color={getRankColor(Math.round(rank))}
                     statValue={
-                      typeof stats[key] === "number"
-                        ? key.endsWith("per") || key === "k_per" || key === "bb_per"
+                      typeof stats[key] === 'number'
+                        ? key.endsWith('per') || key === 'k_per' || key === 'bb_per'
                           ? `${(stats[key] * 100).toFixed(1)}%`
                           : stats[key]
-                        : "-"
+                        : '-'
                     }
                   />
                 );
               })}
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: 32 }}>
-              No Data Available
-            </div>
+            <div style={{ textAlign: 'center', padding: 32 }}>No Data Available</div>
           )}
         </div>
       </div>

@@ -1,19 +1,16 @@
 import Grid from '@mui/material/Grid';
 import BattingStatsTable from './BattingStatsTable';
-import { batter_stats_forTable } from '@/utils/types';
+import type { BatterStatsTable } from '@/types/db';
 
-export default function CreateBatterDiagrams({ stats }: { stats: batter_stats_forTable[] }) {
+export default function CreateBatterDiagrams({ stats }: { stats: BatterStatsTable | null }) {
+  if (!stats) {
+    return null;
+  }
+
   return (
     <Grid container spacing={2}>
-      {/* Render BattingStatsTable inside a responsive grid item */}
       <Grid sx={{ width: '100%' }}>
-        <BattingStatsTable
-          player={stats}
-          teamName={undefined}
-          playerName={undefined}
-          startDate={undefined}
-          endDate={undefined}
-        />
+        <BattingStatsTable stats={stats} />
       </Grid>
     </Grid>
   );

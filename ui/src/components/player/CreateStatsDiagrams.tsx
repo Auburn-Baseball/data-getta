@@ -1,10 +1,16 @@
-import { prisma } from '@/utils/db';
-import { batter_stats, pitcher_stats, pitch_sums } from '@/utils/types';
-import { batter_replacer, pitcher_replacer } from '@/utils/replacer';
-import Grid from '@mui/material/Grid';
 import { Typography, Box } from '@mui/material';
 import CreateBatterDiagrams from './Batting/CreateBatterDiagrams';
 import CreatePitcherDiagrams from './Pitching/CreatePitcherDiagrams';
+import {
+  fetchPlayerBatterStats,
+  fetchPlayerPitchCounts,
+  fetchPlayerPitcherStats,
+} from '@/services/playerService';
+import {
+  resolveBatterStats,
+  resolvePitchCounts,
+  resolvePitcherStats,
+} from '@/transforms/playerStatResolvers';
 
 export default async function CreateStatsDiagrams({
   player,
@@ -26,56 +32,29 @@ export default async function CreateStatsDiagrams({
       ? endDate
       : new Date().toISOString().split('T')[0];
 
-  // Use the date parameters for data fetching only, without rendering a DateSelector component
-  // The dates come from URL or default values set in the parent component
+  const range = { startDate: safeStartDate, endDate: safeEndDate };
 
-  // https://www.prisma.io/docs/orm/more/upgrade-guides/upgrading-versions/upgrading-to-prisma-4#raw-query-mapping-postgresql-type-casts
-  // In SQL function, get_batter_stats takes the params (text, text, date, date)
-  // ::date explicitly casts the startDate and endDate strings to a SQL date type
+  const [batterResult, pitcherResult, pitchCountResult] = await Promise.all([
+    fetchPlayerBatterStats(player, team, range),
+    fetchPlayerPitcherStats(player, team, range),
+    fetchPlayerPitchCounts(player, team, range),
+  ]);
 
-  const batter = await prisma.$queryRaw<
-    batter_stats[]
-  >`SELECT * FROM get_batter_stats(${player}, ${team}, ${safeStartDate}::date, ${safeEndDate}::date)`;
-  const pitcher = await prisma.$queryRaw<
-    pitcher_stats[]
-  >`SELECT * FROM get_pitcher_stats(${player}, ${team}, ${safeStartDate}::date, ${safeEndDate}::date)`;
-  const pitches = await prisma.$queryRaw<
-    pitch_sums[]
-  >`SELECT * FROM get_pitch_count(${player}, ${team}, ${safeStartDate}::date, ${safeEndDate}::date)`;
+  if (batterResult.error) {
+    console.error('Failed to fetch batter stats:', batterResult.error);
+  }
+  if (pitcherResult.error) {
+    console.error('Failed to fetch pitcher stats:', pitcherResult.error);
+  }
+  if (pitchCountResult.error) {
+    console.error('Failed to fetch pitch count stats:', pitchCountResult.error);
+  }
 
-  if (batter.length != 0 && pitcher.length != 0) {
-    return (
-      <Box sx={{ mt: 6 }}>
-        <Grid container spacing={2}>
-          <CreateBatterDiagrams stats={JSON.parse(JSON.stringify(batter, batter_replacer))} />
+  const resolvedBatterStats = resolveBatterStats(batterResult.data);
+  const resolvedPitcherStats = resolvePitcherStats(pitcherResult.data);
+  const resolvedPitchCounts = resolvePitchCounts(pitchCountResult.data);
 
-          <CreatePitcherDiagrams
-            stats={JSON.parse(JSON.stringify(pitcher, pitcher_replacer))}
-            sums={JSON.parse(JSON.stringify(pitches, pitcher_replacer))}
-          />
-        </Grid>
-      </Box>
-    );
-  } else if (batter.length != 0) {
-    return (
-      <Box sx={{ mt: 6 }}>
-        <Grid container spacing={2}>
-          <CreateBatterDiagrams stats={JSON.parse(JSON.stringify(batter, batter_replacer))} />
-        </Grid>
-      </Box>
-    );
-  } else if (pitcher.length != 0) {
-    return (
-      <Box sx={{ mt: 6 }}>
-        <Grid container spacing={2}>
-          <CreatePitcherDiagrams
-            stats={JSON.parse(JSON.stringify(pitcher, pitcher_replacer))}
-            sums={JSON.parse(JSON.stringify(pitches, pitcher_replacer))}
-          />
-        </Grid>
-      </Box>
-    );
-  } else {
+  if (!resolvedBatterStats && !resolvedPitcherStats && !resolvedPitchCounts) {
     return (
       <Typography variant="h6" color="#d32f2f">
         <strong>Strikeout!</strong>
@@ -84,4 +63,13 @@ export default async function CreateStatsDiagrams({
       </Typography>
     );
   }
+
+  return (
+    <Box sx={{ mt: 6 }}>
+      {resolvedBatterStats && <CreateBatterDiagrams stats={resolvedBatterStats} />}
+      {(resolvedPitcherStats || resolvedPitchCounts) && (
+        <CreatePitcherDiagrams stats={resolvedPitcherStats} pitchCounts={resolvedPitchCounts} />
+      )}
+    </Box>
+  );
 }
