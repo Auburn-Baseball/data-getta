@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import Label from '@/components/ui/Label';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import Button from '@/components/ui/Button';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
