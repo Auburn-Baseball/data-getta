@@ -556,7 +556,8 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             result = (
                 supabase.table("AdvancedBattingStats")
                 .select(
-                    "Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per,la_sweet_spot_per,hard_hit_per,whiff_per,chase_per"
+                    "Batter,BatterTeam,Year,avg_exit_velo,k_per,bb_per"
+                    ",la_sweet_spot_per,hard_hit_per,whiff_per,chase_per"
                 )
                 .range(offset, offset + batch_size - 1)
                 .execute()

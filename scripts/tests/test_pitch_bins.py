@@ -302,10 +302,13 @@ class TestBatterBinsFromBuffer:
     @pytest.fixture
     def simple_batter_csv(self):
         """Simple CSV with batter data."""
-        csv_data = """Batter,BatterTeam,AutoPitchType,PlateLocSide,PlateLocHeight,PitchCall,PlayResult
-                   Jones,TeamB,Four-Seam,0.0,2.5,StrikeSwinging,Strikeout
+        csv_data = (
+            "Batter,BatterTeam,AutoPitchType,PlateLocSide"
+            ",PlateLocHeight,PitchCall,PlayResult\n"
+            """Jones,TeamB,Four-Seam,0.0,2.5,StrikeSwinging,Strikeout
                    Jones,TeamB,Slider,-0.5,2.0,FoulBall,Foul
                    Jones,TeamB,Changeup,0.2,2.8,InPlay,Single"""
+        )
         return io.StringIO(csv_data)
 
     def test_basic_batter_bin_extraction(self, simple_batter_csv, mock_date_parser):

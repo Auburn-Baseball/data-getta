@@ -83,23 +83,29 @@ class TestBatterStatsExtraction:
     @pytest.fixture
     def minimal_batter_csv(self):
         """Minimal valid CSV data."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType,GameUID
-                   Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,game1
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall,"
+            "PlateLocHeight,PlateLocSide,TaggedHitType,GameUID\n"
+            """Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,game1
                    Smith,TeamA,Out,,InPlay,2.8,0.2,GroundBall,game1
                    Smith,TeamA,Strikeout,Strikeout,StrikeSwinging,2.0,-0.5,,game1"""
+        )
         return io.StringIO(csv_data)
 
     @pytest.fixture
     def complex_batter_csv(self):
         """More complex CSV with various scenarios."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType,ExitSpeed,GameUID
-                   Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,95.5,game1
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight"
+            ",PlateLocSide,TaggedHitType,ExitSpeed,GameUID\n"
+            """Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,95.5,game1
                    Smith,TeamA,Double,,InPlay,2.8,0.2,LineDrive,102.3,game1
                    Smith,TeamA,HomeRun,,InPlay,2.2,-0.3,FlyBall,110.2,game1
                    Smith,TeamA,Out,,InPlay,3.0,0.5,GroundBall,85.0,game1
                    Smith,TeamA,Strikeout,Strikeout,StrikeSwinging,2.0,-0.5,,0.0,game1
                    Smith,TeamA,,Walk,BallCalled,4.0,1.0,,,game1
                    Jones,TeamB,Out,,InPlay,2.5,0.0,FlyBall,88.5,game1"""
+        )
         return io.StringIO(csv_data)
 
     def test_basic_stats_extraction(self, minimal_batter_csv, mock_date_parser):
@@ -249,9 +255,12 @@ class TestBatterStatsExtraction:
 
     def test_null_batter_name_skipped(self, mock_date_parser):
         """Test that rows with null batter names are skipped."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType
-                   ,TeamA,Single,,InPlay,2.5,0.0,LineDrive
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall,"
+            "PlateLocHeight,PlateLocSide,TaggedHitType\n"
+            """,TeamA,Single,,InPlay,2.5,0.0,LineDrive
                    Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive"""
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_batter_stats_from_buffer(buffer, "test.csv")
@@ -260,8 +269,11 @@ class TestBatterStatsExtraction:
 
     def test_zero_at_bats_no_crash(self, mock_date_parser):
         """Test that zero at-bats doesn't cause divide by zero."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType
-                   Smith,TeamA,,Walk,BallCalled,4.0,1.0,"""
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,"
+            "PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType\n"
+            "Smith,TeamA,,Walk,BallCalled,4.0,1.0,"
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_batter_stats_from_buffer(buffer, "test.csv")
@@ -272,8 +284,11 @@ class TestBatterStatsExtraction:
 
     def test_date_extraction_from_filename(self, mock_date_parser):
         """Test that date is extracted from filename correctly."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType
-                   Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive"""
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall,"
+            "PlateLocHeight,PlateLocSide,TaggedHitType\n"
+            """Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive"""
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_batter_stats_from_buffer(buffer, "20250315-Stadium-1.csv")
@@ -408,8 +423,11 @@ class TestEdgeCases:
 
     def test_exit_speed_missing_column(self, mock_date_parser):
         """Test handling when ExitSpeed column doesn't exist."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType
-                   Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive"""
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall"
+            ",PlateLocHeight,PlateLocSide,TaggedHitType\n"
+            "Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive"
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_batter_stats_from_buffer(buffer, "test.csv")
@@ -420,9 +438,12 @@ class TestEdgeCases:
 
     def test_invalid_exit_speed_values(self, mock_date_parser):
         """Test handling of invalid exit speed values."""
-        csv_data = """Batter,BatterTeam,PlayResult,KorBB,PitchCall,PlateLocHeight,PlateLocSide,TaggedHitType,ExitSpeed
-                   Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,invalid
+        csv_data = (
+            "Batter,BatterTeam,PlayResult,KorBB,PitchCall"
+            ",PlateLocHeight,PlateLocSide,TaggedHitType,ExitSpeed\n"
+            """Smith,TeamA,Single,,InPlay,2.5,0.0,LineDrive,invalid
                    Smith,TeamA,Double,,InPlay,2.5,0.0,LineDrive,95.5"""
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_batter_stats_from_buffer(buffer, "test.csv")

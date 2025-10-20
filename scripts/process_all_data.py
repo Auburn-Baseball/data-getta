@@ -15,9 +15,7 @@ Unified TrackMan CSV Processor - Database Tracking Version
 import concurrent.futures
 import ftplib
 import hashlib
-import json
 import os
-import re
 import sys
 import threading
 import time
@@ -32,6 +30,7 @@ from supabase import Client, create_client
 # Import your existing processing functions
 from utils import (
     CSVFilenameParser,
+    combine_advanced_batting_stats,
     get_advanced_batting_stats_from_buffer,
     get_batter_bins_from_buffer,
     get_batter_stats_from_buffer,
@@ -132,7 +131,8 @@ class DatabaseProcessedFilesTracker:
                 self._processed_hashes_cache.update(row["file_hash"] for row in data)
 
                 print(
-                    f"Loaded batch of {len(data)} rows (total so far: {len(self._processed_hashes_cache)})"
+                    f"Loaded batch of {len(data)} rows"
+                    f"(total so far: {len(self._processed_hashes_cache)})"
                 )
 
                 # Increment offset
@@ -189,6 +189,12 @@ class DatabaseProcessedFilesTracker:
                     .upsert(data, on_conflict="file_hash")
                     .execute()
                 )
+
+                data = result.data
+                if not data:
+                    print(
+                        "Error while uploading processed file to database:" "No result from upsert"
+                    )
 
                 # Update cache
                 if self._processed_hashes_cache is not None:
@@ -270,7 +276,7 @@ def close_ftp_connection():
     if hasattr(thread_local, "ftp") and thread_local.ftp:
         try:
             thread_local.ftp.quit()
-        except:
+        except Exception:
             pass
         thread_local.ftp = None
 
@@ -306,7 +312,7 @@ def get_directory_list(ftp, path):
                 try:
                     size = int(parts[4]) if parts[4].isdigit() else None
                     date_info = " ".join(parts[5:8])
-                except:
+                except Exception:
                     size = None
                     date_info = None
 
@@ -431,7 +437,8 @@ def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_pat
                             )
                             if new_count > 0:
                                 print(
-                                    f"Found {len(day_csv_files)} CSV files in {csv_path} ({new_count} new)"
+                                    f"Found {len(day_csv_files)}"
+                                    f"CSV files in {csv_path} ({new_count} new)"
                                 )
 
                     except ftplib.error_perm as e:
@@ -443,7 +450,7 @@ def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_pat
     except Exception as e:
         print(f"Error collecting CSV files: {e}")
 
-    print(f"\nFile Summary:")
+    print("\nFile Summary:")
     print(f"  Files found inside date range: {in_date_range}")
     print(f"  New files to process: {len(csv_files)}")
     print(f"  Previously processed (skipped): {skipped_files}")
@@ -481,7 +488,6 @@ def process_csv_worker(file_info, all_stats, tracker):
                         df["League"].dropna().astype(str).str.strip().str.upper()
                     )
                     is_practice = (league_values == "TEAM").any()
-                    # print(f"DEBUG: {filename} - League values: {league_values.unique()}, is_practice: {is_practice}")
 
                 # If it's not practice, skip this file and mark as processed
                 if not is_practice:
@@ -497,9 +503,6 @@ def process_csv_worker(file_info, all_stats, tracker):
 
             # Reset buffer for processing
             buffer.seek(0)
-
-        csv_date_getter = CSVFilenameParser()
-        game_date = str(csv_date_getter.get_date_object(file_info["filename"]))
 
         # Process through each module
         stats_summary = {}
@@ -702,7 +705,8 @@ def process_with_progress(csv_files, tracker, max_workers=4):
                         rate = completed / elapsed if elapsed > 0 else 0
                         eta = (total_files - completed) / rate if rate > 0 else 0
                         print(
-                            f"Progress: {completed}/{total_files} ({completed/total_files*100:.1f}%) "
+                            f"Progress: {completed}/{total_files}"
+                            f"({completed/total_files*100:.1f}%) "
                             f"- Rate: {rate:.1f} files/sec - ETA: {eta:.0f}s"
                         )
                 else:
@@ -719,7 +723,7 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         concurrent.futures.wait(futures)
 
     elapsed = time.time() - start_time
-    print(f"\nProcessing completed!")
+    print("\nProcessing completed!")
     print(f"Successfully processed: {completed} files")
     print(f"Failed: {failed} files")
     print(f"Total time: {elapsed:.1f} seconds")
@@ -796,7 +800,8 @@ def main():
         print("*** TEST MODE - Processing only 1 file ***")
     if date_range:
         print(
-            f"*** Processing only files in the following range (YYYYMMDD - YYYYMMDD): {date_range} ***"
+            "*** Processing only files in the following"
+            f"range (YYYYMMDD - YYYYMMDD): {date_range} ***"
         )
     print("=" * 60)
     print("")
@@ -814,7 +819,7 @@ def main():
             print(f"  - {file_info['remote_path']} at {file_info['processed_at']}")
 
     # Connect to FTP and scan for files
-    print(f"\nConnecting to FTP server and scanning for files...")
+    print("\nConnecting to FTP server and scanning for files...")
     ftp = connect_to_ftp()
     if not ftp:
         print("Failed to connect to FTP server")
@@ -844,7 +849,7 @@ def main():
         # Upload to database
         upload_all_stats(all_stats)
 
-        print(f"\n" + "=" * 60)
+        print("\n" + "=" * 60)
         print("PROCESSING COMPLETE")
         print(f"Total processed files: {tracker.get_processed_count()}")
         print("=" * 60)
@@ -854,7 +859,7 @@ def main():
     finally:
         try:
             ftp.quit()
-        except:
+        except Exception:
             pass
 
 
