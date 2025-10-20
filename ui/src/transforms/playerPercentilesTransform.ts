@@ -180,11 +180,12 @@ function calculatePercentileRank(
   higherIsBetter: boolean,
 ): number {
   if (value === null || value === undefined) return 50;
+  if (typeof value !== 'number') return 50;
 
   // Filter out entries with no data for this field
   const validEntries = data.filter((p) => {
     const fieldValue = p[field];
-    return fieldValue !== null && fieldValue !== undefined;
+    return fieldValue !== null && fieldValue !== undefined && typeof fieldValue === 'number';
   });
 
   if (validEntries.length <= 1) return 50;
@@ -192,11 +193,8 @@ function calculatePercentileRank(
   // Count how many values are worse than this one
   const worseThan = validEntries.filter((p) => {
     const otherValue = p[field];
-    if (higherIsBetter) {
-      return otherValue !== null && otherValue !== undefined && otherValue < value;
-    } else {
-      return otherValue !== null && otherValue !== undefined && otherValue > value;
-    }
+    if (typeof otherValue !== 'number') return false;
+    return higherIsBetter ? otherValue < value : otherValue > value;
   }).length;
 
   // Calculate percentile (0-100)

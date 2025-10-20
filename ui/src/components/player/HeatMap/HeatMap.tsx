@@ -98,17 +98,22 @@ export default function HeatMap({
 
     // Scale density values to sum to the point count
     const total: number =
-      d3.sum<d3Contour.ContourMultiPolygon>(rawContours, (contour: d3Contour.ContourMultiPolygon) => contour.value) || 1;
+      d3.sum<d3Contour.ContourMultiPolygon>(
+        rawContours,
+        (contour: d3Contour.ContourMultiPolygon) => contour.value,
+      ) || 1;
     return rawContours.map(
       (contour: d3Contour.ContourMultiPolygon): DensityContour =>
-      ({
-        ...contour,
-        value: (contour.value * filteredPitches.length) / total,
-      }) as DensityContour,
+        ({
+          ...contour,
+          value: (contour.value * filteredPitches.length) / total,
+        }) as DensityContour,
     );
   }, [filteredPitches, showDensity, svgX, svgY, width, height]);
 
-  const maxCount: number = Math.round(d3.max(densityContours, (contour: DensityContour) => contour.value) ?? 1);
+  const maxCount: number = Math.round(
+    d3.max(densityContours, (contour: DensityContour) => contour.value) ?? 1,
+  );
   const colorScale = d3
     .scaleSequential((t: number) => customAuburnInterpolator(t))
     .domain([0, maxCount]);
@@ -141,11 +146,7 @@ export default function HeatMap({
                 {Array.from({ length: 20 }, (_, index) => {
                   const t = index / 19;
                   return (
-                    <stop
-                      key={index}
-                      offset={`${t * 100}%`}
-                      stopColor={colorScale(t * maxCount)}
-                    />
+                    <stop key={index} offset={`${t * 100}%`} stopColor={colorScale(t * maxCount)} />
                   );
                 })}
               </linearGradient>
