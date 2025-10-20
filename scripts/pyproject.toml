@@ -72,15 +72,6 @@ warn_unused_configs = true
 disallow_untyped_defs = false  # Set to true for stricter checking
 ignore_missing_imports = true  # Ignore missing type stubs for now
 
-<<<<<<< HEAD
-# Configure flake8 (create .flake8 file in root)
-[tool.flake8]
-max-line-length = 100
-extend-ignore = ["E203", "W503"]  # Conflicts with black
-exclude = [".git", "__pycache__", ".venv", "build", "dist"]
-
-=======
->>>>>>> 9e00ffe (Add Makefile, updated toml, add initial unit test files, make formatting changes and lint changes)
 # Configure pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]

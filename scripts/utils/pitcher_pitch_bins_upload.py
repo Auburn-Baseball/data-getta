@@ -100,7 +100,8 @@ def norm_side(s: str) -> str:
 def classify_13(x: float, y: float):
     """
     Return dict with keys:
-      InZone (bool), ZoneRow, ZoneCol, ZoneCell, OuterLabel ('NA' or OTL/OTR/OBL/OBR), ZoneId (1..13)
+      InZone (bool), ZoneRow, ZoneCol, ZoneCell,
+      OuterLabel ('NA' or OTL/OTR/OBL/OBR), ZoneId (1..13)
     Rules:
       - Inside rectangle => 3x3 via X_EDGES/Y_EDGES, ZoneCell=(row-1)*3+col, ZoneId=ZoneCell.
       - Outside => big 2x2 quadrants using MID_X/MID_Y:

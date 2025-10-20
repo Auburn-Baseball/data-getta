@@ -117,22 +117,28 @@ class TestPitcherStatsExtraction:
     @pytest.fixture
     def minimal_csv(self):
         """Minimal valid CSV data."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult,GameUID
-Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout,game1
-Smith,TeamA,Walk,BallCalled,1.0,-1.5,1,1,3,2,2,0,Brown,Walk,game1
-Smith,TeamA,,InPlay,2.8,0.2,1,1,1,1,3,1,Davis,Single,game1"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide"
+            ",Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult,GameUID\n"
+            """Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout,game1
+                Smith,TeamA,Walk,BallCalled,1.0,-1.5,1,1,3,2,2,0,Brown,Walk,game1
+                Smith,TeamA,,InPlay,2.8,0.2,1,1,1,1,3,1,Davis,Single,game1"""
+        )
         return io.StringIO(csv_data)
 
     @pytest.fixture
     def complex_csv(self):
         """More complex CSV with multiple pitchers and scenarios."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult,GameUID
-Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,0,1,0,Jones,Strikeout,game1
-Smith,TeamA,Strikeout,StrikeSwinging,3.0,0.5,1,1,2,2,2,0,Brown,Strikeout,game1
-Smith,TeamA,Strikeout,StrikeSwinging,2.2,-0.3,1,2,1,2,3,0,Davis,Strikeout,game1
-Johnson,TeamB,Walk,BallCalled,4.0,1.0,1,0,3,1,1,0,Miller,Walk,game1
-Johnson,TeamB,,StrikeSwinging,2.5,0.0,1,0,3,1,1,0,Miller,Out,game1
-Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs"
+            ",Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult,GameUID\n"
+            """Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,0,1,0,Jones,Strikeout,game1
+                Smith,TeamA,Strikeout,StrikeSwinging,3.0,0.5,1,1,2,2,2,0,Brown,Strikeout,game1
+                Smith,TeamA,Strikeout,StrikeSwinging,2.2,-0.3,1,2,1,2,3,0,Davis,Strikeout,game1
+                Johnson,TeamB,Walk,BallCalled,4.0,1.0,1,0,3,1,1,0,Miller,Walk,game1
+                Johnson,TeamB,,StrikeSwinging,2.5,0.0,1,0,3,1,1,0,Miller,Out,game1
+                Johnson,TeamB,,InPlay,2.8,0.5,1,0,3,2,1,0,Miller,HomeRun,game1"""
+        )
         return io.StringIO(csv_data)
 
     def test_basic_stats_extraction(self, minimal_csv, mock_date_parser):
@@ -222,9 +228,12 @@ Smith,TeamA"""
 
     def test_null_pitcher_name_skipped(self, mock_date_parser):
         """Test that rows with null pitcher names are skipped."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
-,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout
-Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide"
+            ",Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult\n"
+            """TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout
+            Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout"""
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_pitcher_stats_from_buffer(buffer, "test.csv")
@@ -234,8 +243,11 @@ Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,2,1,0,Jones,Strikeout"""
 
     def test_games_started_detection(self, mock_date_parser):
         """Test detection of games started (first PA of first inning)."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
-Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,0,1,0,Jones,Strikeout"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide"
+            ",Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult\n"
+            "Smith,TeamA,Strikeout,StrikeSwinging,2.5,0.0,1,0,0,0,1,0,Jones,Strikeout"
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_pitcher_stats_from_buffer(buffer, "test.csv")
@@ -376,7 +388,10 @@ class TestEdgeCases:
 
     def test_divide_by_zero_in_percentages(self, mock_date_parser):
         """Test that zero batters faced doesn't cause divide by zero."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide"
+            ",Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult"
+        )
         buffer = io.StringIO(csv_data)
 
         # Should not crash, even with no actual data rows
@@ -386,8 +401,11 @@ class TestEdgeCases:
 
     def test_invalid_numeric_values(self, mock_date_parser):
         """Test that invalid numeric values are handled gracefully."""
-        csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning,Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult
-Smith,TeamA,Strikeout,StrikeSwinging,invalid,notanumber,1,0,0,2,1,0,Jones,Strikeout"""
+        csv_data = (
+            "Pitcher,PitcherTeam,KorBB,PitchCall,PlateLocHeight,PlateLocSide,Inning"
+            ",Outs,Balls,Strikes,PAofInning,OutsOnPlay,Batter,PlayResult\n"
+            "Smith,TeamA,Strikeout,StrikeSwinging,invalid,notanumber,1,0,0,2,1,0,Jones,Strikeout"
+        )
         buffer = io.StringIO(csv_data)
 
         result = get_pitcher_stats_from_buffer(buffer, "test.csv")
