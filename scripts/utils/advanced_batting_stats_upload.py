@@ -48,11 +48,6 @@ def get_advanced_batting_stats_from_buffer(
             raise ValueError(f"Unable to extract date from filename: {filename}")
         year = date_components[0]
 
-        game_date_obj = file_date_parser.get_date_object(filename)
-        if game_date_obj is None:
-            raise ValueError(f"Unable to parse game date from filename: {filename}")
-        game_date_str = str(game_date_obj)
-
         batters_dict = {}
 
         # Group by batter and team
@@ -94,9 +89,7 @@ def get_advanced_batting_stats_from_buffer(
                 & (group["Angle"] >= 8)
                 & (group["Angle"] <= 32)
             ].shape[0]
-            la_sweet_spot_per = (
-                (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
-            )
+            la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
 
             # Hard hit percentage
             hard_hit_balls = group[
@@ -120,9 +113,7 @@ def get_advanced_batting_stats_from_buffer(
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
             # K% and BB%
-            k_percentage = (
-                strikeouts / plate_appearances if plate_appearances > 0 else None
-            )
+            k_percentage = strikeouts / plate_appearances if plate_appearances > 0 else None
             bb_percentage = walks / plate_appearances if plate_appearances > 0 else None
 
             # Initialize zone stats counters
@@ -167,12 +158,8 @@ def get_advanced_batting_stats_from_buffer(
                 try:
                     if row.get("PitchCall") != "InPlay":
                         continue
-                    distance = (
-                        float(row["Distance"]) if pd.notna(row["Distance"]) else None
-                    )
-                    bearing = (
-                        float(row["Bearing"]) if pd.notna(row["Bearing"]) else None
-                    )
+                    distance = float(row["Distance"]) if pd.notna(row["Distance"]) else None
+                    bearing = float(row["Bearing"]) if pd.notna(row["Bearing"]) else None
 
                     if distance is not None and distance <= 200 and bearing is not None:
                         if -45 <= bearing < -27:
@@ -236,39 +223,37 @@ def get_advanced_batting_stats_from_buffer(
                 "Year": year,
                 "plate_app": plate_appearances,
                 "batted_balls": batted_balls,
-                "avg_exit_velo": (
-                    round(avg_exit_velo, 1) if avg_exit_velo is not None else None
-                ),
+                "avg_exit_velo": (round(avg_exit_velo, 1) if avg_exit_velo is not None else None),
                 "k_per": round(k_percentage, 3) if k_percentage is not None else None,
                 "bb_per": round(bb_percentage, 3) if bb_percentage is not None else None,
-                "la_sweet_spot_per": round(la_sweet_spot_per, 3)
-                if la_sweet_spot_per is not None
-                else None,
+                "la_sweet_spot_per": (
+                    round(la_sweet_spot_per, 3) if la_sweet_spot_per is not None else None
+                ),
                 "hard_hit_per": round(hard_hit_per, 3) if hard_hit_per is not None else None,
                 "in_zone_pitches": in_zone_pitches,
                 "whiff_per": round(whiff_per, 3) if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": round(chase_per, 3) if chase_per is not None else None,
                 "infield_left_slice": infield_left_slice,
-                "infield_left_per": round(infield_left_per, 3)
-                if infield_left_per is not None
-                else None,
+                "infield_left_per": (
+                    round(infield_left_per, 3) if infield_left_per is not None else None
+                ),
                 "infield_lc_slice": infield_lc_slice,
                 "infield_lc_per": (
                     round(infield_lc_per, 3) if infield_lc_per is not None else None
                 ),
                 "infield_center_slice": infield_center_slice,
-                "infield_center_per": round(infield_center_per, 3)
-                if infield_center_per is not None
-                else None,
+                "infield_center_per": (
+                    round(infield_center_per, 3) if infield_center_per is not None else None
+                ),
                 "infield_rc_slice": infield_rc_slice,
                 "infield_rc_per": (
                     round(infield_rc_per, 3) if infield_rc_per is not None else None
                 ),
                 "infield_right_slice": infield_right_slice,
-                "infield_right_per": round(infield_right_per, 3)
-                if infield_right_per is not None
-                else None,
+                "infield_right_per": (
+                    round(infield_right_per, 3) if infield_right_per is not None else None
+                ),
             }
 
             batters_dict[key] = batter_stats
@@ -432,45 +417,43 @@ def combine_advanced_batting_stats(existing_stats: Dict, new_stats: Dict) -> Dic
         "Year": new_stats["Year"],
         "plate_app": combined_plate_app,
         "batted_balls": combined_batted_balls,
-        "avg_exit_velo": round(combined_avg_exit_velo, 1)
-        if combined_avg_exit_velo is not None
-        else None,
+        "avg_exit_velo": (
+            round(combined_avg_exit_velo, 1) if combined_avg_exit_velo is not None else None
+        ),
         "k_per": round(combined_k_per, 3) if combined_k_per is not None else None,
         "bb_per": round(combined_bb_per, 3) if combined_bb_per is not None else None,
-        "la_sweet_spot_per": round(combined_sweet_spot_per, 3)
-        if combined_sweet_spot_per is not None
-        else None,
-        "hard_hit_per": round(combined_hard_hit_per, 3)
-        if combined_hard_hit_per is not None
-        else None,
+        "la_sweet_spot_per": (
+            round(combined_sweet_spot_per, 3) if combined_sweet_spot_per is not None else None
+        ),
+        "hard_hit_per": (
+            round(combined_hard_hit_per, 3) if combined_hard_hit_per is not None else None
+        ),
         "in_zone_pitches": combined_in_zone_pitches,
-        "whiff_per": (
-            round(combined_whiff_per, 3) if combined_whiff_per is not None else None
-        ),
+        "whiff_per": (round(combined_whiff_per, 3) if combined_whiff_per is not None else None),
         "out_of_zone_pitches": combined_out_of_zone_pitches,
-        "chase_per": (
-            round(combined_chase_per, 3) if combined_chase_per is not None else None
-        ),
+        "chase_per": (round(combined_chase_per, 3) if combined_chase_per is not None else None),
         "infield_left_slice": combined_infield_left_slice,
-        "infield_left_per": round(combined_infield_left_per, 3)
-        if combined_infield_left_per is not None
-        else None,
+        "infield_left_per": (
+            round(combined_infield_left_per, 3) if combined_infield_left_per is not None else None
+        ),
         "infield_lc_slice": combined_infield_lc_slice,
-        "infield_lc_per": round(combined_infield_lc_per, 3)
-        if combined_infield_lc_per is not None
-        else None,
+        "infield_lc_per": (
+            round(combined_infield_lc_per, 3) if combined_infield_lc_per is not None else None
+        ),
         "infield_center_slice": combined_infield_center_slice,
-        "infield_center_per": round(combined_infield_center_per, 3)
-        if combined_infield_center_per is not None
-        else None,
+        "infield_center_per": (
+            round(combined_infield_center_per, 3)
+            if combined_infield_center_per is not None
+            else None
+        ),
         "infield_rc_slice": combined_infield_rc_slice,
-        "infield_rc_per": round(combined_infield_rc_per, 3)
-        if combined_infield_rc_per is not None
-        else None,
+        "infield_rc_per": (
+            round(combined_infield_rc_per, 3) if combined_infield_rc_per is not None else None
+        ),
         "infield_right_slice": combined_infield_right_slice,
-        "infield_right_per": round(combined_infield_right_per, 3)
-        if combined_infield_right_per is not None
-        else None,
+        "infield_right_per": (
+            round(combined_infield_right_per, 3) if combined_infield_right_per is not None else None
+        ),
     }
 
 
@@ -535,13 +518,9 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                     batch, on_conflict="Batter,BatterTeam,Year"
                 ).execute()
                 total_inserted += len(batch)
-                print(
-                    f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records"
-                )
+                print(f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
-                print(
-                    f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}"
-                )
+                print(f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}")
                 if batch:
                     print(f"Sample record: {batch[0]}")
                 continue
@@ -650,9 +629,7 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
                     print(f"Sample record: {batch[0]}")
                 continue
 
-        print(
-            f"Successfully updated ranks for {total_updated} records across all years."
-        )
+        print(f"Successfully updated ranks for {total_updated} records across all years.")
 
     except Exception as e:
         print(f"Supabase error: {e}")

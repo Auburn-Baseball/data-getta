@@ -14,9 +14,7 @@ if SUPABASE_URL is None or SUPABASE_KEY is None:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def get_pitch_counts_from_buffer(
-    buffer, filename: str
-) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitch count statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)

@@ -22,9 +22,7 @@ def calculate_innings_pitched(strikeouts, outs_on_play):
     return round(full_innings + (partial_outs / 10), 1)
 
 
-def get_pitcher_stats_from_buffer(
-    buffer, filename: str
-) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitcher statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
@@ -207,15 +205,19 @@ def get_pitcher_stats_from_buffer(
                 "total_batters_faced": total_batters_faced,
                 "is_practice": is_practice,
                 "k_percentage": round(k_percentage, 3) if k_percentage is not None else None,
-                "base_on_ball_percentage": round(base_on_ball_percentage, 3)
-                if base_on_ball_percentage is not None
-                else None,
-                "in_zone_whiff_percentage": round(in_zone_whiff_percentage, 3)
-                if in_zone_whiff_percentage is not None
-                else None,
-                "chase_percentage": round(chase_percentage, 3)
-                if chase_percentage is not None
-                else None,
+                "base_on_ball_percentage": (
+                    round(base_on_ball_percentage, 3)
+                    if base_on_ball_percentage is not None
+                    else None
+                ),
+                "in_zone_whiff_percentage": (
+                    round(in_zone_whiff_percentage, 3)
+                    if in_zone_whiff_percentage is not None
+                    else None
+                ),
+                "chase_percentage": (
+                    round(chase_percentage, 3) if chase_percentage is not None else None
+                ),
                 "unique_games": unique_games,  # Store the set of unique games
                 "games": len(unique_games),  # This will be recalculated later
             }
