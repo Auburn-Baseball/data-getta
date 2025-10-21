@@ -126,11 +126,14 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Successfully processed {total_inserted} player records")
 
         # Get final count
-        count_result = (
-            supabase.table("Players").select("*", count="exact").eq("Year", 2025).execute()
-        )
-        total_players = count_result.count
-        print(f"Total 2025 players in database: {total_players}")
+        count_result = supabase.table("Players").select("BatterId, PitcherId").execute()
+
+        unique_players = set()
+        for p in count_result.data:
+            unique_players_set.add((p.get("BatterId"), p.get("PitcherId")))
+        total_players = len(unique_players_set)
+
+        print(f"Total unique players in database: {total_players}")
 
     except Exception as e:
         print(f"Supabase error: {e}")
