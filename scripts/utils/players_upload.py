@@ -4,6 +4,7 @@ import pandas as pd
 from supabase import Client, create_client
 
 from .common import SUPABASE_KEY, SUPABASE_URL
+from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
 if SUPABASE_URL is None or SUPABASE_KEY is None:
@@ -21,6 +22,12 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
         if "Pitcher" not in df.columns and "Batter" not in df.columns:
             print(f"Warning: No Pitcher or Batter columns found in {filename}")
             return {}
+
+        date_parser = CSVFilenameParser()
+        key_date = date_parser.get_date_object(filename)
+        if key_date is None:
+            raise ValueError(f"Unable to parse game date from filename: {filename}")
+        season_year = key_date.year
 
         players_dict: Dict[Tuple[str, str, int], Dict] = {}
 

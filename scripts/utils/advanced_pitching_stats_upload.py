@@ -11,34 +11,22 @@ Advanced Pitching Stats Utility Module
 - Computes and updates scaled percentile ranks for players
 """
 
-import os
-import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
-import re
 import json
+from typing import Dict, Tuple
+
 import numpy as np
-from typing import Dict, Tuple, List, Set
-from pathlib import Path
+import pandas as pd
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 import xgboost as xgb
 import bisect
 
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
-
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Strike zone constants
@@ -290,9 +278,7 @@ def get_advanced_pitching_stats_from_buffer(
                 & (group["Angle"] >= 8)
                 & (group["Angle"] <= 32)
             ].shape[0]
-            la_sweet_spot_per = (
-                (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
-            )
+            la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
 
             # Hard hit percentage
             hard_hit_balls = group[
@@ -319,18 +305,14 @@ def get_advanced_pitching_stats_from_buffer(
             total_fastball_velo = group[
                 (group["TaggedPitchType"] == "Fastball") & (group["RelSpeed"].notna())
             ]["RelSpeed"].sum()
-            avg_fastball_velo = (
-                total_fastball_velo / fastballs if fastballs > 0 else None
-            )
+            avg_fastball_velo = total_fastball_velo / fastballs if fastballs > 0 else None
 
             # Walks and strikeouts
             walks = len(group[group["KorBB"] == "Walk"])
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
             # K% and BB%
-            k_percentage = (
-                strikeouts / plate_appearances if plate_appearances > 0 else None
-            )
+            k_percentage = strikeouts / plate_appearances if plate_appearances > 0 else None
             bb_percentage = walks / plate_appearances if plate_appearances > 0 else None
 
             # GB %
@@ -346,15 +328,9 @@ def get_advanced_pitching_stats_from_buffer(
             for _, row in group.iterrows():
                 try:
                     height = (
-                        float(row["PlateLocHeight"])
-                        if pd.notna(row["PlateLocHeight"])
-                        else None
+                        float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
-                    side = (
-                        float(row["PlateLocSide"])
-                        if pd.notna(row["PlateLocSide"])
-                        else None
-                    )
+                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
 
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):
@@ -373,13 +349,9 @@ def get_advanced_pitching_stats_from_buffer(
                     continue
 
             # Whiff and chase percentages
-            whiff_per = (
-                in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
-            )
+            whiff_per = in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
             chase_per = (
-                out_of_zone_swings / out_of_zone_pitches
-                if out_of_zone_pitches > 0
-                else None
+                out_of_zone_swings / out_of_zone_pitches if out_of_zone_pitches > 0 else None
             )
 
             # --- Prepare batted_ball_rows ---
@@ -518,30 +490,20 @@ def get_advanced_pitching_stats_from_buffer(
                 "Year": year,
                 "plate_app": plate_appearances,
                 "batted_balls": batted_balls,
-                "avg_exit_velo": (
-                    round(avg_exit_velo, 1) if avg_exit_velo is not None else None
-                ),
+                "avg_exit_velo": (round(avg_exit_velo, 1) if avg_exit_velo is not None else None),
                 "k_per": round(k_percentage, 3) if k_percentage is not None else None,
-                "bb_per": (
-                    round(bb_percentage, 3) if bb_percentage is not None else None
-                ),
+                "bb_per": (round(bb_percentage, 3) if bb_percentage is not None else None),
                 "la_sweet_spot_per": (
-                    round(la_sweet_spot_per, 3)
-                    if la_sweet_spot_per is not None
-                    else None
+                    round(la_sweet_spot_per, 3) if la_sweet_spot_per is not None else None
                 ),
-                "hard_hit_per": (
-                    round(hard_hit_per, 3) if hard_hit_per is not None else None
-                ),
+                "hard_hit_per": (round(hard_hit_per, 3) if hard_hit_per is not None else None),
                 "in_zone_pitches": in_zone_pitches,
                 "whiff_per": round(whiff_per, 3) if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": round(chase_per, 3) if chase_per is not None else None,
                 "fastballs": fastballs,
                 "avg_fastball_velo": (
-                    round(avg_fastball_velo, 1)
-                    if avg_fastball_velo is not None
-                    else None
+                    round(avg_fastball_velo, 1) if avg_fastball_velo is not None else None
                 ),
                 "ground_balls": ground_balls,
                 "gb_per": round(gb_per, 3) if gb_per is not None else None,
@@ -690,26 +652,24 @@ def upload_advanced_pitching_to_supabase(
             if not data:
                 break
             for record in data:
-                key = (record["Pitcher"], record["PitcherTeam"], record["Year"])
-                existing_stats[key] = record
+                stat_key = (record["Pitcher"], record["PitcherTeam"], record["Year"])
+                existing_stats[stat_key] = record
             offset += batch_size
 
         # Combine new stats with existing stats
         combined_stats = {}
         updated_count = 0
         new_count = 0
-        for key, new_stat in pitchers_dict.items():
-            if key in existing_stats:
-                combined = combine_advanced_pitching_stats(
-                    existing_stats[key], new_stat
-                )
-                if combined is existing_stats[key]:
+        for stat_key, new_stat in pitchers_dict.items():
+            if stat_key in existing_stats:
+                combined = combine_advanced_pitching_stats(existing_stats[stat_key], new_stat)
+                if combined is existing_stats[stat_key]:
                     continue
                 updated_count += 1
             else:
                 combined = new_stat
                 new_count += 1
-            combined_stats[key] = combined
+            combined_stats[stat_key] = combined
 
         # Convert combined stats to JSON-serializable list
         pitcher_data = []
@@ -733,13 +693,9 @@ def upload_advanced_pitching_to_supabase(
                     batch, on_conflict="Pitcher,PitcherTeam,Year"
                 ).execute()
                 total_inserted += len(batch)
-                print(
-                    f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records"
-                )
+                print(f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
-                print(
-                    f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}"
-                )
+                print(f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}")
                 if batch:
                     print(f"Sample record: {batch[0]}")
                 continue
@@ -800,21 +756,15 @@ def upload_advanced_pitching_to_supabase(
                 temp["avg_exit_velo"], ascending=False
             )
             temp["k_per_rank"] = rank_and_scale_to_1_100(temp["k_per"], ascending=True)
-            temp["bb_per_rank"] = rank_and_scale_to_1_100(
-                temp["bb_per"], ascending=False
-            )
+            temp["bb_per_rank"] = rank_and_scale_to_1_100(temp["bb_per"], ascending=False)
             temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_100(
                 temp["la_sweet_spot_per"], ascending=False
             )
             temp["hard_hit_per_rank"] = rank_and_scale_to_1_100(
                 temp["hard_hit_per"], ascending=False
             )
-            temp["whiff_per_rank"] = rank_and_scale_to_1_100(
-                temp["whiff_per"], ascending=True
-            )
-            temp["chase_per_rank"] = rank_and_scale_to_1_100(
-                temp["chase_per"], ascending=True
-            )
+            temp["whiff_per_rank"] = rank_and_scale_to_1_100(temp["whiff_per"], ascending=True)
+            temp["chase_per_rank"] = rank_and_scale_to_1_100(temp["chase_per"], ascending=True)
             temp["avg_fastball_rank"] = rank_and_scale_to_1_100(
                 temp["avg_fastball_velo"], ascending=True
             )
@@ -880,9 +830,7 @@ def upload_advanced_pitching_to_supabase(
                     print(f"Sample record: {batch[0]}")
                 continue
 
-        print(
-            f"Successfully updated ranks for {total_updated} records across all years."
-        )
+        print(f"Successfully updated ranks for {total_updated} records across all years.")
 
     except Exception as e:
         print(f"Supabase error: {e}")

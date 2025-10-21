@@ -64,9 +64,7 @@ if not TRACKMAN_USERNAME or not TRACKMAN_PASSWORD:
     raise ValueError("TRACKMAN_USERNAME and TRACKMAN_PASSWORD must be set in .env file")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
+    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -404,9 +402,7 @@ def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_pat
 
                             # Check if the file is in the user-specified date range
                             if date_range:
-                                if not file_date_parser.is_in_date_range(
-                                    csv_file, date_range
-                                ):
+                                if not file_date_parser.is_in_date_range(csv_file, date_range):
                                     out_date_range += 1
                                     continue
                             in_date_range += 1
@@ -484,9 +480,7 @@ def process_csv_worker(file_info, all_stats, tracker):
                 df = pd.read_csv(buffer)
                 is_practice = False
                 if "League" in df.columns:
-                    league_values = (
-                        df["League"].dropna().astype(str).str.strip().str.upper()
-                    )
+                    league_values = df["League"].dropna().astype(str).str.strip().str.upper()
                     is_practice = (league_values == "TEAM").any()
 
                 # If it's not practice, skip this file and mark as processed
@@ -678,18 +672,14 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         "pitcher_pitch_bins": {},
     }
 
-    print(
-        f"\nStarting processing of {total_files} files with {max_workers} concurrent workers..."
-    )
+    print(f"\nStarting processing of {total_files} files with {max_workers} concurrent workers...")
     start_time = time.time()
 
     # Using threads for concurrent processing to be more efficient
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all processing tasks
         future_to_file = {
-            executor.submit(
-                process_csv_worker, file_info, all_stats, tracker
-            ): file_info
+            executor.submit(process_csv_worker, file_info, all_stats, tracker): file_info
             for file_info in csv_files
         }
 
@@ -839,9 +829,7 @@ def main():
             print(f"File being pulled: {file_number}")
             csv_files = csv_files[:file_number]
             print(csv_files)
-            print(
-                f"TEST MODE: Processing only the first file: {csv_files[0]['filename']}"
-            )
+            print(f"TEST MODE: Processing only the first file: {csv_files[0]['filename']}")
 
         # Process files concurrently
         all_stats = process_with_progress(csv_files, tracker, max_workers=6)

@@ -18,9 +18,7 @@ Ace,AUB_TIG,,InPlay,Single,100,10,2.5,0.1,GroundBall,Fastball,95
 Ace,AUB_TIG,Strikeout,StrikeSwinging,,0,0,2.6,0.1,,Fastball,96
 Ace,AUB_TIG,Walk,BallCalled,,0,0,1.0,1.2,,Fastball,97
 """
-    stats = get_advanced_pitching_stats_from_buffer(
-        StringIO(csv), "20240216-Game-1.csv"
-    )
+    stats = get_advanced_pitching_stats_from_buffer(StringIO(csv), "20240216-Game-1.csv")
     key = ("Ace", "AUB_TIG", 2024)
     assert key in stats
     record = stats[key]
