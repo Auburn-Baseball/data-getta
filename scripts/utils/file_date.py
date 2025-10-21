@@ -1,7 +1,7 @@
 """
 Author: Joshua Henley
 Created: 21 September 2025
-Updated: 21 September 2025
+Updated: 20 October 2025
 
 FTP filename processor:
     This file is designed to provide
@@ -168,7 +168,10 @@ class CSVFilenameParser:
             print(f"Error while parsing the filename: {e}")
             return datetime(2000, 1, 1)
 
-    def get_date_components(self, filename: str) -> Tuple[int, int, int]:
+        # Return None if no pattern matched
+        return None
+
+    def get_date_components(self, filename: str) -> Optional[Tuple[int, int, int]]:
         """-------------------------------------------------------------
         Get year, month, day components from filename.
 
@@ -181,14 +184,16 @@ class CSVFilenameParser:
         try:
             date_obj = self.parse_filename(filename)
             if date_obj == datetime(2000, 1, 1):
-                raise
+                return None
             elif date_obj:
                 return (date_obj.year, date_obj.month, date_obj.day)
+            else:
+                return None
         except Exception as e:
             print(f"Error while getting date components: {e}")
-            return tuple(2000, 1, 1)
+            return None
 
-    def get_date_object(self, filename: str):
+    def get_date_object(self, filename: str) -> Optional[date]:
         """----------------------------------------------------------------
         Get the date of the file's game and return as a python date object.
 
@@ -199,11 +204,14 @@ class CSVFilenameParser:
         ----------------------------------------------------------------"""
 
         date_obj = self.parse_filename(filename)
+        if date_obj is None:
+            return None
+
         try:
             return date(date_obj.year, date_obj.month, date_obj.day)
         except Exception as e:
             print(f"Error while getting the date as a date object: {e}")
-        return None
+            return None
 
     def filter_files_by_date(
         self,
@@ -231,8 +239,6 @@ class CSVFilenameParser:
                 date_components = self.get_date_components(filename)
                 if not date_components:
                     continue
-                elif date_components == tuple(2000, 1, 1):
-                    raise
 
                 file_year, file_month, file_day = date_components
 
@@ -249,3 +255,4 @@ class CSVFilenameParser:
             return filtered
         except Exception as e:
             print(f"Error while filtering files by date: {e}")
+            return []

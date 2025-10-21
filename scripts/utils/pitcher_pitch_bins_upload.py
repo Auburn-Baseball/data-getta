@@ -12,6 +12,9 @@ from .file_date import CSVFilenameParser
 # -----------------------------------------------------------------------------
 # Supabase client
 # -----------------------------------------------------------------------------
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------------------------------------------------------------
@@ -139,7 +142,7 @@ def should_exclude_file(filename: str) -> bool:
 # -----------------------------------------------------------------------------
 # Aggregation
 # -----------------------------------------------------------------------------
-PitchKey = Tuple[str, int, str, int]  # (PitcherTeam, Year, Pitcher, ZoneId)
+PitchKey = Tuple[str, str, str, int]  # (PitcherTeam, Year, Pitcher, ZoneId)
 
 PITCH_KEYS = [
     "FourSeam",

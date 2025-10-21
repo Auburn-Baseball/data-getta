@@ -1,24 +1,14 @@
-import os
-from pathlib import Path
 from typing import Dict, Tuple
 
 import pandas as pd
-from dotenv import load_dotenv
 from supabase import Client, create_client
 
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
+from .common import SUPABASE_KEY, SUPABASE_URL
 
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -32,12 +22,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
             print(f"Warning: No Pitcher or Batter columns found in {filename}")
             return {}
 
-        date_parser = CSVFilenameParser()
-        key_date = date_parser.get_date_object(filename)
-        if key_date is None:
-            raise ValueError(f"Unable to parse game date from filename: {filename}")
-        season_year = key_date.year
-        players_dict = {}
+        players_dict: Dict[Tuple[str, str, int], Dict] = {}
 
         # Extract pitchers
         if all(col in df.columns for col in ["Pitcher", "PitcherId", "PitcherTeam"]):

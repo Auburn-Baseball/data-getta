@@ -8,6 +8,9 @@ from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -22,7 +25,7 @@ def get_pitch_counts_from_buffer(
         is_practice = False
         if "League" in df.columns:
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = (league_values == "TEAM").any()
+            is_practice = bool((league_values == "TEAM").any())
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date_obj = date_parser.get_date_object(filename)
