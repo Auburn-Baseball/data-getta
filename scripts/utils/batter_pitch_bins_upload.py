@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,9 @@ from .file_date import CSVFilenameParser
 # ---------------------------------------------------------------------------
 # Supabase client
 # ---------------------------------------------------------------------------
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------------------------------------------------------------
@@ -122,18 +125,16 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     }
 
 
-def empty_row(
-    team: str, game_date, batter: str, zone_meta: Dict[str, object]
-) -> Dict[str, float]:
-    row: Dict[str, float] = {
+def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
+    row: Dict[str, Any] = {
         "BatterTeam": team,
         "Date": game_date,
         "Batter": batter,
-        "ZoneId": int(zone_meta["ZoneId"]),
+        "ZoneId": int(cast(int, zone_meta["ZoneId"])),
         "InZone": bool(zone_meta["InZone"]),
-        "ZoneRow": int(zone_meta["ZoneRow"]),
-        "ZoneCol": int(zone_meta["ZoneCol"]),
-        "ZoneCell": int(zone_meta["ZoneCell"]),
+        "ZoneRow": int(cast(int, zone_meta["ZoneRow"])),
+        "ZoneCol": int(cast(int, zone_meta["ZoneCol"])),
+        "ZoneCell": int(cast(int, zone_meta["ZoneCell"])),
         "OuterLabel": str(zone_meta["OuterLabel"]),
         "ZoneVersion": ZONE_VERSION,
     }
@@ -184,7 +185,7 @@ def get_batter_bins_from_buffer(
         if not team or not batter:
             continue
 
-        key: BinKey = (team, game_date, batter, int(zone_meta["ZoneId"]))
+        key: BinKey = (team, game_date, batter, int(cast(int, zone_meta["ZoneId"])))
         record = bins.get(key)
         if record is None:
             record = empty_row(team, game_date, batter, zone_meta)

@@ -1,7 +1,7 @@
 """
 Author: Joshua Reed
 Created: 08 October 2025
-Updated: 14 October 2025
+Updated: 20 October 2025
 
 Advanced Batting Stats Utility Module
 - Loads environment variables and initializes Supabase client
@@ -22,6 +22,9 @@ from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -493,25 +496,22 @@ def upload_advanced_batting_to_supabase(batters_dict: Dict[Tuple[str, str, int],
             if not data:
                 break
             for record in data:
-                key = (record["Batter"], record["BatterTeam"], record["Year"])
-                existing_stats[key] = record
+                stats_key = (record["Batter"], record["BatterTeam"], record["Year"])
+                existing_stats[stats_key] = record
             offset += batch_size
 
         # Combine new stats with existing stats
         combined_stats = {}
         updated_count = 0
         new_count = 0
-        for key, new_stat in batters_dict.items():
-            if key in existing_stats:
-                combined = combine_advanced_batting_stats(existing_stats[key], new_stat)
-                if combined is existing_stats[key]:
-                    # Date already processed; skip to avoid duplicate uploads
-                    continue
+        for stats_key, new_stat in batters_dict.items():
+            if stats_key in existing_stats:
+                combined = combine_advanced_batting_stats(existing_stats[stats_key], new_stat)
                 updated_count += 1
             else:
                 combined = new_stat
                 new_count += 1
-            combined_stats[key] = combined
+            combined_stats[stats_key] = combined
 
         # Convert combined stats to JSON-serializable list
         batter_data = []
