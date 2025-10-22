@@ -114,16 +114,17 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
 
   // Define the stats we want to display with proper typing
   const statConfigs: StatConfig[] = [
-    { key: 'avg_exit_velo', label: 'EV' },
-    { key: 'k_per', label: 'K%', isPercentage: true },
-    { key: 'bb_per', label: 'BB%', isPercentage: true },
-    { key: 'la_sweet_spot_per', label: 'LA Sweet Spot %', isPercentage: true },
-    { key: 'hard_hit_per', label: 'Hard Hit %', isPercentage: true },
-    { key: 'whiff_per', label: 'Whiff %', isPercentage: true },
-    { key: 'chase_per', label: 'Chase %', isPercentage: true },
+    { key: 'xwoba_per', label: 'xwOBA' },
+    { key: 'xba_per', label: 'xBA' },
+    { key: 'xslg_per', label: 'xSLG' },
+    { key: 'avg_exit_velo', label: 'Avg Exit Velo' },
     { key: 'barrel_per', label: 'Barrel %', isPercentage: true },
-    { key: 'xba_per', label: 'xBA', isPercentage: true },
-    { key: 'xslg_per', label: 'xSLG', isPercentage: true },
+    { key: 'hard_hit_per', label: 'Hard Hit %', isPercentage: true },
+    { key: 'la_sweet_spot_per', label: 'LA Sweet Spot %', isPercentage: true },
+    { key: 'chase_per', label: 'Chase %', isPercentage: true },
+    { key: 'whiff_per', label: 'Whiff %', isPercentage: true },
+    { key: 'k_per', label: 'K %', isPercentage: true },
+    { key: 'bb_per', label: 'BB %', isPercentage: true },
   ];
 
   return (
@@ -169,8 +170,11 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
                 typeof statValue === 'number'
                   ? config.isPercentage
                     ? `${(statValue * 100).toFixed(1)}%`
-                    : statValue.toFixed(1)
+                    : ['xba_per', 'xslg_per', 'xwoba_per'].includes(config.key)
+                      ? statValue.toFixed(3)
+                      : statValue.toFixed(1)
                   : '0.0';
+
 
               return (
                 <StatBar
