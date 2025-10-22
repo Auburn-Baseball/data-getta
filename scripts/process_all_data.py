@@ -9,7 +9,7 @@ Unified TrackMan CSV Processor - Database Tracking Version
 - Processes each file once through all update modules
 - Tracks processed files in database to avoid duplicates
 - Works in containerized environments (Docker/GitLab Actions)
-- Supports test mode and date range filtering
+- Supports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filteringSupports test mode and date range filtering
 """
 
 import concurrent.futures
