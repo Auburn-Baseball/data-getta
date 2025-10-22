@@ -1,51 +1,20 @@
-import os
-import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
-import re
 import json
-import numpy as np
-from typing import Dict, Tuple, List, Set
-from pathlib import Path
+from typing import Dict, Tuple
+
+import pandas as pd
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
-
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-# Custom encoder to handle numpy types
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif pd.isna(obj):
-            return None
-        return super(NumpyEncoder, self).default(obj)
-
-
-def get_pitch_counts_from_buffer(
-    buffer, filename: str
-) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitch count statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
@@ -54,7 +23,7 @@ def get_pitch_counts_from_buffer(
         is_practice = False
         if "League" in df.columns:
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = (league_values == "TEAM").any()
+            is_practice = bool((league_values == "TEAM").any())
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date_obj = date_parser.get_date_object(filename)
@@ -122,9 +91,7 @@ def get_pitch_counts_from_buffer(
 
             # Get unique games from this file - store as a set for later merging
             unique_games = (
-                set(group["GameUID"].dropna().unique())
-                if "GameUID" in group.columns
-                else set()
+                set(group["GameUID"].dropna().unique()) if "GameUID" in group.columns else set()
             )
 
             pitch_stats = {
@@ -185,7 +152,7 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table(f"PitchCounts")
+                    supabase.table("PitchCounts")
                     .upsert(batch, on_conflict="Pitcher,PitcherTeam,Date")
                     .execute()
                 )
@@ -198,14 +165,13 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
                 # Print first record of failed batch for debugging
                 if batch:
                     print(f"Sample record from failed batch: {batch[0]}")
+                    print(result.data)
                 continue
 
         print(f"Successfully processed {total_inserted} pitch count records")
 
         # Get final count
-        count_result = (
-            supabase.table(f"PitchCounts").select("*", count="exact").execute()
-        )
+        count_result = supabase.table("PitchCounts").select("*", count="exact").execute()
         total_pitchers = count_result.count
         print(f"Total pitcher pitch counts in database: {total_pitchers}")
 

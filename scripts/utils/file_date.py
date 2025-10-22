@@ -1,7 +1,7 @@
 """
 Author: Joshua Henley
 Created: 21 September 2025
-Updated: 21 September 2025
+Updated: 20 October 2025
 
 FTP filename processor:
     This file is designed to provide
@@ -32,7 +32,7 @@ class CSVFilenameParser:
         # Pattern for format: Prefix_YYYY-MM-DDTHHMMSS_suffix.csv
         self.practice = re.compile(r"^.*_(\d{4}-\d{2}-\d{2})T\d{6}_.*\.csv$")
 
-    def _extract_date_as_int(self, filename: str) -> Optional[int]:
+    def _extract_date_as_int(self, filename: str) -> int:
         """------------------------------------------------------
         Extract the date from a filename and return in the format YYYYMMDD
 
@@ -65,7 +65,7 @@ class CSVFilenameParser:
             except ValueError:
                 pass
 
-        return None
+        return 0
 
     def _is_valid_date_int(self, date_int: int) -> bool:
         """----------------------------------------------------------
@@ -103,7 +103,7 @@ class CSVFilenameParser:
 
         if not re.match(r"^\d{8}-\d{8}$", date_range_str):
             raise ValueError(
-                f"Date range must be in format YYYYMMDD-YYYYMMDD, got: {date_range_str}"
+                "Date range must be in format YYYYMMDD-YYYYMMDD," f"got: {date_range_str}"
             )
 
         start_str, end_str = date_range_str.split("-")
@@ -116,9 +116,7 @@ class CSVFilenameParser:
         if not self._is_valid_date_int(end_date):
             raise ValueError(f"Invalid end date: {end_str}")
         if start_date > end_date:
-            raise ValueError(
-                f"Start date ({start_str}) cannot be after end date ({end_str})"
-            )
+            raise ValueError(f"Start date ({start_str})" f"cannot be after end date ({end_str})")
 
         return start_date, end_date
 
@@ -148,57 +146,72 @@ class CSVFilenameParser:
             datetime object if date found, None otherwise
         ------------------------------------------------------"""
 
-        # Try format 1: YYYYMMDD-Description-Number.csv
-        match1 = self.v3.match(filename)
-        if match1:
-            date_str = match1.group(1)
-            try:
-                return datetime.strptime(date_str, "%Y%m%d")
-            except ValueError:
-                pass
+        try:
+            # Try format 1: YYYYMMDD-Description-Number.csv
+            match1 = self.v3.match(filename)
+            if match1:
+                date_str = match1.group(1)
+                try:
+                    return datetime.strptime(date_str, "%Y%m%d")
+                except ValueError:
+                    pass
 
-        # Try format 2: Prefix_YYYY-MM-DDTHHMMSS_suffix.csv
-        match2 = self.practice.match(filename)
-        if match2:
-            date_str = match2.group(1)
-            try:
-                return datetime.strptime(date_str, "%Y-%m-%d")
-            except ValueError:
-                pass
+            # Try format 2: Prefix_YYYY-MM-DDTHHMMSS_suffix.csv
+            match2 = self.practice.match(filename)
+            if match2:
+                date_str = match2.group(1)
+                try:
+                    return datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError:
+                    pass
+        except Exception as e:
+            print(f"Error while parsing the filename: {e}")
+            return datetime(2000, 1, 1)
 
+        # Return None if no pattern matched
         return None
 
     def get_date_components(self, filename: str) -> Optional[Tuple[int, int, int]]:
-        """-----------------------------------------------------------------------
+        """-------------------------------------------------------------
         Get year, month, day components from filename.
 
         Args:
             filename: The CSV filename to parse
         Returns:
             Tuple of (year, month, day) if date found, None otherwise
-        ----------------------------------------------------------------------"""
+        -------------------------------------------------------------"""
 
-        date_obj = self.parse_filename(filename)
-        if date_obj:
-            return (date_obj.year, date_obj.month, date_obj.day)
-        return None
+        try:
+            date_obj = self.parse_filename(filename)
+            if date_obj == datetime(2000, 1, 1):
+                return None
+            elif date_obj:
+                return (date_obj.year, date_obj.month, date_obj.day)
+            else:
+                return None
+        except Exception as e:
+            print(f"Error while getting date components: {e}")
+            return None
 
-    def get_date_object(self, filename: str):
-        """-----------------------------------------------------------------------
+    def get_date_object(self, filename: str) -> Optional[date]:
+        """----------------------------------------------------------------
         Get the date of the file's game and return as a python date object.
 
         Args:
             filename: The CSV filename to parse
         Returns:
             Python date object (compatible with Supabase date object)
-        ----------------------------------------------------------------------"""
+        ----------------------------------------------------------------"""
 
         date_obj = self.parse_filename(filename)
+        if date_obj is None:
+            return None
+
         try:
             return date(date_obj.year, date_obj.month, date_obj.day)
         except Exception as e:
             print(f"Error while getting the date as a date object: {e}")
-        return None
+            return None
 
     def filter_files_by_date(
         self,
@@ -221,37 +234,25 @@ class CSVFilenameParser:
 
         filtered = []
 
-        for filename in filenames:
-            date_components = self.get_date_components(filename)
-            if not date_components:
-                continue
-
-            file_year, file_month, file_day = date_components
-
-            # Check if file matches criteria
-            if year is not None and file_year != year:
-                continue
-            if month is not None and file_month != month:
-                continue
-            if day is not None and file_day != day:
-                continue
-
-            filtered.append(filename)
-
-        return filtered
-
-    def get_date_object(self, filename: str):
-        """-----------------------------------------------------------------------
-        Get the date of the file's game and return as a python date object.
-        Args:
-            filename: The CSV filename to parse
-        Returns:
-            Python date object (compatible with Supabase date object)
-        ----------------------------------------------------------------------"""
-
-        date_obj = self.parse_filename(filename)
         try:
-            return date(date_obj.year, date_obj.month, date_obj.day)
+            for filename in filenames:
+                date_components = self.get_date_components(filename)
+                if not date_components:
+                    continue
+
+                file_year, file_month, file_day = date_components
+
+                # Check if file matches criteria
+                if year is not None and file_year != year:
+                    continue
+                if month is not None and file_month != month:
+                    continue
+                if day is not None and file_day != day:
+                    continue
+
+                filtered.append(filename)
+
+            return filtered
         except Exception as e:
-            print(f"Error while getting the date as a date object: {e}")
-        return None
+            print(f"Error while filtering files by date: {e}")
+            return []

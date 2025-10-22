@@ -116,9 +116,7 @@ def test_combine_advanced_batting_stats():
         + combined["infield_right_slice"]
     )
     assert total_infield == 7 + 14 + 26 + 33 + 30
-    assert combined["infield_rc_per"] == round(
-        combined["infield_rc_slice"] / total_infield, 3
-    )
+    assert combined["infield_rc_per"] == round(combined["infield_rc_slice"] / total_infield, 3)
     assert combined["processed_dates"] == ["2024-02-14", "2024-02-15"]
 
 
