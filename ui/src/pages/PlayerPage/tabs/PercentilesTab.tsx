@@ -4,8 +4,8 @@ import { Box, Typography, CircularProgress } from '@mui/material';
 
 import StatBar from '@/components/player/StatBar';
 import InfieldSprayChart from '@/components/player/Charts/InfieldSprayChart';
-import { fetchAdvancedBattingStats } from '@/services/playerService';
-import type { AdvancedBattingStatsTable } from '@/types/db';
+import { fetchAdvancedBattingStats, fetchAdvancedPitchingStats } from '@/services/playerService';
+import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 import type { DateRange } from '@/types/dateRange';
 import { formatYearRange } from '@/utils/dateRange';
 
@@ -13,12 +13,11 @@ type PercentilesTabProps = {
   dateRange: DateRange;
 };
 
-// Define a type for our stat keys to avoid 'any'
-type StatKey = keyof AdvancedBattingStatsTable;
+type BattingStatKey = keyof AdvancedBattingStatsTable;
+type PitchingStatKey = keyof AdvancedPitchingStatsTable;
 
-// Define our stat display configuration with proper typing
-interface StatConfig {
-  key: StatKey;
+interface StatConfig<T extends string> {
+  key: T;
   label: string;
   isPercentage?: boolean;
 }
@@ -29,7 +28,8 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     playerName: string;
   }>();
 
-  const [stats, setStats] = useState<AdvancedBattingStatsTable | null>(null);
+  const [battingStats, setBattingStats] = useState<AdvancedBattingStatsTable | null>(null);
+  const [pitchingStats, setPitchingStats] = useState<AdvancedPitchingStatsTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +38,6 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
   useEffect(() => {
     async function fetchStats() {
       if (!trackmanAbbreviation || !playerName) return;
-
       setLoading(true);
       setError(null);
 
@@ -46,26 +45,26 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         const formattedPlayerName = decodeURIComponent(playerName).replace('_', ', ');
         const decodedTeamName = decodeURIComponent(trackmanAbbreviation);
 
-        const { data, error } = await fetchAdvancedBattingStats(decodedTeamName, dateRange);
+        const [battingResponse, pitchingResponse] = await Promise.all([
+          fetchAdvancedBattingStats(formattedPlayerName, decodedTeamName, dateRange),
+          fetchAdvancedPitchingStats(formattedPlayerName, decodedTeamName, dateRange),
+        ]);
 
-        if (error) {
-          console.error('Error fetching player stats:', error);
+        if (battingResponse.error && pitchingResponse.error) {
           setError(`Failed to load stats for ${formattedPlayerName}`);
           setLoading(false);
           return;
         }
 
-        const playerStats = data?.find((entry) => entry.Batter === formattedPlayerName) ?? null;
+        const battingData =
+          battingResponse.data?.find((entry) => entry.Batter === formattedPlayerName) ?? null;
+        const pitchingData =
+          pitchingResponse.data?.find((entry) => entry.Pitcher === formattedPlayerName) ?? null;
 
-        if (!playerStats) {
-          setError(`No advanced stats found for ${formattedPlayerName} in ${seasonLabel}`);
-          setLoading(false);
-          return;
-        }
-
-        setStats(playerStats);
-      } catch (error: unknown) {
-        console.error('Error fetching percentile stats:', error);
+        setBattingStats(battingData);
+        setPitchingStats(pitchingData);
+      } catch (err: unknown) {
+        console.error('Error fetching stats:', err);
         setError('Failed to load player stats');
       } finally {
         setLoading(false);
@@ -104,16 +103,16 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     );
   }
 
-  if (!stats) {
+  if (!battingStats && !pitchingStats) {
     return (
       <Typography variant="body1" sx={{ textAlign: 'center', py: '4rem' }}>
-        No advanced stats data available for this player in {seasonLabel}.
+        0
       </Typography>
     );
   }
 
-  // Define the stats we want to display with proper typing
-  const statConfigs: StatConfig[] = [
+  // ---- CONFIGS ----
+  const battingConfigs: StatConfig<BattingStatKey>[] = [
     { key: 'xwoba_per', label: 'xwOBA' },
     { key: 'xba_per', label: 'xBA' },
     { key: 'xslg_per', label: 'xSLG' },
@@ -127,85 +126,121 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     { key: 'bb_per', label: 'BB %', isPercentage: true },
   ];
 
+  const pitchingConfigs: StatConfig<PitchingStatKey>[] = [
+    { key: 'xwoba_per', label: 'xwOBA' },
+    { key: 'xba_per', label: 'xBA' },
+    { key: 'xslg_per', label: 'xSLG' },
+    { key: 'avg_fastball_velo', label: 'Avg Fastball Velo' },
+    { key: 'avg_exit_velo', label: 'Avg Exit Velo' },
+    { key: 'chase_per', label: 'Chase %', isPercentage: true },
+    { key: 'whiff_per', label: 'Whiff %', isPercentage: true },
+    { key: 'k_per', label: 'K %', isPercentage: true },
+    { key: 'bb_per', label: 'BB %', isPercentage: true },
+    { key: 'barrel_per', label: 'Barrel %', isPercentage: true },
+    { key: 'hard_hit_per', label: 'Hard Hit %', isPercentage: true },
+    { key: 'gb_per', label: 'GB %', isPercentage: true},
+  ];
+
+  const renderStatBars = <T extends string>(
+    stats: Partial<Record<T, any>>,
+    configs: StatConfig<T>[],
+    title: string
+  ) => (
+    <Box
+      sx={{
+        width: '100%',
+        maxWidth: 400,
+        mx: 'auto',
+        mb: 6,
+      }}
+    >
+      <Typography variant="h5" sx={{ textAlign: 'center', mb: 3 }}>
+        {title} ({seasonLabel})
+      </Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {configs.map((config) => {
+          const value = stats[config.key];
+          if (value === undefined) return null;
+
+          const rankKey = `${config.key}_rank` as T;
+          const rankValue = stats[rankKey];
+          const rank = typeof rankValue === 'number' ? Math.round(rankValue) : 50;
+
+          const displayValue =
+            typeof value === 'number'
+              ? (() => {
+                  switch (config.key) {
+                    case 'k_per':
+                    case 'bb_per':
+                    case 'barrel_per':
+                    case 'hard_hit_per':
+                    case 'la_sweet_spot_per':
+                    case 'chase_per':
+                    case 'whiff_per':
+                    case 'gb_per':
+                      return `${(value * 100).toFixed(1)}%`;
+
+                    case 'xwoba_per':
+                    case 'xba_per':
+                    case 'xslg_per':
+                      return value.toFixed(3);
+
+                    case 'plate_app':
+                    case 'fastballs':
+                    case 'batted_balls':
+                      return value.toFixed(0);
+
+                    default:
+                      return value.toFixed(1);
+                  }
+                })()
+              : '0.0';
+
+
+          return (
+            <StatBar
+              key={config.key}
+              statName={config.label}
+              percentile={rank}
+              color={getRankColor(rank)}
+              statValue={displayValue}
+            />
+          );
+        })}
+      </Box>
+    </Box>
+  );
+
   return (
     <Box
       sx={{
         display: 'flex',
+        flexDirection: 'column', // Always stacked vertically
+        alignItems: 'center',
         width: '100%',
         maxWidth: 1200,
         margin: '40px auto',
-        gap: 3,
-        flexDirection: { xs: 'column', md: 'row' },
       }}
     >
-      {/* Advanced Stats */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mb: { xs: 4, md: 0 },
-        }}
-      >
-        <Box sx={{ width: '100%', maxWidth: 400 }}>
-          <Typography variant="h5" sx={{ textAlign: 'center', mb: 3 }}>
-            Advanced Stats ({seasonLabel})
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {statConfigs.map((config) => {
-              // Get the stat value and skip if undefined
-              const statValue = stats[config.key];
-              if (statValue === undefined) {
-                return null;
-              }
-
-              // Get the rank value using explicit key construction
-              const rankKey = `${config.key}_rank` as keyof AdvancedBattingStatsTable;
-              const rankValue = stats[rankKey];
-              const rank = typeof rankValue === 'number' ? Math.round(rankValue) : 50;
-
-              // Format the displayed value
-              const displayValue =
-                typeof statValue === 'number'
-                  ? config.isPercentage
-                    ? `${(statValue * 100).toFixed(1)}%`
-                    : ['xba_per', 'xslg_per', 'xwoba_per'].includes(config.key)
-                      ? statValue.toFixed(3)
-                      : statValue.toFixed(1)
-                  : '0.0';
-
-
-              return (
-                <StatBar
-                  key={config.key}
-                  statName={config.label}
-                  percentile={rank}
-                  color={getRankColor(rank)}
-                  statValue={displayValue}
-                />
-              );
-            })}
+      {/* Batting Stats + Chart */}
+      {battingStats && (
+        <Box sx={{ width: '100%', mb: 8 }}>
+          {renderStatBars(battingStats, battingConfigs, 'Batting Stats')}
+          <Box sx={{ textAlign: 'center', width: '100%', mt: 3 }}>
+            <Typography variant="h5" sx={{ mb: 2 }}>
+              Infield Spray Chart
+            </Typography>
+            <InfieldSprayChart stats={battingStats} />
           </Box>
         </Box>
-      </Box>
+      )}
 
-      {/* Infield Spray Chart */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center', width: '100%' }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            Infield Spray Chart
-          </Typography>
-          <InfieldSprayChart stats={stats} />
+      {/* Pitching Stats (stacked below, no spray chart) */}
+      {pitchingStats && (
+        <Box sx={{ width: '100%', mb: 6 }}>
+          {renderStatBars(pitchingStats, pitchingConfigs, 'Pitching Stats')}
         </Box>
-      </Box>
+      )}
     </Box>
   );
 }
