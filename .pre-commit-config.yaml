@@ -15,14 +15,14 @@ repos:
     hooks:
       - id: black
         args: ['--line-length=100']
-        files: ^(utils/|tests/|.*\.py$)
+        files: ^(scripts/|.*\.py$)
 
   - repo: https://github.com/PyCQA/isort
     rev: 7.0.0
     hooks:
       - id: isort
         args: ['--profile=black', '--line-length=100']
-        files: ^(utils/|tests/|.*\.py$)
+        files: ^(scripts/|.*\.py$)
 
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
@@ -32,17 +32,37 @@ repos:
           - '--max-line-length=100'
           - '--extend-ignore=E203,W503'
           - '--per-file-ignores=__init__.py:F401'
-        files: ^(utils/|tests/)
+        files: ^(scripts/|.*\.py$)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.18.2
     hooks:
       - id: mypy
         args: ['--config-file=pyproject.toml']
-        files: ^utils/
+        files: ^(scripts/|.*\.py$)
         additional_dependencies:
           - pandas-stubs
           - types-requests
           - pandas
           - numpy
           - supabase
+
+  - repo: local
+    hooks:
+      - id: run-scripts-tests
+        name: Run scripts unit tests
+        entry: bash -c 'cd scripts && make test'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+  - repo: local
+    hooks:
+      - id: run-front-tests
+        name: Run front-end unit tests
+        entry: bash -c 'cd ui && npm install && npm run test'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
