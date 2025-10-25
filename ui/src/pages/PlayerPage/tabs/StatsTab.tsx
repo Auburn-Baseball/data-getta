@@ -7,14 +7,17 @@ import BattingStatsTable from '@/components/player/Batting/BattingStatsTable';
 import PitchCountTable from '@/components/player/Pitching/PitchCountTable';
 import PitchingStatsTable from '@/components/player/Pitching/PitchingStatsTable';
 import StatsTableSkeleton from '@/components/player/StatsTableSkeleton';
+
+import { batterStatsTransform } from '@/transforms/batterStatsTransform';
+import { pitchCountsTransform, pitcherStatsTransform } from '@/transforms/pitcherStatsTransforms';
+
 import {
   fetchPlayerBatterStats,
   fetchPlayerPitchCounts,
   fetchPlayerPitcherStats,
 } from '@/services/playerService';
+
 import type { BatterStatsTable, PitchCountsTable, PitcherStatsTable } from '@/types/db';
-import { batterStatsTransform } from '@/transforms/batterStatsTransform';
-import { pitcherStatsTransform, pitchCountsTransform } from '@/transforms/pitcherStatsTransforms';
 
 type StatsTabProps = {
   startDate: string;
@@ -53,16 +56,14 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
   useEffect(() => {
     async function fetchStats() {
       if (!decodedPlayerName || !decodedTeamName || !startDate || !endDate) return;
-
       try {
         setLoading(true);
         setError(null);
 
         const range = { startDate, endDate };
-
         const opt = effectivePractice ? { practice: true } : {};
 
-        // Only pass opt.practice when true; off = undefined (server returns all, so nulls aren't excluded)
+        // --- Batting: pass RAW + MODE to transform (prevents duplicates) ---
         const batterResp = await fetchPlayerBatterStats(
           decodedPlayerName,
           decodedTeamName,
@@ -71,6 +72,14 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         );
         if (batterResp.error) throw batterResp.error;
 
+        const battingMode = effectivePractice ? 'practiceOnly' : 'gameOnly' as const;
+        const bAgg = batterStatsTransform((batterResp.data ?? []) as BatterStatsTable[], {
+          mode: battingMode,
+        });
+        // If transform ever returns [], show null (not raw rows)
+        const bStat = bAgg[0] ?? null;
+
+        // --- Pitcher & PitchCounts: keep simple client filter, then transform ---
         const pitcherResp = await fetchPlayerPitcherStats(
           decodedPlayerName,
           decodedTeamName,
@@ -87,49 +96,39 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
         );
         if (pitchResp.error) throw pitchResp.error;
 
-        // Client-side filter to exactly mimic Team tabs behavior
-        const batterRows = filterByPractice(batterResp.data ?? [], practice);
-        const pitcherRows = filterByPractice(pitcherResp.data ?? [], practice);
-        const pitchRows = filterByPractice(pitchResp.data ?? [], practice);
+        const pitcherRows = filterByPractice(pitcherResp.data ?? [], effectivePractice);
+        const pitchRows = filterByPractice(pitchResp.data ?? [], effectivePractice);
 
-        // Transforms with safe fallback: if transform returns [], show first raw row
-        const transformedBatterStats = batterRows.length
-          ? (batterStatsTransform(batterRows)[0] ?? batterRows[0] ?? null)
+        const pStat = pitcherRows.length
+          ? (pitcherStatsTransform(pitcherRows as PitcherStatsTable[])[0] ??
+              (pitcherRows as PitcherStatsTable[])[0] ??
+              null)
           : null;
 
-        const transformedPitcherStats = pitcherRows.length
-          ? (pitcherStatsTransform(pitcherRows)[0] ?? pitcherRows[0] ?? null)
+        const pcStat = pitchRows.length
+          ? (pitchCountsTransform(pitchRows as PitchCountsTable[])[0] ??
+              (pitchRows as PitchCountsTable[])[0] ??
+              null)
           : null;
 
-        const transformedPitchCounts = pitchRows.length
-          ? (pitchCountsTransform(pitchRows)[0] ?? pitchRows[0] ?? null)
-          : null;
-
-        setBatterStats(transformedBatterStats);
-        setPitcherStats(transformedPitcherStats);
-        setPitchCounts(transformedPitchCounts);
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-        setError('Failed to load player stats');
+        setBatterStats(bStat);
+        setPitcherStats(pStat);
+        setPitchCounts(pcStat);
+      } catch (e: any) {
+        console.error('Error fetching player stats:', e);
+        setError(e?.message ?? 'Failed to load stats');
+        setBatterStats(null);
+        setPitcherStats(null);
+        setPitchCounts(null);
       } finally {
         setLoading(false);
       }
     }
 
     fetchStats();
-  }, [decodedPlayerName, decodedTeamName, startDate, endDate, practice]);
+  }, [decodedPlayerName, decodedTeamName, startDate, endDate, effectivePractice]);
 
   if (loading) return <StatsTableSkeleton />;
-
-  if (error) {
-    return (
-      <Typography variant="h6" color="#d32f2f">
-        <strong>Error!</strong>
-        <br />
-        {error}
-      </Typography>
-    );
-  }
 
   const hasBatterData = !!batterStats;
   const hasPitcherData = !!pitcherStats;
@@ -137,11 +136,9 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
 
   if (!hasBatterData && !hasPitcherData && !hasPitchCountsData) {
     return (
-      <Typography variant="h6" color="#d32f2f">
-        <strong>Strikeout!</strong>
-        <br />
-        No stats found for this player between {startDate} and {endDate}.
-      </Typography>
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="body1">{error ?? 'No stats found for this range.'}</Typography>
+      </Box>
     );
   }
 
