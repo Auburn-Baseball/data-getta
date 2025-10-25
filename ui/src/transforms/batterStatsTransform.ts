@@ -154,40 +154,35 @@ const aggregatePlayerStats = (playerStats: BatterStatsTable[]): BatterStatsTable
   return aggregated;
 };
 
-export function batterStatsTransform(data: BatterStatsTable[]): BatterStatsTable[] {
+export function batterStatsTransform(
+  data: BatterStatsTable[],
+  opts: { mode?: 'all' | 'practiceOnly' | 'gameOnly' } = { mode: 'all' }
+): BatterStatsTable[] {
   if (!data || data.length === 0) return [];
 
-  // Group by Batter + BatterTeam, ignore practice data if surfaced
+  const { mode = 'all' } = opts;
   const playerMap = new Map<string, BatterStatsTable[]>();
 
   for (const stat of data) {
-    if (stat.is_practice) {
-      continue;
-    }
+    if (mode === 'gameOnly' && stat.is_practice) continue;
+    if (mode === 'practiceOnly' && !stat.is_practice) continue;
+
     const key = `${stat.Batter}|${stat.BatterTeam}`;
-    if (!playerMap.has(key)) {
-      playerMap.set(key, []);
-    }
+    if (!playerMap.has(key)) playerMap.set(key, []);
     playerMap.get(key)!.push(stat);
   }
 
-  // Aggregate stats for each player
   const results: BatterStatsTable[] = [];
-
   for (const playerStats of playerMap.values()) {
     const aggregated = aggregatePlayerStats(playerStats);
-    if (aggregated) {
-      results.push(aggregated);
-    }
+    if (aggregated) results.push(aggregated);
   }
 
-  // Sort by batting average (descending)
+  // Sort by batting average (desc), then name for stability
   return results.sort((a, b) => {
     const aAvg = a.batting_average ?? 0;
     const bAvg = b.batting_average ?? 0;
-
     if (bAvg !== aAvg) return bAvg - aAvg;
-
     return (a.Batter || '').localeCompare(b.Batter || '');
   });
 }

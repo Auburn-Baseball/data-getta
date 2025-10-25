@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import { useRef } from 'react';
+import { Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import Box from '@mui/material/Box';
-
 import ModelTabs from '@/components/player/ModelTabs';
 import PlayerInfo from '@/components/player/PlayerInfo';
 import { fetchPlayer } from '@/services/playerService';
 import type { PlayersTable } from '@/types/db';
 import type { DateRange } from '@/types/dateRange';
 import { formatYearRange } from '@/utils/dateRange';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
+import { useQuickFilterContext } from 'node_modules/@mui/x-data-grid/esm/components/quickFilter/QuickFilterContext';
 
 type PlayerPageProps = {
   dateRange: DateRange;
@@ -24,22 +27,50 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
   const [player, setPlayer] = useState<PlayersTable | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const practice = searchParams.get('practice') === 'true';
+
+  const clearedOnce = useRef(false);
+  useEffect(() => {
+    if (clearedOnce.current) return;
+    clearedOnce.current = true;
+  
+    // Default to OFF on entry: remove ?practice from URL if present
+    const next = new URLSearchParams(searchParams);
+    if (next.has('practice')) {
+      next.delete('practice');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+
+  const handlePracticeToggle = (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (checked) next.set('practice', 'true');
+    else next.delete('practice'); // keep URL clean, and treat "off" as non-practice
+    setSearchParams(next);
+  };
+
+  // Keep the canonical stats route with current date range and existing search params (incl. practice)
   useEffect(() => {
     if (trackmanAbbreviation && playerName) {
       const playerPath = `/team/${trackmanAbbreviation}/player/${playerName}`;
       const seasonSlug = formatYearRange(dateRange);
 
       if (location.pathname === playerPath || location.pathname === `${playerPath}/stats`) {
+        const next = new URLSearchParams(searchParams);
+        next.set('start', dateRange.startDate);
+        next.set('end', dateRange.endDate);
+        next.delete('practice'); // prevent bleed + default OFF
+
         navigate(
-          {
-            pathname: `${playerPath}/stats/${seasonSlug}`,
-            search: `?start=${dateRange.startDate}&end=${dateRange.endDate}`,
-          },
-          { replace: true },
+          { pathname: `${playerPath}/stats/${seasonSlug}`, search: `?${next.toString()}` },
+          { replace: true }
         );
       }
     }
-  }, [dateRange, location.pathname, navigate, playerName, trackmanAbbreviation]);
+  }, [dateRange, location.pathname, navigate, playerName, trackmanAbbreviation, searchParams]);
 
   useEffect(() => {
     async function loadPlayer() {
@@ -53,7 +84,7 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
         const { data, error } = await fetchPlayer(
           dateRange,
           decodedTrackmanAbbreviation,
-          decodedPlayerName,
+          decodedPlayerName
         );
 
         if (error) throw error;
@@ -85,11 +116,27 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
         sx={{
           backgroundColor: '#f5f5f5',
           paddingLeft: { xs: 4, sm: 8 },
+          paddingRight: { xs: 4, sm: 8 },
           paddingY: 2,
           marginTop: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
         <ModelTabs team={decodedTeamName} player={decodedPlayerName} seasonSlug={seasonLabel} />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={practice}
+              onChange={handlePracticeToggle}
+              inputProps={{ 'aria-label': 'Practice data' }}
+            />
+          }
+          label="Practice"
+          sx={{ marginLeft: 'auto' }}
+        />
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>

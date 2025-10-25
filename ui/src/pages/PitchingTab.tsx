@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useLocation } from 'react-router';
 import Box from '@mui/material/Box';
 
 import PitcherTable from '@/components/team/PitcherTable';
@@ -16,6 +16,9 @@ type PitchingTabProps = {
 
 export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
   const { trackmanAbbreviation } = useParams<{ trackmanAbbreviation: string }>();
+  const location = useLocation();
+  const practice = new URLSearchParams(location.search).get('practice') === 'true';
+
   const [pitchers, setPitchers] = useState<PitcherStatsTable[]>([]);
   const [pitches, setPitches] = useState<PitchCountsTable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +41,21 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
         if (pitchersResponse.error) throw pitchersResponse.error;
         if (pitchesResponse.error) throw pitchesResponse.error;
 
-        const transformedPitchers = pitcherStatsTransform(pitchersResponse.data || []);
-        const transformedPitches = pitchCountsTransform(pitchesResponse.data || []);
+        // Apply practice filter client-side to preserve service shape
+        const rawPitchers = (pitchersResponse.data ?? []) as unknown as Array<Record<string, any>>;
+        const rawPitches = (pitchesResponse.data ?? []) as unknown as Array<Record<string, any>>;
+
+        const filteredPitchers = practice
+          ? rawPitchers.filter((r) => r?.is_practice === true)
+          : rawPitchers.filter((r) => r?.is_practice === false || r?.is_practice == null);
+
+        const filteredPitches = practice
+          ? rawPitches.filter((r) => r?.is_practice === true)
+          : rawPitches.filter((r) => r?.is_practice === false || r?.is_practice == null);
+
+        const transformedPitchers = pitcherStatsTransform(filteredPitchers as unknown as PitcherStatsTable[]);
+        const transformedPitches = pitchCountsTransform(filteredPitches as unknown as PitchCountsTable[]);
+
         setPitchers(transformedPitchers);
         setPitches(transformedPitches);
       } catch (error) {
@@ -50,7 +66,7 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
     }
 
     fetchPitchers();
-  }, [endDate, startDate, trackmanAbbreviation]);
+  }, [endDate, startDate, trackmanAbbreviation, practice]);
 
   if (loading) return <TableSkeleton />;
 
