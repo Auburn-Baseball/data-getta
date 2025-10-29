@@ -97,8 +97,8 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     in_x = -Z_X_HALF <= x <= Z_X_HALF
     in_y = Z_Y_BOT <= y <= Z_Y_TOP
     if in_x and in_y:
-        col = int(np.digitize([x], X_EDGES, right=False)[0])
-        row = int(np.digitize([y], Y_EDGES, right=False)[0])
+        col = int(np.digitize([x], X_EDGES, right=False))
+        row = int(np.digitize([y], Y_EDGES, right=False))
         col = max(1, min(SPLITS, col))
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col

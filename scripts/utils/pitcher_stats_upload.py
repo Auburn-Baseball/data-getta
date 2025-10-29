@@ -145,10 +145,12 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
 
             for _, row in group.iterrows():
                 try:
-                    height = (
+                    height: float = (
                         float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
-                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
+                    side: float = (
+                        float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
+                    )
 
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):

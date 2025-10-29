@@ -154,10 +154,12 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
 
             for _, row in group.iterrows():
                 try:
-                    height = (
+                    height: float = (
                         float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
-                    side = float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
+                    side: float = (
+                        float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
+                    )
 
                     if height is not None and side is not None:
                         if is_in_strike_zone(height, side):
@@ -218,9 +220,11 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 # Convert to numeric (in case it's read as string)
                 group["ExitSpeed"] = pd.to_numeric(group["ExitSpeed"], errors="coerce")
 
-                total_exit_velo = group[
-                    (group["PitchCall"] == "InPlay") & (group["ExitSpeed"].notna())
-                ]["ExitSpeed"].sum()
+                total_exit_velo = float(
+                    group[(group["PitchCall"] == "InPlay") & (group["ExitSpeed"].notna())][
+                        "ExitSpeed"
+                    ].sum()
+                )
 
             else:
                 total_exit_velo = 0

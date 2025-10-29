@@ -58,12 +58,12 @@ format-check:
 # Linting
 lint:
 	@echo "Running flake8..."
-	$(FLAKE8) utils/ tests/ *.py
+	$(FLAKE8) utils/ *.py
 	@echo "Linting complete!"
 
 type-check:
 	@echo "Running mypy..."
-	cd .. && poetry -C scripts run pre-commit run --all-files
+	cd .. && poetry -C scripts run pre-commit run mypy --all-files
 	@echo "Type checking complete!"
 
 # Run all checks

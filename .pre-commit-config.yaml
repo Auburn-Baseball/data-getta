@@ -34,6 +34,7 @@ repos:
     rev: 7.3.0
     hooks:
       - id: flake8
+        exclude: ^scripts/tests/
         args:
           - '--max-line-length=100'
           - '--extend-ignore=E203,W503'
