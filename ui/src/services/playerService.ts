@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { cachedQuery, createCacheKey } from '@/services/cacheService';
 import type {
   AdvancedBattingStatsTable,
+  AdvancedPitchingStatsTable,
   BatterPitchBinsTable,
   BatterStatsTable,
   PitchCountsTable,
@@ -152,22 +153,44 @@ export async function fetchBatterHeatMapBins(playerName: string, team: string, r
   });
 }
 
-export async function fetchAdvancedBattingStats(team: string, range: DateRange) {
+export async function fetchAdvancedBattingStats(playerName: string, team: string, range: DateRange) {
   const { startYear, endYear } = getYearRange(range);
 
   return cachedQuery({
     key: createCacheKey('AdvancedBattingStats', {
       select: '*',
-      eq: { BatterTeam: team },
+      eq: { Batter: playerName, BatterTeam: team },
       ...toRangeDescriptor(range),
     }),
     query: () =>
       supabase
         .from('AdvancedBattingStats')
         .select('*')
+        .eq('Batter', playerName)
         .eq('BatterTeam', team)
         .gte('Year', startYear)
         .lte('Year', endYear)
         .overrideTypes<AdvancedBattingStatsTable[], { merge: false }>(),
+  });
+}
+
+export async function fetchAdvancedPitchingStats(playerName: string, team: string, range: DateRange) {
+  const { startYear, endYear } = getYearRange(range);
+
+  return cachedQuery({
+    key: createCacheKey('AdvancedPitchingStats', {
+      select: '*',
+      eq: { Pitcher: playerName, PitcherTeam: team },
+      ...toRangeDescriptor(range),
+    }),
+    query: () =>
+      supabase
+        .from('AdvancedPitchingStats')
+        .select('*')
+        .eq('Pitcher', playerName)
+        .eq('PitcherTeam', team)
+        .gte('Year', startYear)
+        .lte('Year', endYear)
+        .overrideTypes<AdvancedPitchingStatsTable[], { merge: false }>(),
   });
 }
