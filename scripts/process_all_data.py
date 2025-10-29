@@ -22,6 +22,7 @@ import time
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -87,9 +88,7 @@ class DatabaseProcessedFilesTracker:
         self._processed_hashes_cache = None
         self._cache_loaded = False
 
-    def _get_file_hash(
-        self, remote_path: str, file_size: int = None, last_modified: str = None
-    ) -> str:
+    def _get_file_hash(self, remote_path: str, file_size: int = 0, last_modified: str = "") -> str:
         """---------------------------------------------------------------
         Generate a unique hash for file identification using the file size,
         remote path, and last time modified.
@@ -146,9 +145,7 @@ class DatabaseProcessedFilesTracker:
             self._processed_hashes_cache = set()
             self._cache_loaded = True
 
-    def is_processed(
-        self, remote_path: str, file_size: int = None, last_modified: str = None
-    ) -> bool:
+    def is_processed(self, remote_path: str, file_size: int = 0, last_modified: str = "") -> bool:
         """---------------------------------------------------------------
         Check if file has been processed using in-memory cache.
         -------------------------------------------------------------------"""
@@ -161,9 +158,9 @@ class DatabaseProcessedFilesTracker:
     def mark_processed(
         self,
         remote_path: str,
-        file_size: int = None,
-        last_modified: str = None,
-        stats_summary: dict = None,
+        file_size: int = 0,
+        last_modified: str = "",
+        stats_summary: dict = {},
     ):
         """---------------------------------------------------------------
         Mark file as processed in database and update cache.
@@ -230,7 +227,8 @@ class DatabaseProcessedFilesTracker:
                 .order("processed_at", desc=True)
                 .execute()
             )
-            return result.data
+            data: list[Any] = result.data
+            return data
         except Exception as e:
             print(f"Error getting processed files info: {e}")
             return []
@@ -247,7 +245,8 @@ class DatabaseProcessedFilesTracker:
                 .limit(limit)
                 .execute()
             )
-            return result.data
+            data: list[Any] = result.data
+            return data
         except Exception as e:
             print(f"Error getting recent files: {e}")
             return []

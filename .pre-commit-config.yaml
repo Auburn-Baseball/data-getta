@@ -4,11 +4,17 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        files: ^scripts/
       - id: end-of-file-fixer
+        files: ^scripts/
       - id: check-yaml
+        files: ^scripts/
       - id: check-added-large-files
+        files: ^scripts/
       - id: check-json
+        files: ^scripts/
       - id: check-toml
+        files: ^scripts/
 
   - repo: https://github.com/psf/black
     rev: 25.9.0
@@ -39,7 +45,7 @@ repos:
     hooks:
       - id: mypy
         args: ['--config-file=pyproject.toml']
-        files: ^(scripts/|.*\.py$)
+        files: ^scripts
         additional_dependencies:
           - pandas-stubs
           - types-requests

@@ -5,7 +5,7 @@ PYTEST = poetry run pytest
 BLACK = poetry run black
 ISORT = poetry run isort
 FLAKE8 = poetry run flake8
-MYPY = poetry run mypy
+MYPY = poetry run mypy --config-file=pyproject.toml
 
 help:
 	@echo "Available commands:"
@@ -58,12 +58,12 @@ format-check:
 # Linting
 lint:
 	@echo "Running flake8..."
-	$(FLAKE8) utils/ tests/
+	$(FLAKE8) utils/ tests/ *.py
 	@echo "Linting complete!"
 
 type-check:
 	@echo "Running mypy..."
-	$(MYPY) utils/
+	cd .. && poetry -C scripts run pre-commit run --all-files
 	@echo "Type checking complete!"
 
 # Run all checks
@@ -72,6 +72,7 @@ check: format lint type-check test
 
 # Pre-commit hook (run before committing)
 pre-commit: format lint type-check test-fast
+	cd .. && poetry run pre-commit run --all-files
 	@echo "\nReady to commit!"
 
 # Installation

@@ -128,10 +128,10 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
         # Get final count
         count_result = supabase.table("Players").select("BatterId, PitcherId").execute()
 
-        unique_players = set()
+        unique_players: set[tuple[str, str]] = set()
         for p in count_result.data:
-            unique_players_set.add((p.get("BatterId"), p.get("PitcherId")))
-        total_players = len(unique_players_set)
+            unique_players.add((p.get("BatterId"), p.get("PitcherId")))
+        total_players = len(unique_players)
 
         print(f"Total unique players in database: {total_players}")
 

@@ -48,9 +48,7 @@ SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
+    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -97,7 +95,7 @@ def process_local_csv_file(file_path: Path):
         filename = file_path.name
 
         # Initialize stats containers
-        all_stats = {
+        all_stats: dict = {
             "batters": {},
             "pitchers": {},
             "pitches": {},
