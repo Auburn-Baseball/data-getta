@@ -1,27 +1,15 @@
-import os
+from typing import Dict, Tuple
+
 import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
-import re
-from typing import Dict, Tuple, List
-from pathlib import Path
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL
 from .file_date import CSVFilenameParser
 
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
-
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -40,7 +28,8 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
         if key_date is None:
             raise ValueError(f"Unable to parse game date from filename: {filename}")
         season_year = key_date.year
-        players_dict = {}
+
+        players_dict: Dict[Tuple[str, str, int], Dict] = {}
 
         # Extract pitchers
         if all(col in df.columns for col in ["Pitcher", "PitcherId", "PitcherTeam"]):
@@ -121,7 +110,7 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table(f"Players")
+                    supabase.table("Players")
                     .upsert(batch, on_conflict="Name,TeamTrackmanAbbreviation,Year")
                     .execute()
                 )
@@ -131,19 +120,20 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
 
             except Exception as batch_error:
                 print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
+                print(result.data)
                 continue
 
         print(f"Successfully processed {total_inserted} player records")
 
-        years = sorted({record["Year"] for record in player_data})
-        for yr in years:
-            count_result = (
-                supabase.table("Players")
-                .select("Name", count="exact")
-                .eq("Year", yr)
-                .execute()
-            )
-            print(f"Total players in database for {yr}: {count_result.count}")
+        # Get final count
+        count_result = supabase.table("Players").select("BatterId, PitcherId").execute()
+
+        unique_players: set[tuple[str, str]] = set()
+        for p in count_result.data:
+            unique_players.add((p.get("BatterId"), p.get("PitcherId")))
+        total_players = len(unique_players)
+
+        print(f"Total unique players in database: {total_players}")
 
     except Exception as e:
         print(f"Supabase error: {e}")

@@ -5,50 +5,47 @@ Created: 07 September 2025
 Updated: 14 October 2025
 
 Unified TrackMan CSV Processor - Database Tracking Version
-- Downloads CSV files from FTP concurrently
+- Downloads CSV files from FTP server concurrently
 - Processes each file once through all update modules
 - Tracks processed files in database to avoid duplicates
 - Works in containerized environments (Docker/GitLab Actions)
 - Supports test mode and date range filtering
 """
 
-import os
-import ftplib
-from dotenv import load_dotenv
-from pathlib import Path
-import re
-from datetime import datetime
 import concurrent.futures
-import threading
-from io import BytesIO
-import time
-import json
+import ftplib
 import hashlib
+import os
 import sys
-from supabase import create_client, Client
+import threading
+import time
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
+from dotenv import load_dotenv
+from supabase import Client, create_client
 
 # Import your existing processing functions
 from utils import (
-    get_batter_stats_from_buffer,
-    upload_batters_to_supabase,
-    get_pitcher_stats_from_buffer,
-    upload_pitchers_to_supabase,
-    get_pitch_counts_from_buffer,
-    upload_pitches_to_supabase,
-    get_players_from_buffer,
-    upload_players_to_supabase,
-    get_advanced_batting_stats_from_buffer,
-    upload_advanced_batting_to_supabase,
-    get_advanced_pitching_stats_from_buffer,
-    upload_advanced_pitching_to_supabase,
-    combine_advanced_batting_stats,
-    combine_advanced_pitching_stats,
-    get_batter_bins_from_buffer,
-    upload_batter_pitch_bins,
-    get_pitcher_bins_from_buffer,
-    upload_pitcher_pitch_bins,
     CSVFilenameParser,
+    combine_advanced_batting_stats,
+    get_advanced_batting_stats_from_buffer,
+    get_batter_bins_from_buffer,
+    get_batter_stats_from_buffer,
+    get_pitch_counts_from_buffer,
+    get_pitcher_bins_from_buffer,
+    get_pitcher_stats_from_buffer,
+    get_players_from_buffer,
+    upload_advanced_batting_to_supabase,
+    upload_batter_pitch_bins,
+    upload_batters_to_supabase,
+    upload_pitcher_pitch_bins,
+    upload_pitchers_to_supabase,
+    upload_pitches_to_supabase,
+    upload_players_to_supabase,
 )
 
 project_root = Path(__file__).parent.parent
@@ -68,9 +65,7 @@ if not TRACKMAN_USERNAME or not TRACKMAN_PASSWORD:
     raise ValueError("TRACKMAN_USERNAME and TRACKMAN_PASSWORD must be set in .env file")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
+    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -93,9 +88,7 @@ class DatabaseProcessedFilesTracker:
         self._processed_hashes_cache = None
         self._cache_loaded = False
 
-    def _get_file_hash(
-        self, remote_path: str, file_size: int = None, last_modified: str = None
-    ) -> str:
+    def _get_file_hash(self, remote_path: str, file_size: int = 0, last_modified: str = "") -> str:
         """---------------------------------------------------------------
         Generate a unique hash for file identification using the file size,
         remote path, and last time modified.
@@ -123,9 +116,7 @@ class DatabaseProcessedFilesTracker:
                 result = (
                     self.supabase.table("ProcessedFiles")
                     .select("file_hash")
-                    .range(
-                        offset, offset + batch_size - 1
-                    )  # Supabase uses inclusive range
+                    .range(offset, offset + batch_size - 1)  # Supabase uses inclusive range
                     .execute()
                 )
 
@@ -137,7 +128,8 @@ class DatabaseProcessedFilesTracker:
                 self._processed_hashes_cache.update(row["file_hash"] for row in data)
 
                 print(
-                    f"Loaded batch of {len(data)} rows (total so far: {len(self._processed_hashes_cache)})"
+                    f"Loaded batch of {len(data)} rows"
+                    f"(total so far: {len(self._processed_hashes_cache)})"
                 )
 
                 # Increment offset
@@ -153,9 +145,7 @@ class DatabaseProcessedFilesTracker:
             self._processed_hashes_cache = set()
             self._cache_loaded = True
 
-    def is_processed(
-        self, remote_path: str, file_size: int = None, last_modified: str = None
-    ) -> bool:
+    def is_processed(self, remote_path: str, file_size: int = 0, last_modified: str = "") -> bool:
         """---------------------------------------------------------------
         Check if file has been processed using in-memory cache.
         -------------------------------------------------------------------"""
@@ -168,9 +158,9 @@ class DatabaseProcessedFilesTracker:
     def mark_processed(
         self,
         remote_path: str,
-        file_size: int = None,
-        last_modified: str = None,
-        stats_summary: dict = None,
+        file_size: int = 0,
+        last_modified: str = "",
+        stats_summary: dict = {},
     ):
         """---------------------------------------------------------------
         Mark file as processed in database and update cache.
@@ -194,6 +184,12 @@ class DatabaseProcessedFilesTracker:
                     .upsert(data, on_conflict="file_hash")
                     .execute()
                 )
+
+                data = result.data
+                if not data:
+                    print(
+                        "Error while uploading processed file to database:" "No result from upsert"
+                    )
 
                 # Update cache
                 if self._processed_hashes_cache is not None:
@@ -231,7 +227,8 @@ class DatabaseProcessedFilesTracker:
                 .order("processed_at", desc=True)
                 .execute()
             )
-            return result.data
+            data: list[Any] = result.data
+            return data
         except Exception as e:
             print(f"Error getting processed files info: {e}")
             return []
@@ -248,7 +245,8 @@ class DatabaseProcessedFilesTracker:
                 .limit(limit)
                 .execute()
             )
-            return result.data
+            data: list[Any] = result.data
+            return data
         except Exception as e:
             print(f"Error getting recent files: {e}")
             return []
@@ -275,7 +273,7 @@ def close_ftp_connection():
     if hasattr(thread_local, "ftp") and thread_local.ftp:
         try:
             thread_local.ftp.quit()
-        except:
+        except Exception:
             pass
         thread_local.ftp = None
 
@@ -311,7 +309,7 @@ def get_directory_list(ftp, path):
                 try:
                     size = int(parts[4]) if parts[4].isdigit() else None
                     date_info = " ".join(parts[5:8])
-                except:
+                except Exception:
                     size = None
                     date_info = None
 
@@ -349,9 +347,7 @@ def is_csv_file(name):
     return not any(pattern in filename_lower for pattern in exclude_patterns)
 
 
-def collect_csv_file_info(
-    ftp, tracker, date_range="20200101-20990101", base_path="/v3"
-):
+def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_path="/v3"):
     """---------------------------------------------------------------
     Collect all CSV file information, filtering out already processed
     files using database.
@@ -395,9 +391,7 @@ def collect_csv_file_info(
                     try:
                         files_info = get_directory_list(ftp, csv_path)
                         day_csv_files = [
-                            f
-                            for f in files_info
-                            if not f["is_dir"] and is_csv_file(f["name"])
+                            f for f in files_info if not f["is_dir"] and is_csv_file(f["name"])
                         ]
                         file_date_parser = CSVFilenameParser()
 
@@ -407,9 +401,7 @@ def collect_csv_file_info(
 
                             # Check if the file is in the user-specified date range
                             if date_range:
-                                if not file_date_parser.is_in_date_range(
-                                    csv_file, date_range
-                                ):
+                                if not file_date_parser.is_in_date_range(csv_file, date_range):
                                     out_date_range += 1
                                     continue
                             in_date_range += 1
@@ -435,14 +427,13 @@ def collect_csv_file_info(
                                 [
                                     f
                                     for f in day_csv_files
-                                    if not tracker.is_processed(
-                                        f'{csv_path}/{f["name"]}'
-                                    )
+                                    if not tracker.is_processed(f'{csv_path}/{f["name"]}')
                                 ]
                             )
                             if new_count > 0:
                                 print(
-                                    f"Found {len(day_csv_files)} CSV files in {csv_path} ({new_count} new)"
+                                    f"Found {len(day_csv_files)}"
+                                    f"CSV files in {csv_path} ({new_count} new)"
                                 )
 
                     except ftplib.error_perm as e:
@@ -454,7 +445,7 @@ def collect_csv_file_info(
     except Exception as e:
         print(f"Error collecting CSV files: {e}")
 
-    print(f"\nFile Summary:")
+    print("\nFile Summary:")
     print(f"  Files found inside date range: {in_date_range}")
     print(f"  New files to process: {len(csv_files)}")
     print(f"  Previously processed (skipped): {skipped_files}")
@@ -488,11 +479,8 @@ def process_csv_worker(file_info, all_stats, tracker):
                 df = pd.read_csv(buffer)
                 is_practice = False
                 if "League" in df.columns:
-                    league_values = (
-                        df["League"].dropna().astype(str).str.strip().str.upper()
-                    )
+                    league_values = df["League"].dropna().astype(str).str.strip().str.upper()
                     is_practice = (league_values == "TEAM").any()
-                    # print(f"DEBUG: {filename} - League values: {league_values.unique()}, is_practice: {is_practice}")
 
                 # If it's not practice, skip this file and mark as processed
                 if not is_practice:
@@ -508,9 +496,6 @@ def process_csv_worker(file_info, all_stats, tracker):
 
             # Reset buffer for processing
             buffer.seek(0)
-
-        csv_date_getter = CSVFilenameParser()
-        game_date = str(csv_date_getter.get_date_object(file_info["filename"]))
 
         # Process through each module
         stats_summary = {}
@@ -611,42 +596,13 @@ def process_csv_worker(file_info, all_stats, tracker):
             stats_summary["advanced_batting"] = len(all_stats["advanced_batting"])
 
         except Exception as e:
-            print(
-                f"Error processing advanced batting stats for {file_info['filename']}: {e}"
-            )
+            print(f"Error processing advanced batting stats for {file_info['filename']}: {e}")
             stats_summary["advanced_batting"] = 0
-
-        # Advanced Pitching
-        buffer.seek(0)
-        try:
-            advanced_pitching_stats = get_advanced_pitching_stats_from_buffer(
-                buffer, file_info["filename"]
-            )
-
-            # Merge new stats into existing ones
-            for key, new_stat in advanced_pitching_stats.items():
-                if key in all_stats["advanced_pitching"]:
-                    combined = combine_advanced_pitching_stats(
-                        all_stats["advanced_pitching"][key], new_stat
-                    )
-                    all_stats["advanced_pitching"][key] = combined
-                else:
-                    all_stats["advanced_pitching"][key] = new_stat
-
-            stats_summary["advanced_pitching"] = len(all_stats["advanced_pitching"])
-
-        except Exception as e:
-            print(
-                f"Error processing advanced pitching stats for {file_info['filename']}: {e}"
-            )
-            stats_summary["advanced_pitching"] = 0
 
         # Batter pitch bins (heatmaps)
         buffer.seek(0)
         try:
-            batter_pitch_bins = get_batter_bins_from_buffer(
-                buffer, file_info["filename"]
-            )
+            batter_pitch_bins = get_batter_bins_from_buffer(buffer, file_info["filename"])
             all_stats.setdefault("batter_pitch_bins", {})
 
             # Add new stats into all_stats['batter_pitch_bins']
@@ -659,17 +615,13 @@ def process_csv_worker(file_info, all_stats, tracker):
             stats_summary["batter_pitch_bins"] = len(all_stats["batter_pitch_bins"])
 
         except Exception as e:
-            print(
-                f"Error processing batter pitch bin stats for {file_info['filename']}: {e}"
-            )
+            print(f"Error processing batter pitch bin stats for {file_info['filename']}: {e}")
             stats_summary["batter_pitch_bins"] = 0
 
         # Pitcher pitch bins (heatmaps)
         buffer.seek(0)
         try:
-            pitcher_pitch_bins = get_pitcher_bins_from_buffer(
-                buffer, file_info["filename"]
-            )
+            pitcher_pitch_bins = get_pitcher_bins_from_buffer(buffer, file_info["filename"])
             all_stats.setdefault("pitcher_pitch_bins", {})
 
             # Add new stats into all_stats['pitcher_pitch_bins']
@@ -682,17 +634,12 @@ def process_csv_worker(file_info, all_stats, tracker):
             stats_summary["pitcher_pitch_bins"] = len(all_stats["pitcher_pitch_bins"])
 
         except Exception as e:
-            print(
-                f"Error processing pitcher pitch bin stats for {file_info['filename']}: {e}"
-            )
+            print(f"Error processing pitcher pitch bin stats for {file_info['filename']}: {e}")
             stats_summary["pitcher_pitch_bins"] = 0
 
         # Mark as processed in database
         tracker.mark_processed(
-            file_info["remote_path"],
-            file_info["size"],
-            file_info["date"],
-            stats_summary,
+            file_info["remote_path"], file_info["size"], file_info["date"], stats_summary
         )
 
         return True, f"Processed: {file_info['filename']} ({stats_summary})"
@@ -720,23 +667,18 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         "pitch_counts": {},
         "players": {},
         "advanced_batting": {},
-        "advanced_pitching": {},
         "batter_pitch_bins": {},
         "pitcher_pitch_bins": {},
     }
 
-    print(
-        f"\nStarting processing of {total_files} files with {max_workers} concurrent workers..."
-    )
+    print(f"\nStarting processing of {total_files} files with {max_workers} concurrent workers...")
     start_time = time.time()
 
     # Using threads for concurrent processing to be more efficient
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all processing tasks
         future_to_file = {
-            executor.submit(
-                process_csv_worker, file_info, all_stats, tracker
-            ): file_info
+            executor.submit(process_csv_worker, file_info, all_stats, tracker): file_info
             for file_info in csv_files
         }
 
@@ -752,7 +694,8 @@ def process_with_progress(csv_files, tracker, max_workers=4):
                         rate = completed / elapsed if elapsed > 0 else 0
                         eta = (total_files - completed) / rate if rate > 0 else 0
                         print(
-                            f"Progress: {completed}/{total_files} ({completed/total_files*100:.1f}%) "
+                            f"Progress: {completed}/{total_files}"
+                            f"({completed/total_files*100:.1f}%) "
                             f"- Rate: {rate:.1f} files/sec - ETA: {eta:.0f}s"
                         )
                 else:
@@ -769,7 +712,7 @@ def process_with_progress(csv_files, tracker, max_workers=4):
         concurrent.futures.wait(futures)
 
     elapsed = time.time() - start_time
-    print(f"\nProcessing completed!")
+    print("\nProcessing completed!")
     print(f"Successfully processed: {completed} files")
     print(f"Failed: {failed} files")
     print(f"Total time: {elapsed:.1f} seconds")
@@ -812,44 +755,27 @@ def upload_all_stats(all_stats):
         print("No new player stats to upload.")
 
     if all_stats["advanced_batting"]:
-        print(
-            f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records..."
-        )
+        print(f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records...")
         upload_advanced_batting_to_supabase(all_stats["advanced_batting"])
     else:
         print("No new advanced batting stats to upload.")
 
-    if all_stats["advanced_pitching"]:
-        print(
-            f"\nUploading {len(all_stats['advanced_pitching'])} advanced pitching records..."
-        )
-        upload_advanced_pitching_to_supabase(all_stats["advanced_pitching"])
-    else:
-        print("No new advanced pitching stats to upload.")
-
     if all_stats["batter_pitch_bins"]:
-        print(
-            f"\nUploading {len(all_stats['batter_pitch_bins'])} batter pitch bin records..."
-        )
+        print(f"\nUploading {len(all_stats['batter_pitch_bins'])} batter pitch bin records...")
         upload_batter_pitch_bins(all_stats["batter_pitch_bins"])
     else:
         print("No new batter pitch bin stats to upload.")
 
     if all_stats["pitcher_pitch_bins"]:
-        print(
-            f"\nUploading {len(all_stats['pitcher_pitch_bins'])} pitcher pitch bin records..."
-        )
+        print(f"\nUploading {len(all_stats['pitcher_pitch_bins'])} pitcher pitch bin records...")
         upload_pitcher_pitch_bins(all_stats["pitcher_pitch_bins"])
     else:
         print("No new pitcher pitch bin stats to upload.")
 
 
 def main():
-
     # Get test flag
-    test_mode = (
-        "--test" in sys.argv or os.getenv("TEST_MODE", "false").lower() == "true"
-    )
+    test_mode = "--test" in sys.argv or os.getenv("TEST_MODE", "false").lower() == "true"
     # Get date range if set
     date_range = None
     for i, arg in enumerate(sys.argv):
@@ -863,7 +789,8 @@ def main():
         print("*** TEST MODE - Processing only 1 file ***")
     if date_range:
         print(
-            f"*** Processing only files in the following range (YYYYMMDD - YYYYMMDD): {date_range} ***"
+            "*** Processing only files in the following"
+            f"range (YYYYMMDD - YYYYMMDD): {date_range} ***"
         )
     print("=" * 60)
     print("")
@@ -881,7 +808,7 @@ def main():
             print(f"  - {file_info['remote_path']} at {file_info['processed_at']}")
 
     # Connect to FTP and scan for files
-    print(f"\nConnecting to FTP server and scanning for files...")
+    print("\nConnecting to FTP server and scanning for files...")
     ftp = connect_to_ftp()
     if not ftp:
         print("Failed to connect to FTP server")
@@ -901,9 +828,7 @@ def main():
             print(f"File being pulled: {file_number}")
             csv_files = csv_files[:file_number]
             print(csv_files)
-            print(
-                f"TEST MODE: Processing only the first file: {csv_files[0]['filename']}"
-            )
+            print(f"TEST MODE: Processing only the first file: {csv_files[0]['filename']}")
 
         # Process files concurrently
         all_stats = process_with_progress(csv_files, tracker, max_workers=6)
@@ -911,7 +836,7 @@ def main():
         # Upload to database
         upload_all_stats(all_stats)
 
-        print(f"\n" + "=" * 60)
+        print("\n" + "=" * 60)
         print("PROCESSING COMPLETE")
         print(f"Total processed files: {tracker.get_processed_count()}")
         print("=" * 60)
@@ -921,7 +846,7 @@ def main():
     finally:
         try:
             ftp.quit()
-        except:
+        except Exception:
             pass
 
 

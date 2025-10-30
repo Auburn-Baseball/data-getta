@@ -12,10 +12,92 @@ python-dotenv = "^1.1.1"
 supabase = "^2.18.1"
 pandas = "^2.3.2"
 numpy = "1.26.4"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
+xgboost = "^3.1.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.3.0"  # pre-commit testing/checking
+
+# Testing
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.11.1"
+pytest-watch = "^4.2.0"
+
+# Linting
+flake8 = "^6.1.0"
+mypy = "^1.5.0"
+pylint = "^3.0.0"
+
+# Formatting
+black = "^23.7.0"
+isort = "^5.12.0"
+
+# Type stubs for better type checking
+pandas-stubs = "^2.0.0"
+types-requests = "^2.31.0"
+
+# Configure black
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | build
+  | dist
+)/
+'''
+
+# Configure isort (import sorting)
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+
+# Configure mypy (type checking)
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Set to true for stricter checking
+ignore_missing_imports = true  # Ignore missing type stubs for now
+
+# Configure pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=utils",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["utils"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

@@ -1,65 +1,17 @@
-import os
-import pandas as pd
-from dotenv import load_dotenv
-from supabase import create_client, Client
-import re
 import json
-import numpy as np
-from typing import Dict, Tuple, List, Set
-from pathlib import Path
+from typing import Dict, Tuple
+
+import pandas as pd
+from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
 from .file_date import CSVFilenameParser
 
-# Load environment variables
-project_root = Path(__file__).parent.parent.parent
-env = os.getenv("ENV", "development")
-load_dotenv(project_root / f".env.{env}")
-
-# Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
-
 # Initialize Supabase client
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Strike zone constants
-MIN_PLATE_SIDE = -0.86
-MAX_PLATE_SIDE = 0.86
-MAX_PLATE_HEIGHT = 3.55
-MIN_PLATE_HEIGHT = 1.77
-
-
-# Custom encoder to handle numpy types
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif pd.isna(obj):
-            return None
-        return super(NumpyEncoder, self).default(obj)
-
-
-def is_in_strike_zone(plate_loc_height, plate_loc_side):
-    """Check if pitch is in strike zone"""
-    try:
-        height = float(plate_loc_height)
-        side = float(plate_loc_side)
-        return (
-            MIN_PLATE_HEIGHT <= height <= MAX_PLATE_HEIGHT
-            and MIN_PLATE_SIDE <= side <= MAX_PLATE_SIDE
-        )
-    except (ValueError, TypeError):
-        return False
 
 
 def calculate_innings_pitched(strikeouts, outs_on_play):
@@ -70,9 +22,7 @@ def calculate_innings_pitched(strikeouts, outs_on_play):
     return round(full_innings + (partial_outs / 10), 1)
 
 
-def get_pitcher_stats_from_buffer(
-    buffer, filename: str
-) -> Dict[Tuple[str, str, int], Dict]:
+def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
     """Extract pitcher statistics from a CSV file"""
     try:
         df = pd.read_csv(buffer)
@@ -81,7 +31,7 @@ def get_pitcher_stats_from_buffer(
         is_practice = False
         if "League" in df.columns:
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = (league_values == "TEAM").any()
+            is_practice = bool((league_values == "TEAM").any())
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date_obj = date_parser.get_date_object(filename)
@@ -133,11 +83,7 @@ def get_pitcher_stats_from_buffer(
             pitches = len(group)
 
             # Calculate hits
-            hits = len(
-                group[
-                    group["PlayResult"].isin(["Single", "Double", "Triple", "HomeRun"])
-                ]
-            )
+            hits = len(group[group["PlayResult"].isin(["Single", "Double", "Triple", "HomeRun"])])
 
             # Calculate home runs
             homeruns = len(group[group["PlayResult"] == "HomeRun"])
@@ -156,9 +102,7 @@ def get_pitcher_stats_from_buffer(
             # Calculate innings pitched
             strikeouts_for_innings = total_strikeouts_pitcher
             outs_on_play = group["OutsOnPlay"].fillna(0).astype(int).sum()
-            total_innings_pitched = calculate_innings_pitched(
-                strikeouts_for_innings, outs_on_play
-            )
+            total_innings_pitched = calculate_innings_pitched(strikeouts_for_innings, outs_on_play)
 
             whole_innings = int(total_innings_pitched)
             partial_outs = round((total_innings_pitched - whole_innings) * 10)
@@ -191,9 +135,7 @@ def get_pitcher_stats_from_buffer(
                     group.drop_duplicates(["PAofInning", "Inning", "Batter", "GameUID"])
                 )
             else:
-                total_batters_faced = len(
-                    group.drop_duplicates(["PAofInning", "Inning", "Batter"])
-                )
+                total_batters_faced = len(group.drop_duplicates(["PAofInning", "Inning", "Batter"]))
 
             # Calculate zone statistics
             in_zone_count = 0
@@ -203,15 +145,11 @@ def get_pitcher_stats_from_buffer(
 
             for _, row in group.iterrows():
                 try:
-                    height = (
-                        float(row["PlateLocHeight"])
-                        if pd.notna(row["PlateLocHeight"])
-                        else None
+                    height: float = (
+                        float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
-                    side = (
-                        float(row["PlateLocSide"])
-                        if pd.notna(row["PlateLocSide"])
-                        else None
+                    side: float = (
+                        float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
                     )
 
                     if height is not None and side is not None:
@@ -232,29 +170,19 @@ def get_pitcher_stats_from_buffer(
 
             # Calculate percentages
             k_percentage = (
-                total_strikeouts_pitcher / total_batters_faced
-                if total_batters_faced > 0
-                else None
+                total_strikeouts_pitcher / total_batters_faced if total_batters_faced > 0 else None
             )
             base_on_ball_percentage = (
-                total_walks_pitcher / total_batters_faced
-                if total_batters_faced > 0
-                else None
+                total_walks_pitcher / total_batters_faced if total_batters_faced > 0 else None
             )
-            in_zone_whiff_percentage = (
-                in_zone_whiffs / in_zone_count if in_zone_count > 0 else None
-            )
+            in_zone_whiff_percentage = in_zone_whiffs / in_zone_count if in_zone_count > 0 else None
             chase_percentage = (
-                out_of_zone_swings / out_of_zone_count
-                if out_of_zone_count > 0
-                else None
+                out_of_zone_swings / out_of_zone_count if out_of_zone_count > 0 else None
             )
 
             # Get unique games from this file - store as a set for later merging
             unique_games = (
-                set(group["GameUID"].dropna().unique())
-                if "GameUID" in group.columns
-                else set()
+                set(group["GameUID"].dropna().unique()) if "GameUID" in group.columns else set()
             )
 
             pitcher_stats = {
@@ -278,9 +206,7 @@ def get_pitcher_stats_from_buffer(
                 "whip": whip,
                 "total_batters_faced": total_batters_faced,
                 "is_practice": is_practice,
-                "k_percentage": (
-                    round(k_percentage, 3) if k_percentage is not None else None
-                ),
+                "k_percentage": round(k_percentage, 3) if k_percentage is not None else None,
                 "base_on_ball_percentage": (
                     round(base_on_ball_percentage, 3)
                     if base_on_ball_percentage is not None
@@ -337,7 +263,7 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
             try:
                 # Use upsert to handle conflicts based on primary key
                 result = (
-                    supabase.table(f"PitcherStats")
+                    supabase.table("PitcherStats")
                     .upsert(batch, on_conflict="Pitcher,PitcherTeam,Date")
                     .execute()
                 )
@@ -350,14 +276,13 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
                 # Print first record of failed batch for debugging
                 if batch:
                     print(f"Sample record from failed batch: {batch[0]}")
+                    print(result.data)
                 continue
 
         print(f"Successfully processed {total_inserted} pitcher records")
 
         # Get final count
-        count_result = (
-            supabase.table(f"PitcherStats").select("*", count="exact").execute()
-        )
+        count_result = supabase.table("PitcherStats").select("*", count="exact").execute()
         total_pitchers = count_result.count
         print(f"Total pitchers in database: {total_pitchers}")
 

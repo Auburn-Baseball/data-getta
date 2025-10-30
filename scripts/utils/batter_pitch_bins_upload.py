@@ -3,29 +3,20 @@
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple, cast
 
 import numpy as np
 import pandas as pd
-from dotenv import load_dotenv
 from supabase import Client, create_client
+
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
 from .file_date import CSVFilenameParser
 
 # ---------------------------------------------------------------------------
-# Environment / Supabase
+# Supabase client
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ENV = os.getenv("ENV", "development")
-load_dotenv(PROJECT_ROOT / f".env.{ENV}")
-
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError(
-        "VITE_SUPABASE_PROJECT_URL and VITE_SUPABASE_API_KEY must be set"
-    )
+if SUPABASE_URL is None or SUPABASE_KEY is None:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -81,19 +72,6 @@ ALL_TRACKED_COLUMNS = [
 BinKey = Tuple[str, str, str, int]  # BatterTeam, Date, Batter, ZoneId
 
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            return float(obj)
-        if isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-        if pd.isna(obj):
-            return None
-        return super().default(obj)
-
-
 def norm_pitch_type(value: str) -> str:
     if not isinstance(value, str):
         return "Other"
@@ -119,8 +97,8 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     in_x = -Z_X_HALF <= x <= Z_X_HALF
     in_y = Z_Y_BOT <= y <= Z_Y_TOP
     if in_x and in_y:
-        col = int(np.digitize([x], X_EDGES, right=False)[0])
-        row = int(np.digitize([y], Y_EDGES, right=False)[0])
+        col = int(np.digitize([x], X_EDGES, right=False))
+        row = int(np.digitize([y], Y_EDGES, right=False))
         col = max(1, min(SPLITS, col))
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col
@@ -147,18 +125,16 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     }
 
 
-def empty_row(
-    team: str, game_date, batter: str, zone_meta: Dict[str, object]
-) -> Dict[str, float]:
-    row: Dict[str, float] = {
+def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -> Dict[str, float]:
+    row: Dict[str, Any] = {
         "BatterTeam": team,
         "Date": game_date,
         "Batter": batter,
-        "ZoneId": int(zone_meta["ZoneId"]),
+        "ZoneId": int(cast(int, zone_meta["ZoneId"])),
         "InZone": bool(zone_meta["InZone"]),
-        "ZoneRow": int(zone_meta["ZoneRow"]),
-        "ZoneCol": int(zone_meta["ZoneCol"]),
-        "ZoneCell": int(zone_meta["ZoneCell"]),
+        "ZoneRow": int(cast(int, zone_meta["ZoneRow"])),
+        "ZoneCol": int(cast(int, zone_meta["ZoneCol"])),
+        "ZoneCell": int(cast(int, zone_meta["ZoneCell"])),
         "OuterLabel": str(zone_meta["OuterLabel"]),
         "ZoneVersion": ZONE_VERSION,
     }
@@ -167,9 +143,7 @@ def empty_row(
     return row
 
 
-def get_batter_bins_from_buffer(
-    buffer, filename: str
-) -> Dict[BinKey, Dict[str, float]]:
+def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str, float]]:
     df = pd.read_csv(buffer)
 
     # Get date from filename
@@ -186,12 +160,10 @@ def get_batter_bins_from_buffer(
         "PlayResult",
     ]
     if not all(col in df.columns for col in required):
-        print(f"Skipping {csv_path.name}: missing required columns")
+        print(f"Skipping {filename}: missing required columns")
         return {}
 
-    df = df.dropna(
-        subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]
-    ).copy()
+    df = df.dropna(subset=["Batter", "BatterTeam", "PlateLocSide", "PlateLocHeight"]).copy()
     df["Date"] = game_date
 
     bins: Dict[BinKey, Dict[str, float]] = {}
@@ -209,7 +181,7 @@ def get_batter_bins_from_buffer(
         if not team or not batter:
             continue
 
-        key: BinKey = (team, game_date, batter, int(zone_meta["ZoneId"]))
+        key: BinKey = (team, game_date, batter, int(cast(int, zone_meta["ZoneId"])))
         record = bins.get(key)
         if record is None:
             record = empty_row(team, game_date, batter, zone_meta)
@@ -259,29 +231,8 @@ def upload_batter_pitch_bins(bins: Dict[BinKey, Dict[str, float]]):
 
 
 def main():
-    csv_root = PROJECT_ROOT / "scripts" / "csv"
-    year_value = os.getenv("BINS_YEAR")
-    if not year_value:
-        raise RuntimeError(
-            "BINS_YEAR environment variable must be set to process batter bins."
-        )
-    year = int(year_value)
-
-    year_folder = csv_root / str(year)
-    if not year_folder.exists():
-        raise RuntimeError(f"CSV folder not found: {year_folder}")
-
-    csv_files = [p for p in year_folder.glob("*.csv") if p.is_file()]
-    print(f"Processing {len(csv_files)} batter CSV files for {year}")
-
-    aggregated: Dict[BinKey, Dict[str, float]] = {}
-    for csv_path in csv_files:
-        print(f"  -> {csv_path.name}")
-        bins = process_csv(csv_path, year)
-        merge_bins(aggregated, bins)
-
-    print(f"Aggregated {len(aggregated)} batter-zone rows")
-    upload(aggregated)
+    # TODO: Add proper main
+    print()
 
 
 if __name__ == "__main__":
