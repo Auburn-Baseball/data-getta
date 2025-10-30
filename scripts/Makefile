@@ -10,6 +10,7 @@ MYPY = poetry run mypy --config-file=pyproject.toml
 help:
 	@echo "Available commands:"
 	@echo "  make process       - Run data processing"
+	@echo "  make process-args  - Run data processing with arguments (${argv})"
 	@echo "  make test          - Run tests"
 	@echo "  make test-watch    - Run tests in watch mode"
 	@echo "  make coverage      - Run tests with coverage"
@@ -24,6 +25,9 @@ help:
 # Main commands
 process:
 	$(PYTHON) process_all_data.py
+
+process-args:
+	$(PYTHON) process_all_data.py $(ARGS)
 
 qa:
 	$(PYTHON) QA/process_local_csv.py

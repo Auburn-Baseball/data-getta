@@ -38,8 +38,8 @@ poetry run python3 process_all_data.py  # Run manually
 There are two flags supported when running the script: test and date-range
 
 ```bash
-make process-args --test
-make process-args --date-range {range}
+make process-args ARGS="--test"
+make process-args ARGS="--date-range {range}"
 
 poetry run python3 process_all_data.py --test
 poetry run python3 process_all_data.py --date-range {range}
@@ -67,4 +67,4 @@ For the purposes of deployment, poetry install should be run with the --without 
 
 ## Note to future devs
 
-A workflow of auto-formatting, linting, and performing tests can be set to run on commit. Running 'poetry run pre-commit install' will setup pre-commit hooks according to the pyproject.toml file. Afterward, when committing, the pipeline is run, and any failures prevent a successful commit. You can skip the pre-commit with the --no-verify flag when committing if necessary.
+A workflow of auto-formatting, linting, and performing tests can be set to run on commit. Running 'poetry run pre-commit install' will setup a pre-commit hook in your local github repository according to the pyproject.toml file. Afterward, when committing, the pipeline is run, and any failures prevent a successful commit. You can skip the pre-commit with the --no-verify flag when committing if necessary.
