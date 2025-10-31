@@ -30,6 +30,12 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const practice = searchParams.get('practice') === 'true';
 
+  const decodedTeamName = decodeURIComponent(trackmanAbbreviation || '');
+  const decodedPlayerName = decodeURIComponent(playerName || '');
+  const seasonLabel = formatYearRange(dateRange);
+
+  const isAuburn = decodedTeamName === 'AUB_TIG';
+
   const clearedOnce = useRef(false);
   useEffect(() => {
     if (clearedOnce.current) return;
@@ -37,12 +43,16 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
   
     // Default to OFF on entry: remove ?practice from URL if present
     const next = new URLSearchParams(searchParams);
-    if (next.has('practice')) {
+    if (!isAuburn && next.has('practice')) {
+      next.delete('practice');
+      setSearchParams(next, { replace: true });
+    }
+    else if (next.has('practice')) {
       next.delete('practice');
       setSearchParams(next, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuburn]);
   
 
   const handlePracticeToggle = (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -106,9 +116,6 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
     return <div>Player not found</div>;
   }
 
-  const decodedTeamName = decodeURIComponent(trackmanAbbreviation || '');
-  const decodedPlayerName = decodeURIComponent(playerName);
-  const seasonLabel = formatYearRange(dateRange);
 
   return (
     <Box>
@@ -126,17 +133,19 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
       >
         <ModelTabs team={decodedTeamName} player={decodedPlayerName} seasonSlug={seasonLabel} />
 
-        <FormControlLabel
-          control={
-            <Switch
-              checked={practice}
-              onChange={handlePracticeToggle}
-              inputProps={{ 'aria-label': 'Practice data' }}
-            />
-          }
-          label="Practice"
-          sx={{ marginLeft: 'auto' }}
-        />
+        {isAuburn && (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={practice}
+                onChange={handlePracticeToggle}
+                inputProps={{ 'aria-label': 'Practice data' }}
+              />
+            }
+            label="Practice"
+            sx={{ marginLeft: 'auto' }}
+          />
+        )}
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>

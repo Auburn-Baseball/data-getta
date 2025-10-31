@@ -47,6 +47,9 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
   const decodedPlayerName = playerName ? decodeURIComponent(playerName).split('_').join(', ') : '';
   const decodedTeamName = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
 
+  const isAuburn = decodedTeamName === 'AUB_TIG';
+  const effectivePractice = isAuburn && practice;
+
   useEffect(() => {
     async function fetchStats() {
       if (!decodedPlayerName || !decodedTeamName || !startDate || !endDate) return;
@@ -57,12 +60,14 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
 
         const range = { startDate, endDate };
 
+        const opt = effectivePractice ? { practice: true } : {};
+
         // Only pass opt.practice when true; off = undefined (server returns all, so nulls aren't excluded)
         const batterResp = await fetchPlayerBatterStats(
           decodedPlayerName,
           decodedTeamName,
           range,
-          practice ? { practice: true } : {}
+          opt
         );
         if (batterResp.error) throw batterResp.error;
 
@@ -70,7 +75,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
           decodedPlayerName,
           decodedTeamName,
           range,
-          practice ? { practice: true } : {}
+          opt
         );
         if (pitcherResp.error) throw pitcherResp.error;
 
@@ -78,7 +83,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
           decodedPlayerName,
           decodedTeamName,
           range,
-          practice ? { practice: true } : {}
+          opt
         );
         if (pitchResp.error) throw pitchResp.error;
 
