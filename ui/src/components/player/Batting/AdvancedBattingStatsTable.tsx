@@ -55,6 +55,7 @@ const PercentilesTab: React.FC = () => {
         console.log('Fetching stats for:', formattedPlayerName, decodedTeamName, dateRange);
 
         const { data: allBatters, error } = await fetchAdvancedBattingStats(
+          formattedPlayerName,
           decodedTeamName,
           dateRange,
         );
