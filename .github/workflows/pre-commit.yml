@@ -10,6 +10,14 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
+      - name: Set environment variables
+        run: |
+          echo "TRACKMAN_URL=${{ secrets.TRACKMAN_URL }}" >> $GITHUB_ENV
+          echo "TRACKMAN_USERNAME=${{ secrets.TRACKMAN_USERNAME }}" >> $GITHUB_ENV
+          echo "TRACKMAN_PASSWORD=${{ secrets.TRACKMAN_PASSWORD }}" >> $GITHUB_ENV
+          echo "VITE_SUPABASE_PROJECT_URL=${{ secrets.VITE_SUPABASE_PROJECT_URL }}" >> $GITHUB_ENV
+          echo "VITE_SUPABASE_API_KEY=${{ secrets.VITE_SUPABASE_API_KEY }}" >> $GITHUB_ENV
+
       - uses: actions/checkout@v3
 
       - name: Set up Python
