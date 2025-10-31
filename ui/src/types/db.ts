@@ -267,5 +267,5 @@ export interface AdvancedPitchingStatsTable {
   xslg_per_rank?: number;
   at_bats?: number;
   barrel_per?: number;
-  barrel_per_rank: number;
+  barrel_per_rank?: number;
 }
