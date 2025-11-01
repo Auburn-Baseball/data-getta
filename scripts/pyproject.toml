@@ -13,6 +13,7 @@ supabase = "^2.18.1"
 pandas = "^2.3.2"
 numpy = "1.26.4"
 xgboost = "^3.1.1"
+scikit-learn = "1.7.1"
 
 [build-system]
 requires = ["poetry-core"]
