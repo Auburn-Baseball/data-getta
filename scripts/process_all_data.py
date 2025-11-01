@@ -432,7 +432,7 @@ def collect_csv_file_info(ftp, tracker, date_range="20200101-20990101", base_pat
                             )
                             if new_count > 0:
                                 print(
-                                    f"Found {len(day_csv_files)}"
+                                    f"Found {len(day_csv_files)} "
                                     f"CSV files in {csv_path} ({new_count} new)"
                                 )
 
@@ -694,7 +694,7 @@ def process_with_progress(csv_files, tracker, max_workers=4):
                         rate = completed / elapsed if elapsed > 0 else 0
                         eta = (total_files - completed) / rate if rate > 0 else 0
                         print(
-                            f"Progress: {completed}/{total_files}"
+                            f"Progress: {completed}/{total_files} "
                             f"({completed/total_files*100:.1f}%) "
                             f"- Rate: {rate:.1f} files/sec - ETA: {eta:.0f}s"
                         )

@@ -6,6 +6,7 @@ The scripts directory contains an orchestrator python script (process_all_data.p
 
 - Use the make command or poetry to install all of the project's python dependencies:
 ```bash
+cd scripts
 make install
 poetry install
 ```
