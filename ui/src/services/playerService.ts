@@ -13,6 +13,8 @@ import type {
 import type { DateRange } from '@/types/dateRange';
 import { getYearRange } from '@/utils/dateRange';
 
+type PracticeOpt = { practice?: boolean; };
+
 const toRangeDescriptor = (range: DateRange) => ({
   range: { startDate: range.startDate, endDate: range.endDate },
 });
@@ -38,66 +40,106 @@ export async function fetchPlayer(range: DateRange, team: string, playerName: st
         .eq('Name', playerName)
         .gte('Year', startYear)
         .lte('Year', endYear)
-        .maybeSingle<PlayersTable>(),
+        .returns<PlayersTable>()         
+        .maybeSingle(),                   
   });
 }
 
-export async function fetchPlayerBatterStats(playerName: string, team: string, range: DateRange) {
+export async function fetchPlayerBatterStats(
+  playerName: string,
+  team: string,
+  range: DateRange,
+  opt: PracticeOpt = {}
+) {
   return cachedQuery({
     key: createCacheKey('BatterStats', {
       select: '*',
       eq: { Batter: playerName, BatterTeam: team },
       ...toRangeDescriptor(range),
+      practice: opt.practice === undefined ? 'any' : (opt.practice ? 'practice' : 'game'),
     }),
-    query: () =>
-      supabase
+    query: () => {
+      let qb = supabase
         .from('BatterStats')
         .select('*')
         .eq('Batter', playerName)
         .eq('BatterTeam', team)
         .gte('Date', range.startDate)
-        .lte('Date', range.endDate)
-        .overrideTypes<BatterStatsTable[], { merge: false }>(),
+        .lte('Date', range.endDate);
+
+      if (opt.practice !== undefined) {
+        qb = qb.eq('is_practice', !!opt.practice);
+      }
+
+      return qb.returns<BatterStatsTable[]>();   
+    },
   });
 }
 
-export async function fetchPlayerPitcherStats(playerName: string, team: string, range: DateRange) {
+
+export async function fetchPlayerPitcherStats(
+  playerName: string,
+  team: string,
+  range: DateRange,
+  opt: PracticeOpt = {}
+) {
   return cachedQuery({
     key: createCacheKey('PitcherStats', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
       ...toRangeDescriptor(range),
+      practice: opt.practice === undefined ? 'any' : (opt.practice ? 'practice' : 'game'),
     }),
-    query: () =>
-      supabase
+    query: () => {
+      let qb = supabase
         .from('PitcherStats')
         .select('*')
         .eq('Pitcher', playerName)
         .eq('PitcherTeam', team)
         .gte('Date', range.startDate)
-        .lte('Date', range.endDate)
-        .overrideTypes<PitcherStatsTable[], { merge: false }>(),
+        .lte('Date', range.endDate);
+
+      if (opt.practice !== undefined) {
+        qb = qb.eq('is_practice', !!opt.practice);
+      }
+
+      return qb.returns<PitcherStatsTable[]>(); 
+    },
   });
 }
 
-export async function fetchPlayerPitchCounts(playerName: string, team: string, range: DateRange) {
+export async function fetchPlayerPitchCounts(
+  playerName: string,
+  team: string,
+  range: DateRange,
+  opt: PracticeOpt = {}
+) {
   return cachedQuery({
     key: createCacheKey('PitchCounts', {
       select: '*',
       eq: { Pitcher: playerName, PitcherTeam: team },
       ...toRangeDescriptor(range),
+      practice: opt.practice === undefined ? 'any' : (opt.practice ? 'practice' : 'game'),
     }),
-    query: () =>
-      supabase
+    query: () => {
+      let qb = supabase
         .from('PitchCounts')
         .select('*')
         .eq('Pitcher', playerName)
         .eq('PitcherTeam', team)
         .gte('Date', range.startDate)
-        .lte('Date', range.endDate)
-        .overrideTypes<PitchCountsTable[], { merge: false }>(),
+        .lte('Date', range.endDate);
+
+      if (opt.practice !== undefined) {
+        qb = qb.eq('is_practice', !!opt.practice);
+      }
+
+      return qb.returns<PitchCountsTable[]>(); 
+    },
   });
 }
+
+
 
 const pitcherBinsSelect = `
   PitcherTeam, Date, Pitcher, ZoneId, InZone, ZoneRow, ZoneCol, ZoneCell, OuterLabel, ZoneVersion,
