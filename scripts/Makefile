@@ -81,7 +81,7 @@ pre-commit: format lint type-check test-fast
 
 # Installation
 install:
-	poetry install
+	poetry install && poetry run pre-commit install
 
 install-dev:
 	poetry install --with dev
