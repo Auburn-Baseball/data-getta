@@ -1,10 +1,11 @@
-import pytest
-import pandas as pd
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 import builtins
 import io
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import numpy as np
+import pandas as pd
+import pytest
 
 from scripts.utils import advanced_pitching_stats_upload as mod
 
@@ -287,23 +288,7 @@ def test_bad_filename(monkeypatch):
     assert any("Unable to extract date from filename" in msg for msg in printed)
 
 
-@pytest.fixture(autouse=True)
-def patch_csv_parser(monkeypatch):
-    monkeypatch.setattr(mod, "CSVFilenameParser", lambda: DummyParser())
-
-
-def make_csv(data: str):
-    return io.StringIO(data)
-
-
 # ----------------- Tests -----------------
-
-
-def test_empty_csv():
-    csv_data = "Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League\n"
-    buffer = make_csv(csv_data)
-    result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
-    assert result == {}
 
 
 def test_basic_pitching_stats(monkeypatch):
@@ -448,16 +433,6 @@ Sam,AUB,Strikeout,InPlay,Out,,,,Right,,Fastball,100,2,0,SEC
     stats = result[key]
     assert stats["xba_per"] == 0
     assert stats["plate_app"] == 1
-
-
-def test_bad_filename(monkeypatch):
-    csv_data = "Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League\n"
-    buffer = make_csv(csv_data)
-    printed = []
-    monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
-    result = mod.get_advanced_pitching_stats_from_buffer(buffer, "bad_filename.csv")
-    assert result == {}
-    assert any("Unable to extract date from filename" in msg for msg in printed)
 
 
 def test_plate_loc_exception(monkeypatch):
@@ -965,8 +940,8 @@ def test_rank_upload_called(monkeypatch, mock_supabase_fast):
 
 # Ranking helper with all NaNs
 def test_rank_helper_all_nan(monkeypatch):
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     table_mock = MagicMock()
     supabase_mock = MagicMock()

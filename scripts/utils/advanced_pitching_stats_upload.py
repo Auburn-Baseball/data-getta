@@ -13,20 +13,14 @@ Advanced Pitching Stats Utility Module
 
 import bisect
 import json
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from supabase import Client, create_client
 
-from .common import (
-    SUPABASE_KEY,
-    SUPABASE_URL,
-    NumpyEncoder,
-    is_in_strike_zone,
-    project_root,
-)
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone, project_root
 from .file_date import CSVFilenameParser
 
 
@@ -38,7 +32,7 @@ def check_supabase_vars():
 
 check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 # Strike zone constants
 MIN_PLATE_SIDE = -0.86
@@ -80,9 +74,7 @@ def load_xba_grid(path):
 
 
 # Module-level call
-xba_grid, xba_dict, ev_bins, la_bins, dir_bins, global_xba_mean = load_xba_grid(
-    XBA_GRID_PATH
-)
+xba_grid, xba_dict, ev_bins, la_bins, dir_bins, global_xba_mean = load_xba_grid(XBA_GRID_PATH)
 
 
 def closest_value(sorted_list, value):
@@ -217,7 +209,6 @@ def get_advanced_pitching_stats_from_buffer(
         grouped = df.groupby(["Pitcher", "PitcherTeam"])
 
         for (pitcher_name, pitcher_team), group in grouped:
-
             pitcher_name = str(pitcher_name).strip()
             if is_practice:
                 pitcher_team = "AUB_PRC"
@@ -272,9 +263,7 @@ def get_advanced_pitching_stats_from_buffer(
                 & (group["Angle"] >= 8)
                 & (group["Angle"] <= 32)
             ].shape[0]
-            la_sweet_spot_per = (
-                (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
-            )
+            la_sweet_spot_per = (sweet_spot_balls / batted_balls) if batted_balls > 0 else None
 
             # Hard hit percentage
             hard_hit_balls = group[
@@ -301,18 +290,14 @@ def get_advanced_pitching_stats_from_buffer(
             total_fastball_velo = group[
                 (group["TaggedPitchType"] == "Fastball") & (group["RelSpeed"].notna())
             ]["RelSpeed"].sum()
-            avg_fastball_velo = (
-                total_fastball_velo / fastballs if fastballs > 0 else None
-            )
+            avg_fastball_velo = total_fastball_velo / fastballs if fastballs > 0 else None
 
             # Walks and strikeouts
             walks = len(group[group["KorBB"] == "Walk"])
             strikeouts = len(group[group["KorBB"] == "Strikeout"])
 
             # K% and BB%
-            k_percentage = (
-                strikeouts / plate_appearances if plate_appearances > 0 else None
-            )
+            k_percentage = strikeouts / plate_appearances if plate_appearances > 0 else None
             bb_percentage = walks / plate_appearances if plate_appearances > 0 else None
 
             # GB %
@@ -328,14 +313,10 @@ def get_advanced_pitching_stats_from_buffer(
             for _, row in group.iterrows():
                 try:
                     height: float = (
-                        float(row["PlateLocHeight"])
-                        if pd.notna(row["PlateLocHeight"])
-                        else None
+                        float(row["PlateLocHeight"]) if pd.notna(row["PlateLocHeight"]) else None
                     )
                     side: float = (
-                        float(row["PlateLocSide"])
-                        if pd.notna(row["PlateLocSide"])
-                        else None
+                        float(row["PlateLocSide"]) if pd.notna(row["PlateLocSide"]) else None
                     )
 
                     if height is not None and side is not None:
@@ -355,13 +336,9 @@ def get_advanced_pitching_stats_from_buffer(
                     continue
 
             # Whiff and chase percentages
-            whiff_per = (
-                in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
-            )
+            whiff_per = in_zone_whiffs / in_zone_pitches if in_zone_pitches > 0 else None
             chase_per = (
-                out_of_zone_swings / out_of_zone_pitches
-                if out_of_zone_pitches > 0
-                else None
+                out_of_zone_swings / out_of_zone_pitches if out_of_zone_pitches > 0 else None
             )
 
             # --- Prepare batted_ball_rows ---
@@ -391,9 +368,7 @@ def get_advanced_pitching_stats_from_buffer(
                 valid_xslg = batted_ball_rows[
                     ["ExitSpeed", "Angle", "Direction", "BatterSide"]
                 ].copy()
-                valid_xslg["BatterSide"] = valid_xslg["BatterSide"].map(
-                    {"Left": 0, "Right": 1}
-                )
+                valid_xslg["BatterSide"] = valid_xslg["BatterSide"].map({"Left": 0, "Right": 1})
                 preds_xslg = xslg_model.predict(valid_xslg)
                 batted_ball_rows["xSLG"] = preds_xslg
             else:
@@ -415,11 +390,7 @@ def get_advanced_pitching_stats_from_buffer(
             # --- Compute xBA per batter ---
             if not batted_ball_rows.empty:
                 avg_xba_batted_balls = batted_ball_rows["xBA"].mean()
-                batter_xba = (
-                    (avg_xba_batted_balls * batted_balls) / at_bats
-                    if at_bats > 0
-                    else 0
-                )
+                batter_xba = (avg_xba_batted_balls * batted_balls) / at_bats if at_bats > 0 else 0
                 batter_xba = max(batter_xba, 0)  # Clip minimum
             else:
                 batter_xba = 0
@@ -427,11 +398,7 @@ def get_advanced_pitching_stats_from_buffer(
             # --- Compute xSLG per batter ---
             if not batted_ball_rows.empty:
                 avg_xslg_batted_balls = batted_ball_rows["xSLG"].mean()
-                batter_xslg = (
-                    (avg_xslg_batted_balls * batted_balls) / at_bats
-                    if at_bats > 0
-                    else 0
-                )
+                batter_xslg = (avg_xslg_batted_balls * batted_balls) / at_bats if at_bats > 0 else 0
                 batter_xslg = max(batter_xslg, 0)  # Clip minimum
             else:
                 batter_xslg = 0
@@ -468,9 +435,7 @@ def get_advanced_pitching_stats_from_buffer(
                     valid_bb = batted_ball_rows[
                         ["ExitSpeed", "Angle", "Direction", "BatterSide"]
                     ].copy()
-                    valid_bb["BatterSide"] = valid_bb["BatterSide"].map(
-                        {"Left": 0, "Right": 1}
-                    )
+                    valid_bb["BatterSide"] = valid_bb["BatterSide"].map({"Left": 0, "Right": 1})
                     preds = xwoba_model.predict(valid_bb)
                     sum_xwOBA_bb = float(np.sum(preds))
                 else:
@@ -504,18 +469,14 @@ def get_advanced_pitching_stats_from_buffer(
                 "avg_exit_velo": avg_exit_velo if avg_exit_velo is not None else None,
                 "k_per": k_percentage if k_percentage is not None else None,
                 "bb_per": bb_percentage if bb_percentage is not None else None,
-                "la_sweet_spot_per": (
-                    la_sweet_spot_per if la_sweet_spot_per is not None else None
-                ),
+                "la_sweet_spot_per": (la_sweet_spot_per if la_sweet_spot_per is not None else None),
                 "hard_hit_per": hard_hit_per if hard_hit_per is not None else None,
                 "in_zone_pitches": in_zone_pitches,
                 "whiff_per": whiff_per if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
                 "chase_per": chase_per if chase_per is not None else None,
                 "fastballs": fastballs,
-                "avg_fastball_velo": (
-                    avg_fastball_velo if avg_fastball_velo is not None else None
-                ),
+                "avg_fastball_velo": (avg_fastball_velo if avg_fastball_velo is not None else None),
                 "ground_balls": ground_balls,
                 "gb_per": gb_per if gb_per is not None else None,
                 "xba_per": batter_xba if batter_xba is not None else None,
@@ -541,9 +502,9 @@ def safe_get(d, key):
 
 # Weighted averages helper (no rounding)
 def weighted_avg(existing_stats, new_stats, stat_key, weight_key, total_weight):
-    total = safe_get(existing_stats, stat_key) * safe_get(
-        existing_stats, weight_key
-    ) + safe_get(new_stats, stat_key) * safe_get(new_stats, weight_key)
+    total = safe_get(existing_stats, stat_key) * safe_get(existing_stats, weight_key) + safe_get(
+        new_stats, stat_key
+    ) * safe_get(new_stats, weight_key)
     if total_weight > 0:
         return max(total / total_weight, 0)
     return None
@@ -562,9 +523,7 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
         return existing_stats
 
     # Combine counts
-    combined_plate_app = safe_get(existing_stats, "plate_app") + safe_get(
-        new_stats, "plate_app"
-    )
+    combined_plate_app = safe_get(existing_stats, "plate_app") + safe_get(new_stats, "plate_app")
     combined_batted_balls = safe_get(existing_stats, "batted_balls") + safe_get(
         new_stats, "batted_balls"
     )
@@ -574,15 +533,11 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
     combined_in_zone_pitches = safe_get(existing_stats, "in_zone_pitches") + safe_get(
         new_stats, "in_zone_pitches"
     )
-    combined_out_of_zone_pitches = safe_get(
-        existing_stats, "out_of_zone_pitches"
-    ) + safe_get(new_stats, "out_of_zone_pitches")
-    combined_fastballs = safe_get(existing_stats, "fastballs") + safe_get(
-        new_stats, "fastballs"
+    combined_out_of_zone_pitches = safe_get(existing_stats, "out_of_zone_pitches") + safe_get(
+        new_stats, "out_of_zone_pitches"
     )
-    combined_at_bats = safe_get(existing_stats, "at_bats") + safe_get(
-        new_stats, "at_bats"
-    )
+    combined_fastballs = safe_get(existing_stats, "fastballs") + safe_get(new_stats, "fastballs")
+    combined_at_bats = safe_get(existing_stats, "at_bats") + safe_get(new_stats, "at_bats")
 
     combined_avg_exit_velo = weighted_avg(
         existing_stats,
@@ -686,7 +641,8 @@ def rank_and_scale_to_1_100(series, ascending=False):
 
 
 def upload_advanced_pitching_to_supabase(
-    pitchers_dict: Dict[Tuple[str, str, int], Dict], max_fetch_loops: int | None = None
+    pitchers_dict: Dict[Tuple[str, str, int], Dict],
+    max_fetch_loops: Optional[int] = None,
 ):
     """Upload pitching stats to Supabase and compute scaled percentile ranks"""
     if not pitchers_dict:
@@ -727,9 +683,7 @@ def upload_advanced_pitching_to_supabase(
         new_count = 0
         for stat_key, new_stat in pitchers_dict.items():
             if stat_key in existing_stats:
-                combined = combine_advanced_pitching_stats(
-                    existing_stats[stat_key], new_stat
-                )
+                combined = combine_advanced_pitching_stats(existing_stats[stat_key], new_stat)
                 if combined is existing_stats[stat_key]:
                     continue
                 updated_count += 1
@@ -760,13 +714,9 @@ def upload_advanced_pitching_to_supabase(
                     batch, on_conflict="Pitcher,PitcherTeam,Year"
                 ).execute()
                 total_inserted += len(batch)
-                print(
-                    f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records"
-                )
+                print(f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records")
             except Exception as batch_error:
-                print(
-                    f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}"
-                )
+                print(f"Error uploading batch {i//upload_batch_size + 1}: {batch_error}")
                 if batch:
                     print(f"Sample record: {batch[0]}")
                 continue
@@ -816,39 +766,23 @@ def upload_advanced_pitching_to_supabase(
                 temp["avg_exit_velo"], ascending=False
             )
             temp["k_per_rank"] = rank_and_scale_to_1_100(temp["k_per"], ascending=True)
-            temp["bb_per_rank"] = rank_and_scale_to_1_100(
-                temp["bb_per"], ascending=False
-            )
+            temp["bb_per_rank"] = rank_and_scale_to_1_100(temp["bb_per"], ascending=False)
             temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_100(
                 temp["la_sweet_spot_per"], ascending=False
             )
             temp["hard_hit_per_rank"] = rank_and_scale_to_1_100(
                 temp["hard_hit_per"], ascending=False
             )
-            temp["whiff_per_rank"] = rank_and_scale_to_1_100(
-                temp["whiff_per"], ascending=True
-            )
-            temp["chase_per_rank"] = rank_and_scale_to_1_100(
-                temp["chase_per"], ascending=True
-            )
+            temp["whiff_per_rank"] = rank_and_scale_to_1_100(temp["whiff_per"], ascending=True)
+            temp["chase_per_rank"] = rank_and_scale_to_1_100(temp["chase_per"], ascending=True)
             temp["avg_fastball_rank"] = rank_and_scale_to_1_100(
                 temp["avg_fastball_velo"], ascending=True
             )
-            temp["gb_per_rank"] = rank_and_scale_to_1_100(
-                temp["gb_per"], ascending=True
-            )
-            temp["xba_per_rank"] = rank_and_scale_to_1_100(
-                temp["xba_per"], ascending=False
-            )
-            temp["xslg_per_rank"] = rank_and_scale_to_1_100(
-                temp["xslg_per"], ascending=False
-            )
-            temp["xwoba_per_rank"] = rank_and_scale_to_1_100(
-                temp["xwoba_per"], ascending=False
-            )
-            temp["barrel_per_rank"] = rank_and_scale_to_1_100(
-                temp["barrel_per"], ascending=True
-            )
+            temp["gb_per_rank"] = rank_and_scale_to_1_100(temp["gb_per"], ascending=True)
+            temp["xba_per_rank"] = rank_and_scale_to_1_100(temp["xba_per"], ascending=False)
+            temp["xslg_per_rank"] = rank_and_scale_to_1_100(temp["xslg_per"], ascending=False)
+            temp["xwoba_per_rank"] = rank_and_scale_to_1_100(temp["xwoba_per"], ascending=False)
+            temp["barrel_per_rank"] = rank_and_scale_to_1_100(temp["barrel_per"], ascending=True)
             ranked_dfs.append(temp)
 
         ranked_df = pd.concat(ranked_dfs, ignore_index=True)
@@ -892,9 +826,7 @@ def upload_advanced_pitching_to_supabase(
                     print(f"Sample record: {batch[0]}")
                 continue
 
-        print(
-            f"Successfully updated ranks for {total_updated} records across all years."
-        )
+        print(f"Successfully updated ranks for {total_updated} records across all years.")
 
     except Exception as e:
         print(f"Supabase error: {e}")
