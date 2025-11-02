@@ -103,7 +103,7 @@ class CSVFilenameParser:
 
         if not re.match(r"^\d{8}-\d{8}$", date_range_str):
             raise ValueError(
-                "Date range must be in format YYYYMMDD-YYYYMMDD," f"got: {date_range_str}"
+                "Date range must be in format YYYYMMDD-YYYYMMDD," f" got: {date_range_str}"
             )
 
         start_str, end_str = date_range_str.split("-")
@@ -116,7 +116,7 @@ class CSVFilenameParser:
         if not self._is_valid_date_int(end_date):
             raise ValueError(f"Invalid end date: {end_str}")
         if start_date > end_date:
-            raise ValueError(f"Start date ({start_str})" f"cannot be after end date ({end_str})")
+            raise ValueError(f"Start date ({start_str})" f" cannot be after end date ({end_str})")
 
         return start_date, end_date
 

@@ -74,11 +74,6 @@ type-check:
 check: format lint type-check test
 	@echo "\nAll checks passed!"
 
-# Pre-commit hook (run before committing)
-pre-commit: format lint type-check test-fast
-	cd .. && poetry run pre-commit run --all-files
-	@echo "\nReady to commit!"
-
 # Installation
 install:
 	poetry install && poetry run pre-commit install
