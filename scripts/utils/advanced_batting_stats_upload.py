@@ -20,15 +20,15 @@ import pandas as pd
 import xgboost as xgb
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone, project_root
+from .common import (
+    SUPABASE_KEY,
+    SUPABASE_URL,
+    NumpyEncoder,
+    check_supabase_vars,
+    is_in_strike_zone,
+    project_root,
+)
 from .file_date import CSVFilenameParser
-
-
-# Initialize Supabase client
-def check_supabase_vars():
-    if SUPABASE_URL is None or SUPABASE_KEY is None:
-        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
-
 
 check_supabase_vars()
 

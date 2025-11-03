@@ -1,3 +1,10 @@
+"""
+Author: Joshua Reed
+Created: 1 November 2025
+
+Unit test cases for advanced_pitching_stats_upload.py functions.
+"""
+
 import builtins
 import io
 from pathlib import Path
@@ -19,19 +26,6 @@ class DummyParser:
 
     def get_date_object(self, filename):
         return pd.Timestamp("2025-10-31") if filename != "bad_filename.csv" else None
-
-
-def test_supabase_vars():
-    # Missing variables
-    mod.SUPABASE_URL = None
-    mod.SUPABASE_KEY = None
-    with pytest.raises(ValueError):
-        mod.check_supabase_vars()
-
-    # Present variables
-    mod.SUPABASE_URL = "https://example.supabase.co"
-    mod.SUPABASE_KEY = "fake_key_123"
-    mod.check_supabase_vars()  # should NOT raise
 
 
 def test_xba_grid_missing(tmp_path):
