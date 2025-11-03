@@ -6,11 +6,11 @@ Unit test cases for file_date.py functions.
 """
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
-from utils.file_date import CSVFilenameParser
+from scripts.utils.file_date import CSVFilenameParser
 
 
 @pytest.fixture
@@ -28,6 +28,11 @@ def valid_filenames():
         "Batting_2022-01-01T023309_unverified.csv",
         "Batting_2012-01-01T000000_unverified.csv",
     ]
+
+
+@pytest.fixture
+def invalid_filenames():
+    return ["202413011-Something_verified.csv", "2024132-Something_verified.csv", "2024132"]
 
 
 class TestDateFunctions:
@@ -154,6 +159,7 @@ class TestDateFunctions:
                 ["20220101-Something_verified.csv", "Batting_2022-01-01T023309_unverified.csv"],
             ),
             (2023, 1, 1, []),
+            (2022, 1, 2, []),
             (
                 None,
                 1,
@@ -183,6 +189,21 @@ class TestDateFunctions:
         response = parser.filter_files_by_date(valid_filenames, year, month, day)
         assert isinstance(response, list)
         assert response == expected_list
+
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("20251031-PlainsmanPark-Private-1_unverified.csv", date(2025, 10, 31)),
+            ("20120101-Name-name_verified.csv", date(2012, 1, 1)),
+            ("20220101-Something_verified.csv", date(2022, 1, 1)),
+            ("Batting_2022-01-01T023309_unverified.csv", date(2022, 1, 1)),
+            ("Batting_2012-01-01T000000_unverified.csv", date(2012, 1, 1)),
+        ],
+    )
+    def test_get_date_object(self, parser, filename, expected):
+        response = parser.get_date_object(filename)
+        assert isinstance(response, date)
+        assert response == expected
 
 
 class TestNegatives:
@@ -246,3 +267,37 @@ class TestNegatives:
         )
         with pytest.raises(ValueError, match=re.escape(expected_msg)):
             parser._parse_date_range(date_range)
+
+    @pytest.mark.parametrize(
+        "filename", ["20241301-Something_verified.csv", "20241232-Something_verified.csv"]
+    )
+    def test_parse_filename_bad_value(self, parser, filename):
+        assert parser.parse_filename(filename) == datetime(2000, 1, 1)
+
+    @pytest.mark.parametrize(
+        "filename",
+        ["202413011-Something_verified.csv", "2024132-Something_verified.csv", "2024132"],
+    )
+    def test_parse_filename_mismatched_format(self, parser, filename):
+        assert parser.parse_filename(filename) == None
+
+    def test_get_date_components_none(self, parser):
+        assert parser.get_date_components("20000101-Something_verified.csv") == None
+
+    @pytest.mark.parametrize(
+        "filename",
+        ["202413011-Something_verified.csv", "2024132-Something_verified.csv", "2024132"],
+    )
+    def test_get_date_components_mismatched_format(self, parser, filename):
+        assert parser.get_date_components(filename) == None
+
+    @pytest.mark.parametrize(
+        "filename",
+        ["202413011-Something_verified.csv", "2024132-Something_verified.csv", "2024132"],
+    )
+    def test_get_date_object_mismatched_format(self, parser, filename):
+        assert parser.get_date_object(filename) == None
+
+    def test_filter_files_by_date_mismatched_filename_format(self, parser, invalid_filenames):
+        response = parser.filter_files_by_date(invalid_filenames, 2024, 13, 2)
+        assert response == []

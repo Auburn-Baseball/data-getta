@@ -36,8 +36,8 @@ qa:
 test:
 	$(PYTEST)
 
-test-watch:
-	poetry run ptw
+test-v:
+	$(PYTEST) -vv -s
 
 test-fast:
 	$(PYTEST) -x  # Stop on first failure
