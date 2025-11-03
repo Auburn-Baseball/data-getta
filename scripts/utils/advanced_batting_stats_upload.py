@@ -13,7 +13,7 @@ Advanced Batting Stats Utility Module
 
 import bisect
 import json
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -24,6 +24,7 @@ from .common import (
     SUPABASE_KEY,
     SUPABASE_URL,
     NumpyEncoder,
+    check_practice,
     check_supabase_vars,
     is_in_strike_zone,
     project_root,
@@ -169,7 +170,9 @@ def get_advanced_batting_stats_from_buffer(
 ) -> Dict[Tuple[str, str, int], Dict]:
     """Extract advanced batting stats from CSV in memory"""
     try:
-        cols_needed = [
+        # Read CSV selecting only available desired columns
+        # (null-safe, optional League for practice detection)
+        desired_cols = [
             "Batter",
             "BatterTeam",
             "KorBB",
@@ -185,12 +188,13 @@ def get_advanced_batting_stats_from_buffer(
             "Distance",
             "League",
         ]
-        df = pd.read_csv(buffer, usecols=cols_needed)
+        header_df = pd.read_csv(buffer, nrows=0)
+        available = [c for c in desired_cols if c in header_df.columns]
+        buffer.seek(0)
+        df = pd.read_csv(buffer, usecols=available)
 
-        is_practice = False
-        if "League" in df.columns:
-            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = bool((league_values == "TEAM").any())
+        # Determines if this is practice data by checking the League column
+        is_practice = check_practice(df)
 
         # Extract year from filename
         file_date_parser = CSVFilenameParser()
@@ -206,7 +210,7 @@ def get_advanced_batting_stats_from_buffer(
 
         for (batter_name, batter_team), group in grouped:
             batter_name = str(batter_name).strip()
-            if is_practice:
+            if is_practice and batter_team == "AUB_TIG":
                 batter_team = "AUB_PRC"
             else:
                 batter_team = str(batter_team).strip()
@@ -665,14 +669,76 @@ def rank_and_scale_to_1_100(series, ascending=False):
         return pd.Series([None] * len(series), index=series.index)
     ranks = series[mask].rank(method="min", ascending=ascending)
     min_rank, max_rank = ranks.min(), ranks.max()
-    scaled = (
-        pd.Series([100.0] * mask.sum(), index=series[mask].index)
-        if min_rank == max_rank
-        else np.floor(1 + (ranks - min_rank) / (max_rank - min_rank) * 99)
-    )
+    if min_rank == max_rank:
+        scaled = pd.Series([100.0] * mask.sum(), index=series[mask].index)
+    else:
+        # Scale to 1-100, with best value (min_rank) always getting 100
+        # Formula: 100 - (ranks - min_rank) / (max_rank - min_rank) * 99
+        scaled = 100 - (ranks - min_rank) / (max_rank - min_rank) * 99
+        # Apply flooring
+        scaled = np.floor(scaled)
+        # Ensure minimum rank (best performer) is exactly 100
+        min_mask = ranks == min_rank
+        scaled.loc[min_mask] = 100.0
+        # Ensure values don't go below 1 (floor any that might be 0 or negative)
+        scaled = scaled.clip(lower=1.0)
     result = pd.Series([None] * len(series), index=series.index)
     result[mask] = scaled
     return result
+
+
+# Helper: calculate rank for practice players against non-practice distribution
+def calculate_practice_overall_rank(practice_value, non_practice_series, ascending=False):
+    """
+    Calculate what a practice player's overall rank would be against all non-practice players.
+    This doesn't add the practice player to the ranking distribution.
+    Uses the same ranking method as rank_and_scale_to_1_100.
+    """
+    if pd.isna(practice_value):
+        return None
+
+    non_practice_series = non_practice_series.dropna()
+    if len(non_practice_series) == 0:
+        return None
+
+    # Rank all non-practice values (including the practice value for comparison)
+    # Create a temporary series with practice value added
+    temp_series = pd.concat([non_practice_series, pd.Series([practice_value])])
+    ranks = temp_series.rank(method="min", ascending=ascending)
+
+    # Get the rank of the practice value (last element in temp_series)
+    practice_rank = ranks.iloc[-1]
+
+    # Get min and max ranks from non-practice players only
+    non_practice_ranks = ranks.iloc[:-1]
+    min_rank = non_practice_ranks.min()
+    max_rank = non_practice_ranks.max()
+
+    if min_rank == max_rank:
+        # All non-practice values are the same
+        scaled = 100.0
+    else:
+        # Handle cases where practice value is outside the non-practice range
+        if practice_rank < min_rank:
+            """Practice value is better than all non-practice (rank 1 when ascending=True,
+            or higher rank when ascending=False)"""
+            scaled = 100.0
+        elif practice_rank > max_rank:
+            # Practice value is worse than all non-practice
+            scaled = 1.0
+        else:
+            # Use the same scaling formula as rank_and_scale_to_1_100
+            # Formula: 100 - (ranks - min_rank) / (max_rank - min_rank) * 99
+            scaled = 100 - (practice_rank - min_rank) / (max_rank - min_rank) * 99
+            # Apply flooring
+            scaled = np.floor(scaled)
+            # If practice rank equals min_rank (best), set to 100
+            if practice_rank == min_rank:
+                scaled = 100.0
+            # Ensure values don't go below 1
+            scaled = max(1.0, scaled)
+
+    return float(scaled)
 
 
 def upload_advanced_batting_to_supabase(
@@ -777,6 +843,7 @@ def upload_advanced_batting_to_supabase(
                 break
             all_records.extend(data)
             offset += batch_size
+            print(f"Fetched {len(data)} records (total: {len(all_records)})")
 
             loop_count += 1
             if max_fetch_loops is not None and loop_count >= max_fetch_loops:
@@ -789,50 +856,98 @@ def upload_advanced_batting_to_supabase(
 
         df = pd.DataFrame(all_records).dropna(subset=["Year"])
 
-        # Compute rankings by year
-        ranked_dfs = []
-        for year, group in df.groupby("Year"):
-            temp = group.copy()
-            temp["avg_exit_velo_rank"] = rank_and_scale_to_1_100(
-                temp["avg_exit_velo"], ascending=True
-            )
-            temp["k_per_rank"] = rank_and_scale_to_1_100(temp["k_per"], ascending=False)
-            temp["bb_per_rank"] = rank_and_scale_to_1_100(temp["bb_per"], ascending=True)
-            temp["la_sweet_spot_per_rank"] = rank_and_scale_to_1_100(
-                temp["la_sweet_spot_per"], ascending=True
-            )
-            temp["hard_hit_per_rank"] = rank_and_scale_to_1_100(
-                temp["hard_hit_per"], ascending=True
-            )
-            temp["whiff_per_rank"] = rank_and_scale_to_1_100(temp["whiff_per"], ascending=False)
-            temp["chase_per_rank"] = rank_and_scale_to_1_100(temp["chase_per"], ascending=False)
-            temp["xba_per_rank"] = rank_and_scale_to_1_100(temp["xba_per"], ascending=True)
-            temp["xslg_per_rank"] = rank_and_scale_to_1_100(temp["xslg_per"], ascending=True)
-            temp["xwoba_per_rank"] = rank_and_scale_to_1_100(temp["xwoba_per"], ascending=True)
-            temp["barrel_per_rank"] = rank_and_scale_to_1_100(temp["barrel_per"], ascending=True)
-            ranked_dfs.append(temp)
+        # Helper mask for practice rows (computed on the fly, not stored)
+        # Practice = team is AUB_PRC
+        practice_mask_series = df["BatterTeam"].eq("AUB_PRC")
 
-        ranked_df = pd.concat(ranked_dfs, ignore_index=True)
-        print("Computed scaled percentile ranks by year.")
+        metrics = [
+            ("avg_exit_velo", False),
+            ("k_per", True),
+            ("bb_per", False),
+            ("la_sweet_spot_per", False),
+            ("hard_hit_per", False),
+            ("whiff_per", True),
+            ("chase_per", True),
+            ("xba_per", False),
+            ("xslg_per", False),
+            ("xwoba_per", False),
+            ("barrel_per", False),
+        ]
+
+        ranked_df = df.copy()
+
+        # Helper to compute ranks within subset and assign to ranked_df
+        def compute_and_assign(subset_idx, col, asc, suffix):
+            subset = ranked_df.loc[subset_idx]
+            ranks = rank_and_scale_to_1_100(subset[col], ascending=asc)
+            rank_col_name = f"{col}_rank_{suffix}" if suffix else f"{col}_rank"
+            ranked_df.loc[subset_idx, rank_col_name] = ranks
+
+        # Overall ranks (Year only) - exclude practice data from ranking
+        for year_val, group_idx in ranked_df.groupby("Year").groups.items():
+            group_mask = ranked_df.index.isin(group_idx)
+            # Exclude practice rows from overall rankings
+            non_practice_mask = group_mask & (
+                ~practice_mask_series.reindex(ranked_df.index, fill_value=False)
+            )
+            if not non_practice_mask.any():
+                continue
+
+            # Calculate practice mask once per year
+            practice_mask = group_mask & practice_mask_series.reindex(
+                ranked_df.index, fill_value=False
+            )
+
+            for col, asc in metrics:
+                compute_and_assign(non_practice_mask, col, asc, "")
+
+                # Now calculate practice players' overall ranks against non-practice distribution
+                if practice_mask.any():
+                    non_practice_series = ranked_df.loc[non_practice_mask, col].dropna()
+                    if len(non_practice_series) > 0:
+                        for practice_idx in ranked_df[practice_mask].index:
+                            practice_value = ranked_df.loc[practice_idx, col]
+                            if pd.notna(practice_value):
+                                practice_rank = calculate_practice_overall_rank(
+                                    practice_value, non_practice_series, ascending=asc
+                                )
+                                rank_col_name = f"{col}_rank"
+                                ranked_df.loc[practice_idx, rank_col_name] = practice_rank
+
+        # Team ranks (Year, BatterTeam) with practice-exclusion
+        for key, group_idx in ranked_df.groupby(["Year", "BatterTeam"]).groups.items():
+            year_val, team_val = cast(Tuple[int, str], key)
+            group_mask = ranked_df.index.isin(group_idx)
+            if str(team_val) == "AUB_PRC":
+                mask = group_mask & practice_mask_series.reindex(ranked_df.index, fill_value=False)
+            else:
+                mask = group_mask & (
+                    ~practice_mask_series.reindex(ranked_df.index, fill_value=False)
+                )
+            if not mask.any():
+                continue
+            for col, asc in metrics:
+                compute_and_assign(mask, col, asc, "team")
+
+        print("Computed scaled percentile ranks for overall and team with practice handling.")
 
         # Prepare data for upload
-        update_cols = [
-            "Batter",
-            "BatterTeam",
-            "Year",
-            "avg_exit_velo_rank",
-            "k_per_rank",
-            "bb_per_rank",
-            "la_sweet_spot_per_rank",
-            "hard_hit_per_rank",
-            "whiff_per_rank",
-            "chase_per_rank",
-            "xba_per_rank",
-            "xslg_per_rank",
-            "xwoba_per_rank",
-            "barrel_per_rank",
-        ]
-        update_data = ranked_df[update_cols].to_dict(orient="records")
+        # Build list of columns to upsert: identifiers + all new rank columns
+        id_cols = ["Batter", "BatterTeam", "Year"]
+        rank_cols = []
+        for col, _asc in metrics:
+            rank_cols.extend(
+                [
+                    f"{col}_rank",  # Overall rank
+                    f"{col}_rank_team",  # Team rank
+                ]
+            )
+        # Only include columns that exist in ranked_df
+        present_rank_cols = [c for c in rank_cols if c in ranked_df.columns]
+        # Convert NaN to None to satisfy JSON encoding
+        upload_df = ranked_df[id_cols + present_rank_cols].copy()
+        upload_df = upload_df.where(pd.notna(upload_df), None)
+        update_data = upload_df.to_dict(orient="records")
 
         # Upload rank updates in batches
         print("\nUploading scaled percentile ranks...")

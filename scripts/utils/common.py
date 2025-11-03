@@ -65,3 +65,13 @@ def is_in_strike_zone(plate_loc_height, plate_loc_side):
         )
     except (ValueError, TypeError):
         return False
+
+
+def check_practice(df_buffer) -> bool:
+    """Returns true if the data is practice data, false otherwise"""
+    is_practice = False
+    columns = df_buffer.columns
+    if "League" in columns:
+        league_values = df_buffer["League"].dropna().astype(str).str.strip().str.upper()
+        is_practice = bool((league_values == "TEAM").any())
+    return is_practice
