@@ -45,25 +45,19 @@ class CSVFilenameParser:
         match_v3 = self.v3.match(filename)
         if match_v3:
             date_str = match_v3.group(1)
-            try:
-                date_int = int(date_str)
-                # Validate the date value makes sense
-                if self._is_valid_date_int(date_int):
-                    return date_int
-            except ValueError:
-                pass
+            date_int = int(date_str)
+            # Validate the date value makes sense
+            if self._is_valid_date_int(date_int):
+                return date_int
 
         match_practice = self.practice.match(filename)
         if match_practice:
             date_str = match_practice.group(1)
-            try:
-                # Convert "YYYY-MM-DD" into "YYYYMMDD"
-                year, month, day = date_str.split("-")
-                date_int = int(year + month + day)
-                if self._is_valid_date_int(date_int):
-                    return date_int
-            except ValueError:
-                pass
+            # Convert "YYYY-MM-DD" into "YYYYMMDD"
+            year, month, day = date_str.split("-")
+            date_int = int(year + month + day)
+            if self._is_valid_date_int(date_int):
+                return date_int
 
         return 0
 
@@ -103,7 +97,7 @@ class CSVFilenameParser:
 
         if not re.match(r"^\d{8}-\d{8}$", date_range_str):
             raise ValueError(
-                "Date range must be in format YYYYMMDD-YYYYMMDD," f"got: {date_range_str}"
+                "Date range must be in format YYYYMMDD-YYYYMMDD," f" got: {date_range_str}"
             )
 
         start_str, end_str = date_range_str.split("-")
@@ -116,7 +110,7 @@ class CSVFilenameParser:
         if not self._is_valid_date_int(end_date):
             raise ValueError(f"Invalid end date: {end_str}")
         if start_date > end_date:
-            raise ValueError(f"Start date ({start_str})" f"cannot be after end date ({end_str})")
+            raise ValueError(f"Start date ({start_str})" f" cannot be after end date ({end_str})")
 
         return start_date, end_date
 
@@ -151,19 +145,14 @@ class CSVFilenameParser:
             match1 = self.v3.match(filename)
             if match1:
                 date_str = match1.group(1)
-                try:
-                    return datetime.strptime(date_str, "%Y%m%d")
-                except ValueError:
-                    pass
+                return datetime.strptime(date_str, "%Y%m%d")
 
             # Try format 2: Prefix_YYYY-MM-DDTHHMMSS_suffix.csv
             match2 = self.practice.match(filename)
             if match2:
                 date_str = match2.group(1)
-                try:
-                    return datetime.strptime(date_str, "%Y-%m-%d")
-                except ValueError:
-                    pass
+                return datetime.strptime(date_str, "%Y-%m-%d")
+
         except Exception as e:
             print(f"Error while parsing the filename: {e}")
             return datetime(2000, 1, 1)
@@ -181,16 +170,12 @@ class CSVFilenameParser:
             Tuple of (year, month, day) if date found, None otherwise
         -------------------------------------------------------------"""
 
-        try:
-            date_obj = self.parse_filename(filename)
-            if date_obj == datetime(2000, 1, 1):
-                return None
-            elif date_obj:
-                return (date_obj.year, date_obj.month, date_obj.day)
-            else:
-                return None
-        except Exception as e:
-            print(f"Error while getting date components: {e}")
+        date_obj = self.parse_filename(filename)
+        if date_obj == datetime(2000, 1, 1):
+            return None
+        elif date_obj:
+            return (date_obj.year, date_obj.month, date_obj.day)
+        else:
             return None
 
     def get_date_object(self, filename: str) -> Optional[date]:
@@ -207,11 +192,7 @@ class CSVFilenameParser:
         if date_obj is None:
             return None
 
-        try:
-            return date(date_obj.year, date_obj.month, date_obj.day)
-        except Exception as e:
-            print(f"Error while getting the date as a date object: {e}")
-            return None
+        return date(date_obj.year, date_obj.month, date_obj.day)
 
     def filter_files_by_date(
         self,
@@ -234,25 +215,21 @@ class CSVFilenameParser:
 
         filtered = []
 
-        try:
-            for filename in filenames:
-                date_components = self.get_date_components(filename)
-                if not date_components:
-                    continue
+        for filename in filenames:
+            date_components = self.get_date_components(filename)
+            if not date_components:
+                continue
 
-                file_year, file_month, file_day = date_components
+            file_year, file_month, file_day = date_components
 
-                # Check if file matches criteria
-                if year is not None and file_year != year:
-                    continue
-                if month is not None and file_month != month:
-                    continue
-                if day is not None and file_day != day:
-                    continue
+            # Check if file matches criteria
+            if year is not None and file_year != year:
+                continue
+            if month is not None and file_month != month:
+                continue
+            if day is not None and file_day != day:
+                continue
 
-                filtered.append(filename)
+            filtered.append(filename)
 
-            return filtered
-        except Exception as e:
-            print(f"Error while filtering files by date: {e}")
-            return []
+        return filtered
