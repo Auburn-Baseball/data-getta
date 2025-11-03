@@ -13,21 +13,26 @@ Advanced Pitching Stats Utility Module
 
 import bisect
 import json
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, project_root
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone, project_root
 from .file_date import CSVFilenameParser
 
-# Initialize Supabase client
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Initialize Supabase client
+def check_supabase_vars():
+    if SUPABASE_URL is None or SUPABASE_KEY is None:
+        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
+
+check_supabase_vars()
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 # Strike zone constants
 MIN_PLATE_SIDE = -0.86
@@ -38,33 +43,38 @@ MIN_PLATE_HEIGHT = 1.77
 
 # Load xBA grid for fast lookups
 XBA_GRID_PATH = project_root / "scripts" / "utils" / "models" / "xBA_grid.csv"
-# --- Load xBA grid ---
-if XBA_GRID_PATH.exists():
-    xba_grid = pd.read_csv(XBA_GRID_PATH)
-else:
-    print("Warning: xBA grid not found, xBA stats will be skipped")
-    xba_grid = pd.DataFrame(columns=["ev_bin", "la_bin", "dir_bin", "xBA"])
 
-# --- Prepare lookup structures ---
-if not xba_grid.empty:
-    # Dictionary for instant exact lookups
-    xba_dict = {
-        (int(ev), int(la), int(dr)): float(xba)
-        for ev, la, dr, xba in zip(
-            xba_grid["ev_bin"], xba_grid["la_bin"], xba_grid["dir_bin"], xba_grid["xBA"]
-        )
-    }
 
-    # Precompute unique sorted lists (already sorted, so no sort() call)
-    ev_bins = list(xba_grid["ev_bin"].unique())
-    la_bins = list(xba_grid["la_bin"].unique())
-    dir_bins = list(xba_grid["dir_bin"].unique())
+def load_xba_grid(path):
+    if path.exists():
+        xba_grid = pd.read_csv(path)
+    else:
+        xba_grid = pd.DataFrame(columns=["ev_bin", "la_bin", "dir_bin", "xBA"])
 
-    global_xba_mean = xba_grid["xBA"].mean()
-else:
-    xba_dict = {}
-    ev_bins = la_bins = dir_bins = []
-    global_xba_mean = 0.25
+    if not xba_grid.empty:
+        xba_dict = {
+            (int(ev), int(la), int(dr)): float(xba)
+            for ev, la, dr, xba in zip(
+                xba_grid["ev_bin"],
+                xba_grid["la_bin"],
+                xba_grid["dir_bin"],
+                xba_grid["xBA"],
+            )
+        }
+        ev_bins = list(xba_grid["ev_bin"].unique())
+        la_bins = list(xba_grid["la_bin"].unique())
+        dir_bins = list(xba_grid["dir_bin"].unique())
+        global_xba_mean = xba_grid["xBA"].mean()
+    else:
+        xba_dict = {}
+        ev_bins = la_bins = dir_bins = []
+        global_xba_mean = 0.25
+
+    return xba_grid, xba_dict, ev_bins, la_bins, dir_bins, global_xba_mean
+
+
+# Module-level call
+xba_grid, xba_dict, ev_bins, la_bins, dir_bins, global_xba_mean = load_xba_grid(XBA_GRID_PATH)
 
 
 def closest_value(sorted_list, value):
@@ -81,7 +91,7 @@ def closest_value(sorted_list, value):
 def lookup_xBA(ev, la, dir_angle):
     """Fast xBA lookup using exact matches or nearest neighbor averaging."""
     if not xba_dict:
-        return None
+        return global_xba_mean
 
     key = (ev, la, dir_angle)
     if key in xba_dict:
@@ -112,42 +122,49 @@ def lookup_xBA(ev, la, dir_angle):
 # --- Load pre-trained xSLG model ---
 XSLG_MODEL_PATH = project_root / "scripts" / "utils" / "models" / "xslg_model.json"
 xslg_model = None
-if XSLG_MODEL_PATH.exists():
-    try:
-        xslg_model = xgb.XGBRegressor()
-        xslg_model.load_model(str(XSLG_MODEL_PATH))
-        # print("xSLG model loaded successfully.")
-    except Exception as e:
-        print(f"Failed to load xSLG model: {e}")
-else:
-    print("xSLG model not found — skipping xSLG predictions.")
+
+
+def load_xslg_model(path):
+    local_xslg_model = None
+
+    if path.exists():
+        try:
+            local_xslg_model = xgb.XGBRegressor()
+            local_xslg_model.load_model(str(path))
+            # print("xSLG model loaded successfully.")
+        except Exception as e:
+            print(f"Failed to load xSLG model: {e}")
+    else:
+        print("xSLG model not found — skipping xSLG predictions.")
+
+    return local_xslg_model
+
+
+xslg_model = load_xslg_model(XSLG_MODEL_PATH)
 
 
 # --- Load pre-trained xwOBA model ---
-XWOBAM_MODEL_PATH = project_root / "scripts" / "utils" / "models" / "xwoba_model.json"
+XWOBA_MODEL_PATH = project_root / "scripts" / "utils" / "models" / "xwoba_model.json"
 xwoba_model = None
-if XWOBAM_MODEL_PATH.exists():
-    try:
-        xwoba_model = xgb.XGBRegressor()
-        xwoba_model.load_model(str(XWOBAM_MODEL_PATH))
-        # print("xwOBA model loaded successfully.")
-    except Exception as e:
-        print(f"Failed to load xwOBA model: {e}")
-else:
-    print("xwOBA model not found — skipping xwOBA predictions.")
 
 
-def is_in_strike_zone(plate_loc_height, plate_loc_side):
-    """Return True if pitch is within strike zone bounds"""
-    try:
-        height = float(plate_loc_height)
-        side = float(plate_loc_side)
-        return (
-            MIN_PLATE_HEIGHT <= height <= MAX_PLATE_HEIGHT
-            and MIN_PLATE_SIDE <= side <= MAX_PLATE_SIDE
-        )
-    except (ValueError, TypeError):
-        return False
+def load_xwoba_model(path):
+    local_xwoba_model = None
+
+    if path.exists():
+        try:
+            local_xwoba_model = xgb.XGBRegressor()
+            local_xwoba_model.load_model(str(path))
+            # print("xwOBA model loaded successfully.")
+        except Exception as e:
+            print(f"Failed to load xwOBA model: {e}")
+    else:
+        print("xwOBA model not found — skipping xwOBA predictions.")
+
+    return local_xwoba_model
+
+
+xwoba_model = load_xwoba_model(XWOBA_MODEL_PATH)
 
 
 def get_advanced_pitching_stats_from_buffer(
@@ -179,22 +196,12 @@ def get_advanced_pitching_stats_from_buffer(
             league_values = df["League"].dropna().astype(str).str.strip().str.upper()
             is_practice = bool((league_values == "TEAM").any())
 
-        # Verify required columns exist
-        required_columns = ["Pitcher", "PitcherTeam"]
-        if not all(col in df.columns for col in required_columns):
-            print(f"Warning: Missing required columns in {filename}")
-            return {}
-
-        # Extract year and game date from filename
+        # Extract year from filename
         file_date_parser = CSVFilenameParser()
         date_components = file_date_parser.get_date_components(filename)
         if not date_components:
             raise ValueError(f"Unable to extract date from filename: {filename}")
         year = date_components[0]
-
-        game_date_obj = file_date_parser.get_date_object(filename)
-        if game_date_obj is None:
-            raise ValueError(f"Unable to parse game date from filename: {filename}")
 
         pitchers_dict = {}
 
@@ -202,9 +209,6 @@ def get_advanced_pitching_stats_from_buffer(
         grouped = df.groupby(["Pitcher", "PitcherTeam"])
 
         for (pitcher_name, pitcher_team), group in grouped:
-            if pd.isna(pitcher_name) or pd.isna(pitcher_team):
-                continue
-
             pitcher_name = str(pitcher_name).strip()
             if is_practice:
                 pitcher_team = "AUB_PRC"
@@ -381,7 +385,7 @@ def get_advanced_pitching_stats_from_buffer(
                 & (batted_ball_rows["xSLG"] >= 1.5)
             ].shape[0]
 
-            barrel_per = (barrel_balls / batted_balls) if batted_balls > 0 else None
+            barrel_per = (barrel_balls / batted_balls) if batted_balls > 0 else 0
 
             # --- Compute xBA per batter ---
             if not batted_ball_rows.empty:
@@ -462,28 +466,24 @@ def get_advanced_pitching_stats_from_buffer(
                 "Year": year,
                 "plate_app": plate_appearances,
                 "batted_balls": batted_balls,
-                "avg_exit_velo": (round(avg_exit_velo, 1) if avg_exit_velo is not None else None),
-                "k_per": round(k_percentage, 3) if k_percentage is not None else None,
-                "bb_per": (round(bb_percentage, 3) if bb_percentage is not None else None),
-                "la_sweet_spot_per": (
-                    round(la_sweet_spot_per, 3) if la_sweet_spot_per is not None else None
-                ),
-                "hard_hit_per": (round(hard_hit_per, 3) if hard_hit_per is not None else None),
+                "avg_exit_velo": avg_exit_velo if avg_exit_velo is not None else None,
+                "k_per": k_percentage if k_percentage is not None else None,
+                "bb_per": bb_percentage if bb_percentage is not None else None,
+                "la_sweet_spot_per": (la_sweet_spot_per if la_sweet_spot_per is not None else None),
+                "hard_hit_per": hard_hit_per if hard_hit_per is not None else None,
                 "in_zone_pitches": in_zone_pitches,
-                "whiff_per": round(whiff_per, 3) if whiff_per is not None else None,
+                "whiff_per": whiff_per if whiff_per is not None else None,
                 "out_of_zone_pitches": out_of_zone_pitches,
-                "chase_per": round(chase_per, 3) if chase_per is not None else None,
+                "chase_per": chase_per if chase_per is not None else None,
                 "fastballs": fastballs,
-                "avg_fastball_velo": (
-                    round(avg_fastball_velo, 1) if avg_fastball_velo is not None else None
-                ),
+                "avg_fastball_velo": (avg_fastball_velo if avg_fastball_velo is not None else None),
                 "ground_balls": ground_balls,
-                "gb_per": round(gb_per, 3) if gb_per is not None else None,
-                "xba_per": round(batter_xba, 3) if batter_xba is not None else None,
-                "xslg_per": round(batter_xslg, 3) if batter_xslg is not None else None,
+                "gb_per": gb_per if gb_per is not None else None,
+                "xba_per": batter_xba if batter_xba is not None else None,
+                "xslg_per": batter_xslg if batter_xslg is not None else None,
                 "at_bats": at_bats,
-                "xwoba_per": (round(batter_xwoba, 3) if batter_xwoba is not None else None),
-                "barrel_per": round(barrel_per, 3) if barrel_per is not None else None,
+                "xwoba_per": batter_xwoba if batter_xwoba is not None else None,
+                "barrel_per": barrel_per if barrel_per is not None else None,
             }
 
             pitchers_dict[key] = pitcher_stats
@@ -493,6 +493,21 @@ def get_advanced_pitching_stats_from_buffer(
     except Exception as e:
         print(f"Error processing {filename}: {e}")
         return {}
+
+
+# Helper to safely get numeric values
+def safe_get(d, key):
+    return d.get(key) if d.get(key) is not None else 0
+
+
+# Weighted averages helper (no rounding)
+def weighted_avg(existing_stats, new_stats, stat_key, weight_key, total_weight):
+    total = safe_get(existing_stats, stat_key) * safe_get(existing_stats, weight_key) + safe_get(
+        new_stats, stat_key
+    ) * safe_get(new_stats, weight_key)
+    if total_weight > 0:
+        return max(total / total_weight, 0)
+    return None
 
 
 def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Dict:
@@ -506,10 +521,6 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
 
     if new_dates and new_dates.issubset(existing_dates):
         return existing_stats
-
-    # Helper to safely get numeric values
-    def safe_get(d, key):
-        return d.get(key) if d.get(key) is not None else 0
 
     # Combine counts
     combined_plate_app = safe_get(existing_stats, "plate_app") + safe_get(new_stats, "plate_app")
@@ -528,34 +539,61 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
     combined_fastballs = safe_get(existing_stats, "fastballs") + safe_get(new_stats, "fastballs")
     combined_at_bats = safe_get(existing_stats, "at_bats") + safe_get(new_stats, "at_bats")
 
-    # Weighted averages helper
-    def weighted_avg(stat_key, weight_key, total_weight, round_digits=3):
-        total = safe_get(existing_stats, stat_key) * safe_get(
-            existing_stats, weight_key
-        ) + safe_get(new_stats, stat_key) * safe_get(new_stats, weight_key)
-        if total_weight > 0:
-            return round(max(total / total_weight, 0), round_digits)
-        return None
-
-    combined_avg_exit_velo = weighted_avg("avg_exit_velo", "batted_balls", combined_batted_balls, 1)
-    combined_k_per = weighted_avg("k_per", "plate_app", combined_plate_app, 3)
-    combined_bb_per = weighted_avg("bb_per", "plate_app", combined_plate_app, 3)
-    combined_gb_per = weighted_avg("gb_per", "batted_balls", combined_batted_balls, 3)
-    combined_sweet_spot_per = weighted_avg(
-        "la_sweet_spot_per", "batted_balls", combined_batted_balls, 3
+    combined_avg_exit_velo = weighted_avg(
+        existing_stats,
+        new_stats,
+        "avg_exit_velo",
+        "batted_balls",
+        combined_batted_balls,
     )
-    combined_hard_hit_per = weighted_avg("hard_hit_per", "batted_balls", combined_batted_balls, 3)
-    combined_whiff_per = weighted_avg("whiff_per", "in_zone_pitches", combined_in_zone_pitches, 3)
+    combined_k_per = weighted_avg(
+        existing_stats, new_stats, "k_per", "plate_app", combined_plate_app
+    )
+    combined_bb_per = weighted_avg(
+        existing_stats, new_stats, "bb_per", "plate_app", combined_plate_app
+    )
+    combined_gb_per = weighted_avg(
+        existing_stats, new_stats, "gb_per", "batted_balls", combined_batted_balls
+    )
+    combined_sweet_spot_per = weighted_avg(
+        existing_stats,
+        new_stats,
+        "la_sweet_spot_per",
+        "batted_balls",
+        combined_batted_balls,
+    )
+    combined_hard_hit_per = weighted_avg(
+        existing_stats, new_stats, "hard_hit_per", "batted_balls", combined_batted_balls
+    )
+    combined_whiff_per = weighted_avg(
+        existing_stats,
+        new_stats,
+        "whiff_per",
+        "in_zone_pitches",
+        combined_in_zone_pitches,
+    )
     combined_chase_per = weighted_avg(
-        "chase_per", "out_of_zone_pitches", combined_out_of_zone_pitches, 3
+        existing_stats,
+        new_stats,
+        "chase_per",
+        "out_of_zone_pitches",
+        combined_out_of_zone_pitches,
     )
     combined_avg_fastball_velo = weighted_avg(
-        "avg_fastball_velo", "fastballs", combined_fastballs, 1
+        existing_stats, new_stats, "avg_fastball_velo", "fastballs", combined_fastballs
     )
-    combined_xba_per = weighted_avg("xba_per", "at_bats", combined_at_bats)
-    combined_xslg_per = weighted_avg("xslg_per", "at_bats", combined_at_bats)
-    combined_xwoba_per = weighted_avg("xwoba_per", "plate_app", combined_plate_app)
-    combined_barrel_per = weighted_avg("barrel_per", "batted_balls", combined_batted_balls)
+    combined_xba_per = weighted_avg(
+        existing_stats, new_stats, "xba_per", "at_bats", combined_at_bats
+    )
+    combined_xslg_per = weighted_avg(
+        existing_stats, new_stats, "xslg_per", "at_bats", combined_at_bats
+    )
+    combined_xwoba_per = weighted_avg(
+        existing_stats, new_stats, "xwoba_per", "plate_app", combined_plate_app
+    )
+    combined_barrel_per = weighted_avg(
+        existing_stats, new_stats, "barrel_per", "batted_balls", combined_batted_balls
+    )
 
     return {
         "Pitcher": new_stats["Pitcher"],
@@ -584,8 +622,27 @@ def combine_advanced_pitching_stats(existing_stats: Dict, new_stats: Dict) -> Di
     }
 
 
+# Helper: rank series and scale to 1-100
+def rank_and_scale_to_1_100(series, ascending=False):
+    series = series.copy()
+    mask = series.notna()
+    if mask.sum() == 0:
+        return pd.Series([None] * len(series), index=series.index)
+    ranks = series[mask].rank(method="min", ascending=ascending)
+    min_rank, max_rank = ranks.min(), ranks.max()
+    scaled = (
+        pd.Series([100.0] * mask.sum(), index=series[mask].index)
+        if min_rank == max_rank
+        else np.floor(1 + (ranks - min_rank) / (max_rank - min_rank) * 99)
+    )
+    result = pd.Series([None] * len(series), index=series.index)
+    result[mask] = scaled
+    return result
+
+
 def upload_advanced_pitching_to_supabase(
     pitchers_dict: Dict[Tuple[str, str, int], Dict],
+    max_fetch_loops: Optional[int] = None,
 ):
     """Upload pitching stats to Supabase and compute scaled percentile ranks"""
     if not pitchers_dict:
@@ -597,6 +654,7 @@ def upload_advanced_pitching_to_supabase(
         existing_stats = {}
         offset = 0
         batch_size = 1000
+        loop_count = 0
         while True:
             result = (
                 supabase.table("AdvancedPitchingStats")
@@ -604,13 +662,20 @@ def upload_advanced_pitching_to_supabase(
                 .range(offset, offset + batch_size - 1)
                 .execute()
             )
-            data = result.data
+            # safe for mocks: get .data if exists, else treat result as list
+            data = getattr(result, "data", result)
             if not data:
                 break
             for record in data:
                 stat_key = (record["Pitcher"], record["PitcherTeam"], record["Year"])
                 existing_stats[stat_key] = record
             offset += batch_size
+
+            # TEST-SAFETY: break after max loops
+            loop_count += 1
+            if max_fetch_loops is not None and loop_count >= max_fetch_loops:
+                print("Max fetch loops reached, breaking loop")
+                break
 
         # Combine new stats with existing stats
         combined_stats = {}
@@ -662,6 +727,7 @@ def upload_advanced_pitching_to_supabase(
         print("\nFetching all pitcher records for ranking...")
         all_records = []
         offset = 0
+        loop_count = 0
         while True:
             result = (
                 supabase.table("AdvancedPitchingStats")
@@ -674,35 +740,23 @@ def upload_advanced_pitching_to_supabase(
                 .range(offset, offset + batch_size - 1)
                 .execute()
             )
-            data = result.data
+            data = getattr(result, "data", result)
             if not data:
                 break
             all_records.extend(data)
             offset += batch_size
             print(f"Fetched {len(data)} records (total: {len(all_records)})")
 
+            loop_count += 1
+            if max_fetch_loops is not None and loop_count >= max_fetch_loops:
+                print("Max fetch loops reached for ranking fetch, breaking loop")
+                break
+
         if not all_records:
             print("No records found for ranking.")
             return
 
         df = pd.DataFrame(all_records).dropna(subset=["Year"])
-
-        # Helper: rank series and scale to 1-100
-        def rank_and_scale_to_1_100(series, ascending=False):
-            series = series.copy()
-            mask = series.notna()
-            if mask.sum() == 0:
-                return pd.Series([None] * len(series), index=series.index)
-            ranks = series[mask].rank(method="min", ascending=ascending)
-            min_rank, max_rank = ranks.min(), ranks.max()
-            scaled = (
-                pd.Series([100.0] * mask.sum(), index=series[mask].index)
-                if min_rank == max_rank
-                else np.floor(1 + (ranks - min_rank) / (max_rank - min_rank) * 99)
-            )
-            result = pd.Series([None] * len(series), index=series.index)
-            result[mask] = scaled
-            return result
 
         # Compute rankings by year
         ranked_dfs = []
@@ -754,10 +808,6 @@ def upload_advanced_pitching_to_supabase(
             "barrel_per_rank",
         ]
         update_data = ranked_df[update_cols].to_dict(orient="records")
-        for record in update_data:
-            for key, value in record.items():
-                if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
-                    record[key] = None
 
         # Upload rank updates in batches
         print("\nUploading scaled percentile ranks...")
