@@ -53,7 +53,7 @@ const aggregatePlayerStats = (playerStats: BatterStatsTable[]): BatterStatsTable
     totalBases += stat.total_bases ?? 0;
     walks += stat.walks ?? 0;
     strikeouts += stat.strikeouts ?? 0;
-    strikes += stat.strikes ?? 0;
+    strikes += statStrikes ?? 0;
     extraBaseHits += stat.extra_base_hits ?? 0;
     plateAppearances += statPlateAppearances;
     sacrifice += stat.sacrifice ?? 0;
@@ -141,29 +141,26 @@ const aggregatePlayerStats = (playerStats: BatterStatsTable[]): BatterStatsTable
     avg_exit_velo: averageExitVelo,
   };
 
-  if (singles > 0) {
-    aggregated.singles = singles;
-  }
-  if (battedBalls > 0) {
-    aggregated.batted_balls = battedBalls;
-  }
-  if (totalExitVelo > 0) {
-    aggregated.total_exit_velo = totalExitVelo;
-  }
+  if (singles > 0) aggregated.singles = singles;
+  if (battedBalls > 0) aggregated.batted_balls = battedBalls;
+  if (totalExitVelo > 0) aggregated.total_exit_velo = totalExitVelo;
 
   return aggregated;
 };
 
 export function batterStatsTransform(
   data: BatterStatsTable[],
-  opts: { mode?: 'all' | 'practiceOnly' | 'gameOnly' } = { mode: 'all' }
+  opts?: { mode?: 'all' | 'practiceOnly' | 'gameOnly' }
 ): BatterStatsTable[] {
   if (!data || data.length === 0) return [];
 
-  const { mode = 'all' } = opts;
+  // Single source of truth for default behavior:
+  const mode: 'all' | 'practiceOnly' | 'gameOnly' = opts?.mode ?? 'gameOnly';
+
   const playerMap = new Map<string, BatterStatsTable[]>();
 
   for (const stat of data) {
+    // honor mode (no unconditional filtering)
     if (mode === 'gameOnly' && stat.is_practice) continue;
     if (mode === 'practiceOnly' && !stat.is_practice) continue;
 
@@ -187,7 +184,7 @@ export function batterStatsTransform(
   });
 }
 
-// Add a new function to create summary row
+// Optional team summary row helper (unchanged API)
 export function createBatterStatsSummary(players: BatterStatsTable[]): BatterStatsTable {
   if (!players || players.length === 0) {
     return {
@@ -223,32 +220,24 @@ export function createBatterStatsSummary(players: BatterStatsTable[]): BatterSta
     };
   }
 
-  // Compute summary stats
-  const totalAtBats = players.reduce((sum, p) => sum + (p.at_bats || 0), 0);
-  const totalHits = players.reduce((sum, p) => sum + (p.hits || 0), 0);
-  const totalWalks = players.reduce((sum, p) => sum + (p.walks || 0), 0);
-  const totalHBP = players.reduce((sum, p) => sum + (p.hit_by_pitch || 0), 0);
-  const totalSacrifice = players.reduce((sum, p) => sum + (p.sacrifice || 0), 0);
-  const totalBases = players.reduce((sum, p) => sum + (p.total_bases || 0), 0);
-  const totalPA = players.reduce((sum, p) => sum + (p.plate_appearances || 0), 0);
-  const totalSO = players.reduce((sum, p) => sum + (p.strikeouts || 0), 0);
+  const totalAtBats = players.reduce((s, p) => s + (p.at_bats || 0), 0);
+  const totalHits = players.reduce((s, p) => s + (p.hits || 0), 0);
+  const totalWalks = players.reduce((s, p) => s + (p.walks || 0), 0);
+  const totalHBP = players.reduce((s, p) => s + (p.hit_by_pitch || 0), 0);
+  const totalSacrifice = players.reduce((s, p) => s + (p.sacrifice || 0), 0);
+  const totalBases = players.reduce((s, p) => s + (p.total_bases || 0), 0);
+  const totalPA = players.reduce((s, p) => s + (p.plate_appearances || 0), 0);
+  const totalSO = players.reduce((s, p) => s + (p.strikeouts || 0), 0);
 
-  // Calculate derived stats
   const battingAvg = totalAtBats > 0 ? totalHits / totalAtBats : 0;
-
   const onBasePct =
     totalAtBats + totalWalks + totalHBP + totalSacrifice > 0
       ? (totalHits + totalWalks + totalHBP) / (totalAtBats + totalWalks + totalHBP + totalSacrifice)
       : 0;
-
   const sluggingPct = totalAtBats > 0 ? totalBases / totalAtBats : 0;
-
   const obpSlg = onBasePct + sluggingPct;
-
   const isolatedPower = sluggingPct - battingAvg;
-
   const kPercentage = totalPA > 0 ? totalSO / totalPA : 0;
-
   const bbPercentage = totalPA > 0 ? totalWalks / totalPA : 0;
 
   return {
@@ -259,9 +248,9 @@ export function createBatterStatsSummary(players: BatterStatsTable[]): BatterSta
     plate_appearances: totalPA,
     at_bats: totalAtBats,
     hits: totalHits,
-    doubles: players.reduce((sum, p) => sum + (p.doubles || 0), 0),
-    triples: players.reduce((sum, p) => sum + (p.triples || 0), 0),
-    homeruns: players.reduce((sum, p) => sum + (p.homeruns || 0), 0),
+    doubles: players.reduce((s, p) => s + (p.doubles || 0), 0),
+    triples: players.reduce((s, p) => s + (p.triples || 0), 0),
+    homeruns: players.reduce((s, p) => s + (p.homeruns || 0), 0),
     total_bases: totalBases,
     walks: totalWalks,
     strikeouts: totalSO,
@@ -270,18 +259,18 @@ export function createBatterStatsSummary(players: BatterStatsTable[]): BatterSta
     slugging_percentage: sluggingPct,
     onbase_plus_slugging: obpSlg,
     isolated_power: isolatedPower,
-    strikes: players.reduce((sum, p) => sum + (p.strikes || 0), 0),
-    extra_base_hits: players.reduce((sum, p) => sum + (p.extra_base_hits || 0), 0),
+    strikes: players.reduce((s, p) => s + (p.strikes || 0), 0),
+    extra_base_hits: players.reduce((s, p) => s + (p.extra_base_hits || 0), 0),
     sacrifice: totalSacrifice,
     hit_by_pitch: totalHBP,
     k_percentage: kPercentage,
     base_on_ball_percentage: bbPercentage,
     chase_percentage:
-      players.reduce((sum, p) => sum + (p.chase_percentage || 0), 0) / players.length,
+      players.reduce((s, p) => s + (p.chase_percentage || 0), 0) / players.length,
     in_zone_whiff_percentage:
-      players.reduce((sum, p) => sum + (p.in_zone_whiff_percentage || 0), 0) / players.length,
-    k_per: players.reduce((sum, p) => sum + (p.k_per || 0), 0) / players.length,
-    bb_per: players.reduce((sum, p) => sum + (p.bb_per || 0), 0) / players.length,
-    avg_exit_velo: players.reduce((sum, p) => sum + (p.avg_exit_velo || 0), 0) / players.length,
+      players.reduce((s, p) => s + (p.in_zone_whiff_percentage || 0), 0) / players.length,
+    k_per: players.reduce((s, p) => s + (p.k_per || 0), 0) / players.length,
+    bb_per: players.reduce((s, p) => s + (p.bb_per || 0), 0) / players.length,
+    avg_exit_velo: players.reduce((s, p) => s + (p.avg_exit_velo || 0), 0) / players.length,
   };
 }
