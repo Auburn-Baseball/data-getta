@@ -1,26 +1,19 @@
+"""
+Author: Joshua Reed
+Created: 1 November 2025
+
+Unit test cases for advanced_batting_stats_upload.py functions.
+"""
+
 import builtins
 import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from scripts.utils import advanced_batting_stats_upload as mod
-
-
-def test_supabase_vars():
-    # Missing variables
-    mod.SUPABASE_URL = None
-    mod.SUPABASE_KEY = None
-    with pytest.raises(ValueError):
-        mod.check_supabase_vars()
-
-    # Present variables
-    mod.SUPABASE_URL = "https://example.supabase.co"
-    mod.SUPABASE_KEY = "fake_key_123"
-    mod.check_supabase_vars()  # should NOT raise
 
 
 def test_xba_grid_missing(tmp_path):

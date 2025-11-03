@@ -23,8 +23,13 @@ load_dotenv(project_root / f".env.{env}")
 # Supabase configuration
 SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
+
+
+# Initialize Supabase client
+def check_supabase_vars():
+    if SUPABASE_URL is None or SUPABASE_KEY is None:
+        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+
 
 # Strike zone constants
 MIN_PLATE_SIDE = -0.86
