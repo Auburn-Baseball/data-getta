@@ -138,13 +138,16 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     { key: 'bb_per', label: 'BB %', isPercentage: true },
     { key: 'barrel_per', label: 'Barrel %', isPercentage: true },
     { key: 'hard_hit_per', label: 'Hard Hit %', isPercentage: true },
-    { key: 'gb_per', label: 'GB %', isPercentage: true},
+    { key: 'gb_per', label: 'GB %', isPercentage: true },
   ];
 
-  const renderStatBars = <T extends string>(
-    stats: Partial<Record<T, any>>,
-    configs: StatConfig<T>[],
-    title: string
+  const renderStatBars = <
+    StatsType extends AdvancedBattingStatsTable | AdvancedPitchingStatsTable,
+    KeyType extends keyof StatsType,
+  >(
+    stats: StatsType,
+    configs: StatConfig<KeyType & string>[],
+    title: string,
   ) => (
     <Box
       sx={{
@@ -162,7 +165,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           const value = stats[config.key];
           if (value === undefined) return null;
 
-          const rankKey = `${config.key}_rank` as T;
+          const rankKey = `${config.key}_rank` as keyof StatsType;
           const rankValue = stats[rankKey];
           const rank = typeof rankValue === 'number' ? Math.round(rankValue) : 50;
 
@@ -183,19 +186,18 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
                     case 'xwoba_per':
                     case 'xba_per':
                     case 'xslg_per':
-                      return value.toFixed(3);
+                      return (value as number).toFixed(3);
 
                     case 'plate_app':
                     case 'fastballs':
                     case 'batted_balls':
-                      return value.toFixed(0);
+                      return (value as number).toFixed(0);
 
                     default:
-                      return value.toFixed(1);
+                      return (value as number).toFixed(1);
                   }
                 })()
               : '0.0';
-
 
           return (
             <StatBar

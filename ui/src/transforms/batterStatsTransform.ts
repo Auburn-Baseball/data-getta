@@ -150,7 +150,7 @@ const aggregatePlayerStats = (playerStats: BatterStatsTable[]): BatterStatsTable
 
 export function batterStatsTransform(
   data: BatterStatsTable[],
-  opts?: { mode?: 'all' | 'practiceOnly' | 'gameOnly' }
+  opts?: { mode?: 'all' | 'practiceOnly' | 'gameOnly' },
 ): BatterStatsTable[] {
   if (!data || data.length === 0) return [];
 
@@ -265,8 +265,7 @@ export function createBatterStatsSummary(players: BatterStatsTable[]): BatterSta
     hit_by_pitch: totalHBP,
     k_percentage: kPercentage,
     base_on_ball_percentage: bbPercentage,
-    chase_percentage:
-      players.reduce((s, p) => s + (p.chase_percentage || 0), 0) / players.length,
+    chase_percentage: players.reduce((s, p) => s + (p.chase_percentage || 0), 0) / players.length,
     in_zone_whiff_percentage:
       players.reduce((s, p) => s + (p.in_zone_whiff_percentage || 0), 0) / players.length,
     k_per: players.reduce((s, p) => s + (p.k_per || 0), 0) / players.length,

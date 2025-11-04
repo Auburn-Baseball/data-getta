@@ -3,10 +3,7 @@ import { useParams, useLocation } from 'react-router';
 
 import BatterTable from '@/components/team/BatterTable';
 import TableSkeleton from '@/components/team/TableSkeleton';
-import {
-  batterStatsTransform,
-  createBatterStatsSummary,
-} from '@/transforms/batterStatsTransform';
+import { batterStatsTransform, createBatterStatsSummary } from '@/transforms/batterStatsTransform';
 import { fetchTeamBattingStats } from '@/services/teamService';
 import type { BatterStatsTable } from '@/types/db';
 

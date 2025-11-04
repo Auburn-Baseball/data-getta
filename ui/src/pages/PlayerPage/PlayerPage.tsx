@@ -10,7 +10,6 @@ import type { DateRange } from '@/types/dateRange';
 import { formatYearRange } from '@/utils/dateRange';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
-import { useQuickFilterContext } from 'node_modules/@mui/x-data-grid/esm/components/quickFilter/QuickFilterContext';
 
 type PlayerPageProps = {
   dateRange: DateRange;
@@ -40,20 +39,18 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
   useEffect(() => {
     if (clearedOnce.current) return;
     clearedOnce.current = true;
-  
+
     // Default to OFF on entry: remove ?practice from URL if present
     const next = new URLSearchParams(searchParams);
     if (!isAuburn && next.has('practice')) {
       next.delete('practice');
       setSearchParams(next, { replace: true });
-    }
-    else if (next.has('practice')) {
+    } else if (next.has('practice')) {
       next.delete('practice');
       setSearchParams(next, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuburn]);
-  
 
   const handlePracticeToggle = (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
     const next = new URLSearchParams(searchParams);
@@ -76,7 +73,7 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
 
         navigate(
           { pathname: `${playerPath}/stats/${seasonSlug}`, search: `?${next.toString()}` },
-          { replace: true }
+          { replace: true },
         );
       }
     }
@@ -94,7 +91,7 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
         const { data, error } = await fetchPlayer(
           dateRange,
           decodedTrackmanAbbreviation,
-          decodedPlayerName
+          decodedPlayerName,
         );
 
         if (error) throw error;
@@ -115,7 +112,6 @@ export default function PlayerPage({ dateRange }: PlayerPageProps) {
   if (!playerName || !player) {
     return <div>Player not found</div>;
   }
-
 
   return (
     <Box>

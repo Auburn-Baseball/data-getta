@@ -43,8 +43,8 @@ export default function PitchingTab({ startDate, endDate }: PitchingTabProps) {
         if (pitchesResp.error) throw pitchesResp.error;
 
         // Apply practice filter client-side to preserve service shape
-        const rawPitchers = (pitchersResp.data ?? []) as Array<Record<string, any>>;
-        const rawPitches = (pitchesResp.data ?? []) as Array<Record<string, any>>;
+        const rawPitchers: PitcherStatsTable[] = pitchersResp.data ?? [];
+        const rawPitches: PitchCountsTable[] = pitchesResp.data ?? [];
 
         const filter = <T extends { is_practice?: boolean | null }>(rows: T[]) =>
           practice
