@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { transformPercentileStats } from '@/transforms/playerPercentilesTransform';
 import { makeAdvancedBattingStat as makeStat } from '@/test/mocks/advancedStats';
+import type { AdvancedBattingStatsTable } from '@/types/db';
 
 describe('transformPercentileStats', () => {
   it('aggregates player stats and calculates percentile ranks', () => {

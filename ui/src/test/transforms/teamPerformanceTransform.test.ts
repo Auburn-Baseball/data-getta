@@ -5,6 +5,7 @@ import {
   makeAdvancedBattingStat as makeBatStat,
   makeAdvancedPitchingStat as makePitchStat,
 } from '@/test/mocks/advancedStats';
+import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 
 describe('transformTeamPerformance', () => {
   it('computes team level percentiles for batting and pitching metrics', () => {
