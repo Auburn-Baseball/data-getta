@@ -57,4 +57,3 @@ export const makeAdvancedPitchingStat = (
   chase_per_rank: null,
   ...overrides,
 });
-

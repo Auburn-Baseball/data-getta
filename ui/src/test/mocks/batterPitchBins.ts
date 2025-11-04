@@ -42,4 +42,3 @@ export const makeBatterPitchBin = (
   HitCount_Other: 0,
   ...overrides,
 });
-

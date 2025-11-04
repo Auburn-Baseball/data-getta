@@ -1,8 +1,6 @@
 import type { PitchCountsTable, PitcherStatsTable } from '@/types/db';
 
-export const makePitcherStat = (
-  overrides: Partial<PitcherStatsTable> = {},
-): PitcherStatsTable => ({
+export const makePitcherStat = (overrides: Partial<PitcherStatsTable> = {}): PitcherStatsTable => ({
   Pitcher: 'Ace, John',
   PitcherTeam: 'AUB_TIG',
   Date: '2024-02-16',
@@ -34,9 +32,7 @@ export const makePitcherStat = (
   ...overrides,
 });
 
-export const makePitchCount = (
-  overrides: Partial<PitchCountsTable> = {},
-): PitchCountsTable => ({
+export const makePitchCount = (overrides: Partial<PitchCountsTable> = {}): PitchCountsTable => ({
   Pitcher: 'Ace, John',
   PitcherTeam: 'AUB_TIG',
   Date: '2024-02-16',
@@ -55,4 +51,3 @@ export const makePitchCount = (
   is_practice: false,
   ...overrides,
 });
-

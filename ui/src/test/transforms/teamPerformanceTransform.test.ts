@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { transformTeamPerformance } from '@/transforms/teamPerformanceTransform';
-import { makeAdvancedBattingStat as makeBatStat, makeAdvancedPitchingStat as makePitchStat } from '@/test/mocks/advancedStats';
+import {
+  makeAdvancedBattingStat as makeBatStat,
+  makeAdvancedPitchingStat as makePitchStat,
+} from '@/test/mocks/advancedStats';
 
 describe('transformTeamPerformance', () => {
   it('computes team level percentiles for batting and pitching metrics', () => {

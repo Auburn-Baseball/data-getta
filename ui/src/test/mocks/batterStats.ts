@@ -1,8 +1,6 @@
 import type { BatterStatsTable } from '@/types/db';
 
-export const makeBatterStat = (
-  overrides: Partial<BatterStatsTable> = {},
-): BatterStatsTable => ({
+export const makeBatterStat = (overrides: Partial<BatterStatsTable> = {}): BatterStatsTable => ({
   Batter: 'Doe, John',
   BatterTeam: 'AUB_TIG',
   Date: '2024-02-16',
@@ -36,4 +34,3 @@ export const makeBatterStat = (
   avg_exit_velo: 0,
   ...overrides,
 });
-

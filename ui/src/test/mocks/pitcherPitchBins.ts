@@ -40,4 +40,3 @@ export const makePitcherPitchBin = (
   Count_R_Other: 0,
   ...overrides,
 });
-
