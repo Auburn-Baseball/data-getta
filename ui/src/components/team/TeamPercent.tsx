@@ -65,13 +65,7 @@ const formatRaw = (label: string, v: number | string) => {
   return String(v);
 };
 
-export default function CreateTeamPercent({
-  rows,
-  mode,
-}: {
-  rows: Row[];
-  mode: 'overall' | 'wl';
-}) {
+export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: 'overall' | 'wl' }) {
   // Empty state if no rows (e.g., W/L mode for now)
   const hasData = rows && rows.length > 0;
 

@@ -277,7 +277,7 @@ export interface AdvancedPitchingStatsTable {
   chase_per_rank: number | null;
   plate_app?: number;
   avg_fastball_velo?: number;
-  avg_fastball_rank?: number;
+  avg_fastball_velo_rank?: number;
   ground_balls?: number;
   gb_per?: number;
   gb_per_rank?: number;
