@@ -13,5 +13,5 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     fileParallelism: false, // DON'T CHANGE THIS! parallelism caused tests to inconsistently fail.
-  }
+  },
 });

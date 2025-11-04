@@ -6,6 +6,7 @@ import { makePitchCount, makePitcherStat } from '@/test/mocks/pitcherStats';
 describe('pitcherStatsTransform', () => {
   it('aggregates pitcher stats across games', () => {
     const game1 = makePitcherStat({
+      Date: '2024-02-16',
       total_innings_pitched: 1.2,
       total_strikeouts_pitcher: 3,
       total_walks_pitcher: 1,
@@ -69,6 +70,7 @@ describe('pitcherStatsTransform', () => {
 describe('pitchCountsTransform', () => {
   it('aggregates pitch counts across games', () => {
     const game1 = makePitchCount({
+      Date: '2024-02-16',
       total_pitches: 40,
       curveball_count: 5,
       fourseam_count: 10,

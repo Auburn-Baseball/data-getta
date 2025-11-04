@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-import { aggregateBatterStats, computeTotals, computeRatesFromTotals } from '@/transforms/batting/aggregate';
+import {
+  aggregateBatterStats,
+  computeTotals,
+  computeRatesFromTotals,
+} from '@/transforms/batting/aggregate';
 import { createBatterStatsSummary } from '@/transforms/batting/summary';
 import type { BatterStatsTable } from '@/types/db';
 import { makeBatterStat } from '@/test/mocks/batterStats';
