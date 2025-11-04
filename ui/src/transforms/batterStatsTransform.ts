@@ -1,6 +1,6 @@
 import { BatterStatsTable } from '@/types/db';
-import * as battingAgg from '@/transforms/batting/aggregate';
-export { createBatterStatsSummary } from '@/transforms/batting/summary';
+import { aggregateBatterStats } from '@/transforms/batting/aggregate';
+export { createBatterStatsSummary } from './batting/summary';
 
 export function batterStatsTransform(
   data: BatterStatsTable[],
@@ -24,7 +24,7 @@ export function batterStatsTransform(
 
   const results: BatterStatsTable[] = [];
   for (const playerStats of playerMap.values()) {
-    const aggregated = battingAgg.aggregateBatterStats(playerStats);
+    const aggregated = aggregateBatterStats(playerStats);
     if (aggregated) results.push(aggregated);
   }
 

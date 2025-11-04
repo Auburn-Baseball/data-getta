@@ -9,8 +9,7 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "lint": "eslint . --fix",
-    "test": "vitest run",
-    "tes": "vitest run"
+    "test": "vitest run"
   },
   "dependencies": {
     "@dicebear/identicon": "^9.2.4",

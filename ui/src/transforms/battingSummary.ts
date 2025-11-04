@@ -1,1 +1,1 @@
-export { createBatterStatsSummary } from '@/transforms/batting/summary';
+export { createBatterStatsSummary } from './batting/summary';

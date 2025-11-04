@@ -1,5 +1,1 @@
-export {
-  aggregateBatterStats,
-  computeTotals,
-  computeRatesFromTotals,
-} from '@/transforms/batting/aggregate';
+export { aggregateBatterStats, computeTotals, computeRatesFromTotals } from './batting/aggregate';
