@@ -160,15 +160,8 @@ export default function CreateTeamPercent({
 
   return (
     <Box sx={{ px: 8, py: 4, color: '#0b2341' }}>
-      <Typography variant="h4" fontWeight={700} gutterBottom>
-        Team Performance {mode === 'wl' ? '(W/L)' : '(Overall)'}
-      </Typography>
-
-      {/* Filters row */}
+      {/* Filters row (mode only; page handles title and season) */}
       <Box display="flex" justifyContent="center" alignItems="center" mt={1} mb={3}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          {seasonLabel}
-        </Typography>
         <ModeToggle mode={mode} />
       </Box>
 
