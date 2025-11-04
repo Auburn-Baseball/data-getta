@@ -1,59 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { transformTeamPerformance } from '@/transforms/teamPerformanceTransform';
-import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
-
-const makeBatStat = (overrides: Partial<AdvancedBattingStatsTable>): AdvancedBattingStatsTable => ({
-  Batter: 'Sample',
-  BatterTeam: 'AUB_TIG',
-  Year: 2024,
-  avg_exit_velo: 0,
-  k_per: 0,
-  bb_per: 0,
-  la_sweet_spot_per: 0,
-  hard_hit_per: 0,
-  whiff_per: 0,
-  chase_per: 0,
-  xba_per: 0,
-  xslg_per: 0,
-  barrel_per: 0,
-  avg_exit_velo_rank: null,
-  k_per_rank: null,
-  bb_per_rank: null,
-  la_sweet_spot_per_rank: null,
-  hard_hit_per_rank: null,
-  whiff_per_rank: null,
-  chase_per_rank: null,
-  ...overrides,
-});
-
-const makePitchStat = (
-  overrides: Partial<AdvancedPitchingStatsTable>,
-): AdvancedPitchingStatsTable => ({
-  Pitcher: 'Sample',
-  PitcherTeam: 'AUB_TIG',
-  Year: 2024,
-  avg_exit_velo: 0,
-  avg_fastball_velo: 0,
-  k_per: 0,
-  bb_per: 0,
-  la_sweet_spot_per: 0,
-  hard_hit_per: 0,
-  gb_per: 0,
-  whiff_per: 0,
-  chase_per: 0,
-  xba_per: 0,
-  xslg_per: 0,
-  xwoba_per: 0,
-  avg_exit_velo_rank: null,
-  k_per_rank: null,
-  bb_per_rank: null,
-  la_sweet_spot_per_rank: null,
-  hard_hit_per_rank: null,
-  whiff_per_rank: null,
-  chase_per_rank: null,
-  ...overrides,
-});
+import { makeAdvancedBattingStat as makeBatStat, makeAdvancedPitchingStat as makePitchStat } from '@/test/mocks/advancedStats';
 
 describe('transformTeamPerformance', () => {
   it('computes team level percentiles for batting and pitching metrics', () => {

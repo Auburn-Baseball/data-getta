@@ -1,35 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { transformPercentileStats } from '@/transforms/playerPercentilesTransform';
-import type { AdvancedBattingStatsTable } from '@/types/db';
-
-const makeStat = (overrides: Partial<AdvancedBattingStatsTable>): AdvancedBattingStatsTable => ({
-  Batter: 'Doe, John',
-  BatterTeam: 'AUB_TIG',
-  Year: 2024,
-  plate_app: 0,
-  batted_balls: 0,
-  k_per: 0,
-  bb_per: 0,
-  avg_exit_velo: null,
-  la_sweet_spot_per: 0,
-  hard_hit_per: 0,
-  whiff_per: 0,
-  chase_per: 0,
-  infield_left_slice: 0,
-  infield_lc_slice: 0,
-  infield_center_slice: 0,
-  infield_rc_slice: 0,
-  infield_right_slice: 0,
-  avg_exit_velo_rank: null,
-  k_per_rank: null,
-  bb_per_rank: null,
-  la_sweet_spot_per_rank: null,
-  hard_hit_per_rank: null,
-  whiff_per_rank: null,
-  chase_per_rank: null,
-  ...overrides,
-});
+import { makeAdvancedBattingStat as makeStat } from '@/test/mocks/advancedStats';
 
 describe('transformPercentileStats', () => {
   it('aggregates player stats and calculates percentile ranks', () => {

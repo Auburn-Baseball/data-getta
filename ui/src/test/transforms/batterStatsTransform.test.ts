@@ -2,41 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { batterStatsTransform, createBatterStatsSummary } from '@/transforms/batterStatsTransform';
 import type { BatterStatsTable } from '@/types/db';
-
-const makeStat = (overrides: Partial<BatterStatsTable>): BatterStatsTable => ({
-  Batter: 'Doe, John',
-  BatterTeam: 'AUB_TIG',
-  Date: '2024-02-16',
-  is_practice: false,
-  hits: 0,
-  doubles: 0,
-  triples: 0,
-  singles: 0,
-  at_bats: 0,
-  strikes: 0,
-  walks: 0,
-  strikeouts: 0,
-  homeruns: 0,
-  extra_base_hits: 0,
-  plate_appearances: 0,
-  hit_by_pitch: 0,
-  sacrifice: 0,
-  total_bases: 0,
-  batting_average: 0,
-  on_base_percentage: 0,
-  slugging_percentage: 0,
-  onbase_plus_slugging: 0,
-  isolated_power: 0,
-  k_percentage: 0,
-  base_on_ball_percentage: 0,
-  chase_percentage: 0,
-  in_zone_whiff_percentage: 0,
-  games: 1,
-  k_per: 0,
-  bb_per: 0,
-  avg_exit_velo: 0,
-  ...overrides,
-});
+import { makeBatterStat as makeStat } from '@/test/mocks/batterStats';
 
 describe('batterStatsTransform', () => {
   it('aggregates batter statistics across games and ignores practice data', () => {

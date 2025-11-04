@@ -1,48 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { transformBatterPitchBins } from '@/transforms/batterPitchBinTransform';
-import type { BatterPitchBinsTable } from '@/types/db';
-
-const makeBin = (overrides: Partial<BatterPitchBinsTable>): BatterPitchBinsTable => ({
-  BatterTeam: 'AUB_TIG',
-  Date: '2024-02-16',
-  Batter: 'Doe, John',
-  ZoneId: 5,
-  InZone: true,
-  ZoneRow: 2,
-  ZoneCol: 2,
-  ZoneCell: 5,
-  OuterLabel: 'NA',
-  ZoneVersion: 'v1',
-  TotalPitchCount: 0,
-  TotalSwingCount: 0,
-  TotalHitCount: 0,
-  Count_FourSeam: 0,
-  Count_Sinker: 0,
-  Count_Slider: 0,
-  Count_Curveball: 0,
-  Count_Changeup: 0,
-  Count_Cutter: 0,
-  Count_Splitter: 0,
-  Count_Other: 0,
-  SwingCount_FourSeam: 0,
-  SwingCount_Sinker: 0,
-  SwingCount_Slider: 0,
-  SwingCount_Curveball: 0,
-  SwingCount_Changeup: 0,
-  SwingCount_Cutter: 0,
-  SwingCount_Splitter: 0,
-  SwingCount_Other: 0,
-  HitCount_FourSeam: 0,
-  HitCount_Sinker: 0,
-  HitCount_Slider: 0,
-  HitCount_Curveball: 0,
-  HitCount_Changeup: 0,
-  HitCount_Cutter: 0,
-  HitCount_Splitter: 0,
-  HitCount_Other: 0,
-  ...overrides,
-});
+import { makeBatterPitchBin as makeBin } from '@/test/mocks/batterPitchBins';
 
 describe('transformBatterPitchBins', () => {
   it('aggregates bins by zone and sums pitch, swing, and hit counts', () => {

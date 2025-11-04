@@ -1,46 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { transformPitcherPitchBins } from '@/transforms/pitcherPitchBinTransform';
-import type { PitcherPitchBinsTable } from '@/types/db';
-
-const makeBin = (overrides: Partial<PitcherPitchBinsTable>): PitcherPitchBinsTable => ({
-  PitcherTeam: 'AUB_TIG',
-  Date: '2024-02-16',
-  Pitcher: 'Ace, John',
-  ZoneId: 5,
-  InZone: true,
-  ZoneRow: 2,
-  ZoneCol: 2,
-  ZoneCell: 5,
-  OuterLabel: 'NA',
-  ZoneVersion: 'v1',
-  TotalPitchCount: 0,
-  Count_FourSeam: 0,
-  Count_Sinker: 0,
-  Count_Slider: 0,
-  Count_Curveball: 0,
-  Count_Changeup: 0,
-  Count_Cutter: 0,
-  Count_Splitter: 0,
-  Count_Other: 0,
-  Count_L_FourSeam: 0,
-  Count_L_Sinker: 0,
-  Count_L_Slider: 0,
-  Count_L_Curveball: 0,
-  Count_L_Changeup: 0,
-  Count_L_Cutter: 0,
-  Count_L_Splitter: 0,
-  Count_L_Other: 0,
-  Count_R_FourSeam: 0,
-  Count_R_Sinker: 0,
-  Count_R_Slider: 0,
-  Count_R_Curveball: 0,
-  Count_R_Changeup: 0,
-  Count_R_Cutter: 0,
-  Count_R_Splitter: 0,
-  Count_R_Other: 0,
-  ...overrides,
-});
+import { makePitcherPitchBin as makeBin } from '@/test/mocks/pitcherPitchBins';
 
 describe('transformPitcherPitchBins', () => {
   it('aggregates pitcher pitch bins by zone and batter handedness', () => {
