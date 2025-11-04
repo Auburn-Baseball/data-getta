@@ -6,11 +6,9 @@ export function resolveBatterStats(data?: BatterStatsTable[] | null): BatterStat
   if (!data?.length) return null;
 
   // Default transform behavior is 'gameOnly' (filters practice),
-  // which restores test expectations and runtime semantics.
   const transformed = batterStatsTransform(data);
   if (transformed.length > 0) return transformed[0] ?? null;
 
-  // Fallback preserves raw row (including is_practice) for tests expecting this.
   return data[0] ?? null;
 }
 
