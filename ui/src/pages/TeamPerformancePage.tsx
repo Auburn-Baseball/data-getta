@@ -10,14 +10,17 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 
 import TeamPercent from '@/components/team/TeamPercent';
-import { fetchAdvancedBattingStats, fetchAdvancedPitchingStats } from '@/services/teamPerformanceService';
+import {
+  fetchAdvancedBattingStats,
+  fetchAdvancedPitchingStats,
+} from '@/services/teamPerformanceService';
 import { fetchSeasonDateRanges } from '@/services/seasonService';
 import {
   transformTeamPerformance,
   TeamPerformanceRow,
 } from '@/transforms/teamPerformanceTransform';
 import type { DateRange, SeasonDateRange } from '@/types/dateRange';
-import { formatYearRange, getYearRange } from '@/utils/dateRange';
+import { getYearRange } from '@/utils/dateRange';
 
 type TeamPerformancePageProps = {
   dateRange: DateRange;
@@ -28,10 +31,7 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
   // Selected season state and available seasons
   const [seasonRanges, setSeasonRanges] = useState<SeasonDateRange[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
-  const seasonLabel = useMemo(
-    () => (selectedSeason ? String(selectedSeason) : formatYearRange(dateRange)),
-    [selectedSeason, dateRange],
-  );
+  // Header shows title; info note uses selectedSeason directly
 
   const mode = useMemo<'overall' | 'wl'>(() => {
     const m = (params.get('mode') || 'overall').toLowerCase();
@@ -47,13 +47,18 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
     async function loadSeasons() {
       try {
         const resp = await fetchSeasonDateRanges();
-        const ranges = (resp.ranges ?? []).filter((r) => r.year >= 2020).sort((a, b) => a.year - b.year);
+        const ranges = (resp.ranges ?? [])
+          .filter((r) => r.year >= 2020)
+          .sort((a, b) => a.year - b.year);
         setSeasonRanges(ranges);
 
         // Default selection: last season within current dateRange, else latest
         const { startYear, endYear } = getYearRange(dateRange);
-        const inRange = ranges.filter((r) => r.year >= startYear && r.year <= endYear).map((r) => r.year);
-        const defaultYear = (inRange.length > 0 ? inRange : ranges.map((r) => r.year)).at(-1) ?? null;
+        const inRange = ranges
+          .filter((r) => r.year >= startYear && r.year <= endYear)
+          .map((r) => r.year);
+        const defaultYear =
+          (inRange.length > 0 ? inRange : ranges.map((r) => r.year)).at(-1) ?? null;
         setSelectedSeason(defaultYear);
       } catch (e) {
         console.error('Failed to load season ranges', e);
@@ -79,11 +84,17 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
           return;
         }
 
-        const [{ data: battingData, error: battingError }, { data: pitchingData, error: pitchingError }] =
-          await Promise.all([fetchAdvancedBattingStats(range), fetchAdvancedPitchingStats(range)]);
+        const [
+          { data: battingData, error: battingError },
+          { data: pitchingData, error: pitchingError },
+        ] = await Promise.all([
+          fetchAdvancedBattingStats(range),
+          fetchAdvancedPitchingStats(range),
+        ]);
 
         if (battingError) throw new Error(`Error fetching batting stats: ${battingError.message}`);
-        if (pitchingError) throw new Error(`Error fetching pitching stats: ${pitchingError.message}`);
+        if (pitchingError)
+          throw new Error(`Error fetching pitching stats: ${pitchingError.message}`);
 
         const performanceRows = transformTeamPerformance(battingData || [], pitchingData || []);
         setRows(performanceRows);
@@ -146,15 +157,15 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
         </Typography>
       )}
 
-      {!loading && !error && (
-        rows.length > 0 ? (
-          <TeamPercent seasonLabel={seasonLabel} rows={rowsToShow} mode={mode} />
+      {!loading &&
+        !error &&
+        (rows.length > 0 ? (
+          <TeamPercent rows={rowsToShow} mode={mode} />
         ) : (
           <Typography variant="body1" sx={{ py: 2 }}>
             No team performance data available for the selected season.
           </Typography>
-        )
-      )}
+        ))}
     </Box>
   );
 }

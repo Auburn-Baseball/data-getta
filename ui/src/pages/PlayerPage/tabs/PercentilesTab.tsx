@@ -19,7 +19,6 @@ import type { SeasonDateRange } from '@/types/dateRange';
 import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 import type { DateRange } from '@/types/dateRange';
 import { formatYearRange, getYearRange } from '@/utils/dateRange';
-import { transformPercentileStats } from '@/transforms/playerPercentilesTransform';
 
 type PercentilesTabProps = {
   dateRange: DateRange;
@@ -39,6 +38,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     trackmanAbbreviation: string;
     playerName: string;
   }>();
+  const decodedTeam = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
 
   const [battingRows, setBattingRows] = useState<AdvancedBattingStatsTable[]>([]);
   const [pitchingRows, setPitchingRows] = useState<AdvancedPitchingStatsTable[]>([]);
@@ -121,14 +121,10 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
   }, [dateRange, trackmanAbbreviation, playerName]);
 
   const battingStats: AdvancedBattingStatsTable | null =
-    selectedSeason != null
-      ? battingRows.find((r) => r.Year === selectedSeason) ?? null
-      : null;
+    selectedSeason != null ? (battingRows.find((r) => r.Year === selectedSeason) ?? null) : null;
 
   const pitchingStats: AdvancedPitchingStatsTable | null =
-    selectedSeason != null
-      ? pitchingRows.find((r) => r.Year === selectedSeason) ?? null
-      : null;
+    selectedSeason != null ? (pitchingRows.find((r) => r.Year === selectedSeason) ?? null) : null;
 
   const getRankColor = (rank: number): string => {
     const r = Math.max(0, Math.min(rank, 100));
@@ -280,6 +276,12 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           Advanced stats reflect a single season only. Showing{' '}
           <strong>{selectedSeason ?? '—'}</strong> season data.
         </Alert>
+        {decodedTeam === 'AUB_TIG' && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Practice data is not available for player percentiles currently. (i.e. the 'Practice'
+            toggle doesn't affect the display)
+          </Alert>
+        )}
         {seasons.length > 0 && (
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel id="season-select-label">Season</InputLabel>

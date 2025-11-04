@@ -66,11 +66,9 @@ const formatRaw = (label: string, v: number | string) => {
 };
 
 export default function CreateTeamPercent({
-  seasonLabel,
   rows,
   mode,
 }: {
-  seasonLabel: string;
   rows: Row[];
   mode: 'overall' | 'wl';
 }) {
