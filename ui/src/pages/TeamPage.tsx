@@ -110,7 +110,11 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo name={team.TeamName} conference={team.Conference} seasonLabel={yearLabel} />
+        <TeamInfo
+          name={team.TeamName ?? ''}
+          conference={team.Conference ?? ''}
+          seasonLabel={yearLabel}
+        />
         <Outlet />
       </Box>
     </Box>

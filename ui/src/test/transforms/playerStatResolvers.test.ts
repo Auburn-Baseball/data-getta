@@ -11,6 +11,7 @@ const makeBatter = (overrides: Partial<BatterStatsTable>): BatterStatsTable => (
   Batter: 'Doe, John',
   BatterTeam: 'AUB_TIG',
   Date: '2024-02-16',
+  is_practice: false,
   hits: 1,
   doubles: 0,
   triples: 0,

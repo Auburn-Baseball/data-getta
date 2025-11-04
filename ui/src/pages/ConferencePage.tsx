@@ -32,12 +32,12 @@ export default function ConferencePage({ dateRange }: ConferencePageProps) {
 
         const groupedData =
           data?.reduce((acc: Record<string, ConferenceGroupTeam[]>, team: TeamsTable) => {
-            const conference = team.Conference;
-            if (!acc[conference]) {
-              acc[conference] = [];
+            const conferenceKey = team.Conference ?? 'Unknown';
+            if (!acc[conferenceKey]) {
+              acc[conferenceKey] = [];
             }
-            acc[conference].push({
-              TeamName: team.TeamName,
+            acc[conferenceKey].push({
+              TeamName: team.TeamName ?? '',
               TrackmanAbbreviation: team.TrackmanAbbreviation,
             });
             return acc;
