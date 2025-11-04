@@ -4,14 +4,12 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_supabase_vars
 from .file_date import CSVFilenameParser
 
-# Initialize Supabase client
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 
 def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
@@ -49,45 +47,53 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         grouped = df.groupby(["Pitcher", "PitcherTeam"])
 
         for (pitcher_name, pitcher_team), group in grouped:
-            if pd.isna(pitcher_name) or pd.isna(pitcher_team):
-                continue
-
             pitcher_name = str(pitcher_name).strip()
             pitcher_team = str(pitcher_team).strip()
-
-            if not pitcher_name or not pitcher_team:
-                continue
 
             key = (pitcher_name, pitcher_team, season_year)
 
             # Count total pitches
             total_pitches = len(group)
 
-            # Count specific pitch types based on AutoPitchType
-            curveball_count = len(group[group["AutoPitchType"] == "Curveball"])
-            fourseam_count = len(group[group["AutoPitchType"] == "Four-Seam"])
-            sinker_count = len(group[group["AutoPitchType"] == "Sinker"])
-            slider_count = len(group[group["AutoPitchType"] == "Slider"])
-            changeup_count = len(group[group["AutoPitchType"] == "Changeup"])
-            cutter_count = len(group[group["AutoPitchType"] == "Cutter"])
-            splitter_count = len(group[group["AutoPitchType"] == "Splitter"])
+            # Initialize counts
+            curveball_count = 0
+            fourseam_count = 0
+            sinker_count = 0
+            slider_count = 0
+            changeup_count = 0
+            cutter_count = 0
+            splitter_count = 0
+            twoseam_count = 0
+            other_count = 0
 
-            # Two-seam count: TaggedPitchType = 'Fastball' AND AutoPitchType != 'Four-Seam'
-            twoseam_count = len(
-                group[
-                    (group["TaggedPitchType"] == "Fastball")
-                    & (group["AutoPitchType"] != "Four-Seam")
-                ]
-            )
+            # Standardize NaN / empty values
+            auto_pitch = group["AutoPitchType"].fillna("").astype(str).str.strip()
+            tagged_pitch = group["TaggedPitchType"].fillna("").astype(str).str.strip()
 
-            # Other count: AutoPitchType = 'Other' OR 'NaN' (including actual NaN values)
-            other_count = len(
-                group[
-                    (group["AutoPitchType"] == "Other")
-                    | (group["AutoPitchType"] == "NaN")
-                    | (group["AutoPitchType"].isna())
-                ]
-            )
+            for a_pt, t_pt in zip(auto_pitch, tagged_pitch):
+                # Normalize both to handle missing/empty
+                a_pt = a_pt if a_pt else ""
+                t_pt = t_pt if t_pt else ""
+
+                # Classification logic
+                if a_pt == "Two-Seam" or t_pt == "Two-Seam":
+                    twoseam_count += 1
+                elif a_pt == "Four-Seam" or (t_pt == "Fastball" and a_pt == ""):
+                    fourseam_count += 1
+                elif a_pt == "Curveball" or t_pt == "Curveball":
+                    curveball_count += 1
+                elif a_pt == "Slider" or t_pt == "Slider":
+                    slider_count += 1
+                elif a_pt == "Changeup" or t_pt == "Changeup":
+                    changeup_count += 1
+                elif a_pt == "Cutter" or t_pt == "Cutter":
+                    cutter_count += 1
+                elif a_pt == "Splitter" or t_pt == "Splitter":
+                    splitter_count += 1
+                elif a_pt == "Sinker" or t_pt == "Sinker":
+                    sinker_count += 1
+                else:
+                    other_count += 1
 
             # Get unique games from this file - store as a set for later merging
             unique_games = (
@@ -122,7 +128,7 @@ def get_pitch_counts_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         return {}
 
 
-def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
+def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict], batch_size=1000):
     """Upload pitch count statistics to Supabase"""
     if not pitchers_dict:
         print("No pitch data to upload")
@@ -143,7 +149,6 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Preparing to upload {len(pitch_data)} unique pitcher pitch counts...")
 
         # Insert data in batches to avoid request size limits
-        batch_size = 1000
         total_inserted = 0
 
         for i in range(0, len(pitch_data), batch_size):
@@ -165,7 +170,11 @@ def upload_pitches_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict]):
                 # Print first record of failed batch for debugging
                 if batch:
                     print(f"Sample record from failed batch: {batch[0]}")
+                try:
                     print(result.data)
+                except NameError:
+                    pass
+
                 continue
 
         print(f"Successfully processed {total_inserted} pitch count records")
