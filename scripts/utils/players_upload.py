@@ -3,14 +3,13 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL
+from .common import SUPABASE_KEY, SUPABASE_URL, check_supabase_vars
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 
 def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int], Dict]:
@@ -43,11 +42,8 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
                     key = (pitcher_name, pitcher_team, season_year)
 
-                    # If player already exists, update IDs if not already set
-                    if key in players_dict:
-                        if not players_dict[key]["PitcherId"]:
-                            players_dict[key]["PitcherId"] = pitcher_id
-                    else:
+                    # No pitchers without IDs will exist yet, so no need to check for that
+                    if key not in players_dict:
                         players_dict[key] = {
                             "Name": pitcher_name,
                             "PitcherId": pitcher_id,
@@ -88,7 +84,7 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
         return {}
 
 
-def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
+def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict], batch_size=1000):
     """Upload players to Supabase"""
     if not players_dict:
         print("No players to upload")
@@ -101,7 +97,6 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
         print(f"Preparing to upload {len(player_data)} unique players...")
 
         # Insert data in batches to avoid request size limits
-        batch_size = 1000
         total_inserted = 0
 
         for i in range(0, len(player_data), batch_size):
@@ -119,8 +114,13 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict]):
                 print(f"Uploaded batch {i//batch_size + 1}: {len(batch)} records")
 
             except Exception as batch_error:
-                print(f"Error uploading batch {i//batch_size + 1}: {batch_error}")
-                print(result.data)
+                if batch:
+                    print(f"Batch Error: {batch_error}")
+                    print(f"Sample record from failed batch: {batch[0]}")
+                try:
+                    print(result.data)
+                except NameError:
+                    pass
                 continue
 
         print(f"Successfully processed {total_inserted} player records")
