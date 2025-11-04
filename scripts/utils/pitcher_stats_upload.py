@@ -4,14 +4,12 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_supabase_vars, is_in_strike_zone
 from .file_date import CSVFilenameParser
 
-# Initialize Supabase client
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 
 def calculate_innings_pitched(strikeouts, outs_on_play):
@@ -276,7 +274,10 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
                 # Print first record of failed batch for debugging
                 if batch:
                     print(f"Sample record from failed batch: {batch[0]}")
+                try:
                     print(result.data)
+                except NameError:
+                    pass
                 continue
 
         print(f"Successfully processed {total_inserted} pitcher records")
