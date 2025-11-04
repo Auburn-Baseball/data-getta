@@ -6,16 +6,15 @@ import numpy as np
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_supabase_vars
 from .file_date import CSVFilenameParser
 
 # -----------------------------------------------------------------------------
 # Supabase client
 # -----------------------------------------------------------------------------
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 # -----------------------------------------------------------------------------
 # Fixed visualization zone (consistent with our UI)
@@ -116,8 +115,8 @@ def classify_13(x: float, y: float):
     in_x = -Z_X_HALF <= x <= +Z_X_HALF
     in_y = Z_Y_BOT <= y <= Z_Y_TOP
     if in_x and in_y:
-        col = int(np.digitize([x], X_EDGES, right=False))
-        row = int(np.digitize([y], Y_EDGES, right=False))
+        col = int(np.digitize(x, X_EDGES, right=False))  # pass scalar directly
+        row = int(np.digitize(y, Y_EDGES, right=False))
         col = max(1, min(SPLITS, col))
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col  # 1..9
@@ -227,8 +226,6 @@ def get_pitcher_bins_from_buffer(buffer, filename: str) -> Dict[PitchKey, dict]:
 
         # pitch type counter (overall + side split)
         pt = norm_pitch_type(str(r.get("AutoPitchType", "")))
-        if pt not in PITCH_KEYS:
-            pt = "Other"
 
         overall_col = f"Count_{pt}"
         rec[overall_col] += 1

@@ -9,16 +9,15 @@ import numpy as np
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_supabase_vars
 from .file_date import CSVFilenameParser
 
 # ---------------------------------------------------------------------------
 # Supabase client
 # ---------------------------------------------------------------------------
-if SUPABASE_URL is None or SUPABASE_KEY is None:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+check_supabase_vars()
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)  # type: ignore[arg-type]
 
 # ---------------------------------------------------------------------------
 # Strike-zone geometry (matches UI + pitcher script)
@@ -97,8 +96,8 @@ def classify_zone(x: float, y: float) -> Dict[str, object]:
     in_x = -Z_X_HALF <= x <= Z_X_HALF
     in_y = Z_Y_BOT <= y <= Z_Y_TOP
     if in_x and in_y:
-        col = int(np.digitize([x], X_EDGES, right=False))
-        row = int(np.digitize([y], Y_EDGES, right=False))
+        col = int(np.digitize(x, X_EDGES, right=False))
+        row = int(np.digitize(y, Y_EDGES, right=False))
         col = max(1, min(SPLITS, col))
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col
