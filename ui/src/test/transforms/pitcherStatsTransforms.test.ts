@@ -1,63 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { pitchCountsTransform, pitcherStatsTransform } from '@/transforms/pitcherStatsTransforms';
-import type { PitchCountsTable, PitcherStatsTable } from '@/types/db';
-
-const makePitcherStat = (overrides: Partial<PitcherStatsTable>): PitcherStatsTable => ({
-  Pitcher: 'Ace, John',
-  PitcherTeam: 'AUB_TIG',
-  Date: '2024-02-16',
-  Year: 2024,
-  hits: 0,
-  runs_allowed: 0,
-  homeruns: 0,
-  earned_runs: 0,
-  total_strikeouts_pitcher: 0,
-  total_walks_pitcher: 0,
-  total_out_of_zone_pitches: 0,
-  total_in_zone_pitches: 0,
-  misses_in_zone: 0,
-  swings_in_zone: 0,
-  total_num_chases: 0,
-  pitches: 0,
-  games_started: 0,
-  total_innings_pitched: 0,
-  total_batters_faced: 0,
-  k_percentage: 0,
-  base_on_ball_percentage: 0,
-  in_zone_whiff_percentage: 0,
-  chase_percentage: 0,
-  games: 1,
-  k_per_9: 0,
-  bb_per_9: 0,
-  whip: 0,
-  is_practice: false,
-  ...overrides,
-});
-
-const makePitchCount = (overrides: Partial<PitchCountsTable>): PitchCountsTable => ({
-  Pitcher: 'Ace, John',
-  PitcherTeam: 'AUB_TIG',
-  Date: '2024-02-16',
-  Year: 2024,
-  total_pitches: 0,
-  curveball_count: 0,
-  fourseam_count: 0,
-  sinker_count: 0,
-  slider_count: 0,
-  twoseam_count: 0,
-  changeup_count: 0,
-  cutter_count: 0,
-  splitter_count: 0,
-  other_count: 0,
-  games: 1,
-  is_practice: false,
-  ...overrides,
-});
+import { makePitchCount, makePitcherStat } from '@/test/mocks/pitcherStats';
 
 describe('pitcherStatsTransform', () => {
   it('aggregates pitcher stats across games', () => {
     const game1 = makePitcherStat({
+      Date: '2024-02-16',
       total_innings_pitched: 1.2,
       total_strikeouts_pitcher: 3,
       total_walks_pitcher: 1,
@@ -121,6 +70,7 @@ describe('pitcherStatsTransform', () => {
 describe('pitchCountsTransform', () => {
   it('aggregates pitch counts across games', () => {
     const game1 = makePitchCount({
+      Date: '2024-02-16',
       total_pitches: 40,
       curveball_count: 5,
       fourseam_count: 10,

@@ -169,7 +169,8 @@ export function transformTeamPerformance(
     const totalTeams = values.length;
     for (let i = 0; i < values.length; i++) {
       const { team, value } = values[i];
-      const percentile = Math.round((i / (totalTeams - 1)) * 100);
+      const percentile =
+        totalTeams === 1 ? 100 : Math.round((i / Math.max(totalTeams - 1, 1)) * 100);
 
       performanceRows.push({
         team,
@@ -205,7 +206,8 @@ export function transformTeamPerformance(
     const totalTeams = values.length;
     for (let i = 0; i < values.length; i++) {
       const { team, value } = values[i];
-      const percentile = Math.round((i / (totalTeams - 1)) * 100);
+      const percentile =
+        totalTeams === 1 ? 100 : Math.round((i / Math.max(totalTeams - 1, 1)) * 100);
 
       performanceRows.push({
         team,

@@ -1,9 +1,9 @@
 export interface TeamsTable {
   Year: number;
-  TeamName: string;
+  TeamName: string | null;
   TrackmanAbbreviation: string;
-  Conference: string;
-  Mascot: string;
+  Conference: string | null;
+  Mascot: string | null;
 }
 
 export interface PlayersTable {
@@ -47,13 +47,13 @@ export interface BatterStatsTable {
   k_per: number;
   bb_per: number;
   avg_exit_velo: number;
-  is_practice?: boolean;
+  is_practice: boolean;
 }
 
 export interface PitcherStatsTable {
   Pitcher: string;
   PitcherTeam: string;
-  Date?: string;
+  Date: string;
   Year: number;
   hits?: number;
   runs_allowed?: number;
@@ -78,7 +78,7 @@ export interface PitcherStatsTable {
   k_per_9?: number;
   bb_per_9?: number;
   whip?: number;
-  is_practice?: boolean;
+  is_practice: boolean;
 }
 
 export interface PitchCountsTable {
@@ -102,8 +102,8 @@ export interface PitchCountsTable {
 
 export interface SeasonDatesTable {
   year: number;
-  season_start: string;
-  season_end: string;
+  season_start: string | null;
+  season_end: string | null;
 }
 
 // Updated PitcherPitchBinsTable to include Date field
@@ -186,6 +186,17 @@ export interface BatterPitchBinsTable {
   HitCount_Other: number;
 }
 
+export interface ProcessedFilesTable {
+  id: number;
+  file_hash: string;
+  remote_path: string;
+  file_size: number | null;
+  last_modified: string | null;
+  processed_at: string | null;
+  stats_summary: unknown | null;
+  created_at: string | null;
+}
+
 export interface AdvancedBattingStatsTable {
   Batter: string;
   BatterTeam: string;
@@ -228,6 +239,17 @@ export interface AdvancedBattingStatsTable {
   xwoba_per_rank?: number;
   barrel_per?: number;
   barrel_per_rank?: number;
+  avg_exit_velo_rank_team?: number | null;
+  k_per_rank_team?: number | null;
+  bb_per_rank_team?: number | null;
+  la_sweet_spot_per_rank_team?: number | null;
+  hard_hit_per_rank_team?: number | null;
+  whiff_per_rank_team?: number | null;
+  chase_per_rank_team?: number | null;
+  xba_per_rank_team?: number | null;
+  xslg_per_rank_team?: number | null;
+  xwoba_per_rank_team?: number | null;
+  barrel_per_rank_team?: number | null;
 }
 
 export interface AdvancedPitchingStatsTable {
@@ -255,7 +277,7 @@ export interface AdvancedPitchingStatsTable {
   chase_per_rank: number | null;
   plate_app?: number;
   avg_fastball_velo?: number;
-  avg_fastball_rank?: number;
+  avg_fastball_velo_rank?: number;
   ground_balls?: number;
   gb_per?: number;
   gb_per_rank?: number;

@@ -24,12 +24,16 @@ type StatsTabProps = {
   endDate: string;
 };
 
+type PracticeRecord = {
+  is_practice?: boolean | null;
+};
+
 // Treat "practice off" as non-practice (false or null), same as team tabs
-function filterByPractice<T extends Record<string, any>>(rows: T[], practice: boolean): T[] {
+function filterByPractice<T extends PracticeRecord>(rows: T[], practice: boolean): T[] {
   if (!Array.isArray(rows)) return [];
   return practice
-    ? rows.filter((r) => r?.is_practice === true)
-    : rows.filter((r) => r?.is_practice === false || r?.is_practice == null);
+    ? rows.filter((r) => r.is_practice === true)
+    : rows.filter((r) => r.is_practice === false || r.is_practice == null);
 }
 
 export default function StatsTab({ startDate, endDate }: StatsTabProps) {
@@ -68,11 +72,11 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
           decodedPlayerName,
           decodedTeamName,
           range,
-          opt
+          opt,
         );
         if (batterResp.error) throw batterResp.error;
 
-        const battingMode = effectivePractice ? 'practiceOnly' : 'gameOnly' as const;
+        const battingMode = effectivePractice ? 'practiceOnly' : ('gameOnly' as const);
         const bAgg = batterStatsTransform((batterResp.data ?? []) as BatterStatsTable[], {
           mode: battingMode,
         });
@@ -84,7 +88,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
           decodedPlayerName,
           decodedTeamName,
           range,
-          opt
+          opt,
         );
         if (pitcherResp.error) throw pitcherResp.error;
 
@@ -92,7 +96,7 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
           decodedPlayerName,
           decodedTeamName,
           range,
-          opt
+          opt,
         );
         if (pitchResp.error) throw pitchResp.error;
 
@@ -101,22 +105,23 @@ export default function StatsTab({ startDate, endDate }: StatsTabProps) {
 
         const pStat = pitcherRows.length
           ? (pitcherStatsTransform(pitcherRows as PitcherStatsTable[])[0] ??
-              (pitcherRows as PitcherStatsTable[])[0] ??
-              null)
+            (pitcherRows as PitcherStatsTable[])[0] ??
+            null)
           : null;
 
         const pcStat = pitchRows.length
           ? (pitchCountsTransform(pitchRows as PitchCountsTable[])[0] ??
-              (pitchRows as PitchCountsTable[])[0] ??
-              null)
+            (pitchRows as PitchCountsTable[])[0] ??
+            null)
           : null;
 
         setBatterStats(bStat);
         setPitcherStats(pStat);
         setPitchCounts(pcStat);
-      } catch (e: any) {
-        console.error('Error fetching player stats:', e);
-        setError(e?.message ?? 'Failed to load stats');
+      } catch (err: unknown) {
+        console.error('Error fetching player stats:', err);
+        const message = err instanceof Error ? err.message : 'Failed to load stats';
+        setError(message);
         setBatterStats(null);
         setPitcherStats(null);
         setPitchCounts(null);

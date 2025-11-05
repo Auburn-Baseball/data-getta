@@ -28,7 +28,7 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
   useEffect(() => {
     if (clearedOnce.current) return;
     clearedOnce.current = true;
-  
+
     // Default to OFF on entry: remove ?practice from URL if present
     const next = new URLSearchParams(searchParams);
     if (next.has('practice')) {
@@ -37,7 +37,6 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
 
   useEffect(() => {
     async function fetchTeam() {
@@ -111,7 +110,11 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo name={team.TeamName} conference={team.Conference} seasonLabel={yearLabel} />
+        <TeamInfo
+          name={team.TeamName ?? ''}
+          conference={team.Conference ?? ''}
+          seasonLabel={yearLabel}
+        />
         <Outlet />
       </Box>
     </Box>

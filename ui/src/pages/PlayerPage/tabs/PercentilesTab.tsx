@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from '@mui/material';
 
 import StatBar from '@/components/player/StatBar';
 import InfieldSprayChart from '@/components/player/Charts/InfieldSprayChart';
 import { fetchAdvancedBattingStats, fetchAdvancedPitchingStats } from '@/services/playerService';
+import { fetchSeasonDateRanges } from '@/services/seasonService';
+import type { SeasonDateRange } from '@/types/dateRange';
 import type { AdvancedBattingStatsTable, AdvancedPitchingStatsTable } from '@/types/db';
 import type { DateRange } from '@/types/dateRange';
-import { formatYearRange } from '@/utils/dateRange';
+import { formatYearRange, getYearRange } from '@/utils/dateRange';
 
 type PercentilesTabProps = {
   dateRange: DateRange;
@@ -27,13 +38,16 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     trackmanAbbreviation: string;
     playerName: string;
   }>();
+  const decodedTeam = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
 
-  const [battingStats, setBattingStats] = useState<AdvancedBattingStatsTable | null>(null);
-  const [pitchingStats, setPitchingStats] = useState<AdvancedPitchingStatsTable | null>(null);
+  const [battingRows, setBattingRows] = useState<AdvancedBattingStatsTable[]>([]);
+  const [pitchingRows, setPitchingRows] = useState<AdvancedPitchingStatsTable[]>([]);
+  const [seasons, setSeasons] = useState<number[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const seasonLabel = formatYearRange(dateRange);
+  const seasonLabel = selectedSeason ? String(selectedSeason) : formatYearRange(dateRange);
 
   useEffect(() => {
     async function fetchStats() {
@@ -45,9 +59,29 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         const formattedPlayerName = decodeURIComponent(playerName).replace('_', ', ');
         const decodedTeamName = decodeURIComponent(trackmanAbbreviation);
 
+        // Load tracked seasons from Supabase (same source as SeasonDateRangeSelect)
+        const seasonsResp = await fetchSeasonDateRanges();
+        const allRanges: SeasonDateRange[] = (seasonsResp.ranges ?? []).filter(
+          (r) => r.year >= 2020,
+        );
+
+        // Determine a full span covering all tracked seasons to fetch once
+        const earliest = allRanges.reduce<string | null>((acc, r) => {
+          return !acc || r.startDate < acc ? r.startDate : acc;
+        }, null);
+        const latest = allRanges.reduce<string | null>((acc, r) => {
+          return !acc || r.endDate > acc ? r.endDate : acc;
+        }, null);
+
+        // Fallback to provided dateRange if seasons table empty
+        const fullRange =
+          earliest && latest
+            ? { startDate: earliest, endDate: latest }
+            : { startDate: dateRange.startDate, endDate: dateRange.endDate };
+
         const [battingResponse, pitchingResponse] = await Promise.all([
-          fetchAdvancedBattingStats(formattedPlayerName, decodedTeamName, dateRange),
-          fetchAdvancedPitchingStats(formattedPlayerName, decodedTeamName, dateRange),
+          fetchAdvancedBattingStats(formattedPlayerName, decodedTeamName, fullRange),
+          fetchAdvancedPitchingStats(formattedPlayerName, decodedTeamName, fullRange),
         ]);
 
         if (battingResponse.error && pitchingResponse.error) {
@@ -56,13 +90,25 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           return;
         }
 
-        const battingData =
-          battingResponse.data?.find((entry) => entry.Batter === formattedPlayerName) ?? null;
-        const pitchingData =
-          pitchingResponse.data?.find((entry) => entry.Pitcher === formattedPlayerName) ?? null;
+        const battingData = battingResponse.data ?? [];
+        const pitchingData = pitchingResponse.data ?? [];
 
-        setBattingStats(battingData);
-        setPitchingStats(pitchingData);
+        setBattingRows(battingData);
+        setPitchingRows(pitchingData);
+
+        // Season list from SeasonDates (preferred), else derive from data
+        const seasonsFromService = allRanges.map((r) => r.year).sort((a, b) => a - b);
+        const derivedYears = Array.from(
+          new Set([...battingData.map((r) => r.Year), ...pitchingData.map((r) => r.Year)]),
+        ).sort((a, b) => a - b);
+        const seasonList = seasonsFromService.length > 0 ? seasonsFromService : derivedYears;
+        setSeasons(seasonList);
+
+        // Auto-select: prefer last year within current app dateRange; otherwise latest tracked season
+        const { startYear, endYear } = getYearRange(dateRange);
+        const inRange = seasonList.filter((y) => y >= startYear && y <= endYear);
+        const defaultYear = (inRange.length > 0 ? inRange : seasonList).at(-1) ?? null;
+        setSelectedSeason(defaultYear);
       } catch (err: unknown) {
         console.error('Error fetching stats:', err);
         setError('Failed to load player stats');
@@ -72,7 +118,13 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     }
 
     fetchStats();
-  }, [dateRange, trackmanAbbreviation, playerName, seasonLabel]);
+  }, [dateRange, trackmanAbbreviation, playerName]);
+
+  const battingStats: AdvancedBattingStatsTable | null =
+    selectedSeason != null ? (battingRows.find((r) => r.Year === selectedSeason) ?? null) : null;
+
+  const pitchingStats: AdvancedPitchingStatsTable | null =
+    selectedSeason != null ? (pitchingRows.find((r) => r.Year === selectedSeason) ?? null) : null;
 
   const getRankColor = (rank: number): string => {
     const r = Math.max(0, Math.min(rank, 100));
@@ -103,13 +155,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     );
   }
 
-  if (!battingStats && !pitchingStats) {
-    return (
-      <Typography variant="body1" sx={{ textAlign: 'center', py: '4rem' }}>
-        0
-      </Typography>
-    );
-  }
+  // Do not early-return on no data; we still show the info + season selector.
 
   // ---- CONFIGS ----
   const battingConfigs: StatConfig<BattingStatKey>[] = [
@@ -138,13 +184,16 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     { key: 'bb_per', label: 'BB %', isPercentage: true },
     { key: 'barrel_per', label: 'Barrel %', isPercentage: true },
     { key: 'hard_hit_per', label: 'Hard Hit %', isPercentage: true },
-    { key: 'gb_per', label: 'GB %', isPercentage: true},
+    { key: 'gb_per', label: 'GB %', isPercentage: true },
   ];
 
-  const renderStatBars = <T extends string>(
-    stats: Partial<Record<T, any>>,
-    configs: StatConfig<T>[],
-    title: string
+  const renderStatBars = <
+    StatsType extends AdvancedBattingStatsTable | AdvancedPitchingStatsTable,
+    KeyType extends keyof StatsType,
+  >(
+    stats: StatsType,
+    configs: StatConfig<KeyType & string>[],
+    title: string,
   ) => (
     <Box
       sx={{
@@ -162,7 +211,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           const value = stats[config.key];
           if (value === undefined) return null;
 
-          const rankKey = `${config.key}_rank` as T;
+          const rankKey = `${config.key}_rank` as keyof StatsType;
           const rankValue = stats[rankKey];
           const rank = typeof rankValue === 'number' ? Math.round(rankValue) : 50;
 
@@ -183,19 +232,18 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
                     case 'xwoba_per':
                     case 'xba_per':
                     case 'xslg_per':
-                      return value.toFixed(3);
+                      return (value as number).toFixed(3);
 
                     case 'plate_app':
                     case 'fastballs':
                     case 'batted_balls':
-                      return value.toFixed(0);
+                      return (value as number).toFixed(0);
 
                     default:
-                      return value.toFixed(1);
+                      return (value as number).toFixed(1);
                   }
                 })()
               : '0.0';
-
 
           return (
             <StatBar
@@ -222,6 +270,44 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         margin: '40px auto',
       }}
     >
+      {/* Info and Season Selector */}
+      <Box sx={{ width: '100%', maxWidth: 800, mb: 2 }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Advanced stats reflect a single season only. Showing{' '}
+          <strong>{selectedSeason ?? '—'}</strong> season data.
+        </Alert>
+        {decodedTeam === 'AUB_TIG' && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Practice data is not available for player percentiles currently. (i.e. the 'Practice'
+            toggle doesn't affect the display)
+          </Alert>
+        )}
+        {seasons.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="season-select-label">Season</InputLabel>
+            <Select
+              labelId="season-select-label"
+              id="season-select"
+              label="Season"
+              value={selectedSeason ?? ''}
+              onChange={(e) => setSelectedSeason(Number(e.target.value))}
+            >
+              {seasons.map((y) => (
+                <MenuItem key={y} value={y}>
+                  {y}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+      </Box>
+
+      {/* No data message */}
+      {!battingStats && !pitchingStats && (
+        <Typography variant="body1" sx={{ textAlign: 'center', py: '2rem' }}>
+          No percentile data available for the selected season.
+        </Typography>
+      )}
       {/* Batting Stats + Chart */}
       {battingStats && (
         <Box sx={{ width: '100%', mb: 8 }}>

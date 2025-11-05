@@ -65,15 +65,7 @@ const formatRaw = (label: string, v: number | string) => {
   return String(v);
 };
 
-export default function CreateTeamPercent({
-  seasonLabel,
-  rows,
-  mode,
-}: {
-  seasonLabel: string;
-  rows: Row[];
-  mode: 'overall' | 'wl';
-}) {
+export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: 'overall' | 'wl' }) {
   // Empty state if no rows (e.g., W/L mode for now)
   const hasData = rows && rows.length > 0;
 
@@ -160,15 +152,8 @@ export default function CreateTeamPercent({
 
   return (
     <Box sx={{ px: 8, py: 4, color: '#0b2341' }}>
-      <Typography variant="h4" fontWeight={700} gutterBottom>
-        Team Performance {mode === 'wl' ? '(W/L)' : '(Overall)'}
-      </Typography>
-
-      {/* Filters row */}
+      {/* Filters row (mode only; page handles title and season) */}
       <Box display="flex" justifyContent="center" alignItems="center" mt={1} mb={3}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          {seasonLabel}
-        </Typography>
         <ModeToggle mode={mode} />
       </Box>
 

@@ -56,13 +56,12 @@ export default function InfieldSprayChart({ stats }: InfieldSprayChartProps) {
         alt="Plainsman Park"
         sx={{
           width: '100%',
-          height: '110%',        // double the height so top half fits in container
+          height: '110%', // double the height so top half fits in container
           objectFit: 'cover',
           transform: 'translateY(-12.9%) translateX(-0.4%)', // show the top half
           display: 'block',
         }}
       />
-
 
       {/* Overlay Spray Chart */}
       <Box
@@ -87,7 +86,7 @@ export default function InfieldSprayChart({ stats }: InfieldSprayChartProps) {
           {slices.map((slice, i) => {
             const totalAngle = 87.5; // new total arc
             const sliceAngle = totalAngle / slices.length; // ~17.6°
-            
+
             const startAngle = -totalAngle / 2 + i * sliceAngle; // center at 0
             const endAngle = startAngle + sliceAngle;
             const radius = 120;
