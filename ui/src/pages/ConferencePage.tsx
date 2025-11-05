@@ -87,14 +87,19 @@ export default function ConferencePage({ dateRange }: ConferencePageProps) {
       <Typography variant="h4" fontWeight={700} sx={{ pb: 4 }}>
         Conferences ({yearLabel})
       </Typography>
-
-      <Grid container spacing={2}>
-        {conferences.map((confGroup, index) => (
-          <Grid key={index} size={{ xs: 12, md: 6, xl: 4 }} sx={{ width: '100%' }}>
-            <ConferenceTable conferenceGroup={confGroup} />
-          </Grid>
-        ))}
-      </Grid>
+      {conferences.length === 0 ? (
+        <Typography variant="body1" color="text.secondary">
+          No teams found for the selected date range.
+        </Typography>
+      ) : (
+        <Grid container spacing={2}>
+          {conferences.map((confGroup, index) => (
+            <Grid key={index} size={{ xs: 12, md: 6, xl: 4 }} sx={{ width: '100%' }}>
+              <ConferenceTable conferenceGroup={confGroup} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   );
 }
