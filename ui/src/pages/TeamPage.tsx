@@ -67,9 +67,8 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
   const yearLabel = formatYearRange(dateRange);
 
   if (loading) return <div>Loading...</div>;
-  if (!team) return <div>Team not found</div>;
 
-  const isAuburn = team.TrackmanAbbreviation === 'AUB_TIG';
+  const isAuburn = team?.TrackmanAbbreviation === 'AUB_TIG';
 
   const onPracticeToggle = (_: unknown, checked: boolean) => {
     const next = new URLSearchParams(searchParams);
@@ -97,9 +96,13 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
             paddingRight: { xs: 4, sm: 8 },
           }}
         >
-          <TableTabs trackmanAbbreviation={team.TrackmanAbbreviation!} />
+          {team ? (
+            <TableTabs trackmanAbbreviation={team.TrackmanAbbreviation!} />
+          ) : (
+            <Box sx={{ py: 1, fontWeight: 700 }}>Team not found</Box>
+          )}
           <Box sx={{ marginLeft: 'auto' }}>
-            {isAuburn && (
+            {team && isAuburn && (
               <FormControlLabel
                 control={<Switch checked={practice} onChange={onPracticeToggle} />}
                 label="Practice"
@@ -110,12 +113,23 @@ export default function TeamPage({ dateRange }: TeamPageProps) {
       </Box>
 
       <Box sx={{ paddingX: { xs: 4, sm: 8 }, paddingY: 4 }}>
-        <TeamInfo
-          name={team.TeamName ?? ''}
-          conference={team.Conference ?? ''}
-          seasonLabel={yearLabel}
-        />
-        <Outlet />
+        {team ? (
+          <>
+            <TeamInfo
+              name={team.TeamName ?? ''}
+              conference={team.Conference ?? ''}
+              seasonLabel={yearLabel}
+            />
+            <Outlet />
+          </>
+        ) : (
+          <Box>
+            <Box sx={{ mb: 2 }}>
+              <TeamInfo name="" conference="" seasonLabel={yearLabel} />
+            </Box>
+            <Box sx={{ py: 2 }}>No data exists for the selected season.</Box>
+          </Box>
+        )}
       </Box>
     </Box>
   );
