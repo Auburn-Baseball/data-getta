@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, check_supabase_vars
+from .common import SUPABASE_KEY, SUPABASE_URL, check_practice, check_supabase_vars
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
@@ -16,6 +16,9 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
     """Extract players from a CSV file using dict for deduplication"""
     try:
         df = pd.read_csv(buffer)
+
+        # Determine if this is practice data by checking League column
+        is_practice = check_practice(df)
 
         # Check if required columns exist
         if "Pitcher" not in df.columns and "Batter" not in df.columns:
@@ -37,6 +40,11 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
                 pitcher_name = str(row["Pitcher"]).strip()
                 pitcher_id = str(row["PitcherId"]).strip()
                 pitcher_team = str(row["PitcherTeam"]).strip()
+                # Convert different aub practice team to be consistent
+                if is_practice and pitcher_team == "AUB_PRC":
+                    pitcher_team = "AUB_TIG"
+                else:
+                    pitcher_team = str(pitcher_team).strip()
 
                 if pitcher_name and pitcher_id and pitcher_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)
@@ -59,6 +67,11 @@ def get_players_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, int],
                 batter_name = str(row["Batter"]).strip()
                 batter_id = str(row["BatterId"]).strip()
                 batter_team = str(row["BatterTeam"]).strip()
+                # Convert different aub practice team to be consistent
+                if is_practice and batter_team == "AUB_PRC":
+                    batter_team = "AUB_TIG"
+                else:
+                    batter_team = str(batter_team).strip()
 
                 if batter_name and batter_id and batter_team:
                     # Primary key tuple: (Name, TeamTrackmanAbbreviation, Year)

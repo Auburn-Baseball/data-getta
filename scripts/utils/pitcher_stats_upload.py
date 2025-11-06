@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_practice, is_in_strike_zone
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
@@ -28,10 +28,8 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
         df = pd.read_csv(buffer)
 
         # Determine if this is practice data by checking League column
-        is_practice = False
-        if "League" in df.columns:
-            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = bool((league_values == "TEAM").any())
+        is_practice = check_practice(df)
+
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date_obj = date_parser.get_date_object(filename)
@@ -70,7 +68,12 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
                 continue
 
             pitcher_name = str(pitcher_name).strip()
-            pitcher_team = str(pitcher_team).strip()
+
+            # Convert different aub practice team to be consistent
+            if is_practice and pitcher_team == "AUB_PRC":
+                pitcher_team = "AUB_TIG"
+            else:
+                pitcher_team = str(pitcher_team).strip()
 
             if not pitcher_name or not pitcher_team:
                 continue

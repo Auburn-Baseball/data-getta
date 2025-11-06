@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, is_in_strike_zone
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_practice, is_in_strike_zone
 from .file_date import CSVFilenameParser
 
 # Initialize Supabase client
@@ -34,10 +34,8 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
         df = pd.read_csv(buffer)
 
         # Determines if this is practice data by checking the League column
-        is_practice = False
-        if "League" in df.columns:
-            league_values = df["League"].dropna().astype(str).str.strip().str.upper()
-            is_practice = bool((league_values == "TEAM").any())
+        is_practice = check_practice(df)
+
         # Get game date from filename
         date_parser = CSVFilenameParser()
         game_date_obj = date_parser.get_date_object(filename)
@@ -71,7 +69,12 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 continue
 
             batter_name = str(batter_name).strip()
-            batter_team = str(batter_team).strip()
+
+            # Convert different aub practice team to be consistent
+            if is_practice and batter_team == "AUB_PRC":
+                batter_team = "AUB_TIG"
+            else:
+                batter_team = str(batter_team).strip()
 
             if not batter_name or not batter_team:
                 continue
@@ -249,7 +252,6 @@ def get_batter_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str, 
                 "total_bases": total_bases,
                 "is_practice": is_practice,
                 "total_exit_velo": round(total_exit_velo, 1),
-                "is_practice": is_practice,
                 "batting_average": (
                     round(batting_average, 3) if batting_average is not None else None
                 ),

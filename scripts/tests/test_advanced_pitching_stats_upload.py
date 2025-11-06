@@ -1,8 +1,8 @@
 """
+Unit test cases for advanced_pitching_stats_upload.py functions.
+
 Author: Joshua Reed
 Created: 1 November 2025
-
-Unit test cases for advanced_pitching_stats_upload.py functions.
 """
 
 import builtins
@@ -16,9 +16,14 @@ import pytest
 
 from scripts.utils import advanced_pitching_stats_upload as mod
 
+# ============================================================================
+# Test Fixtures and Helpers
+# ============================================================================
 
-# ----------------- Helpers -----------------
+
 class DummyParser:
+    """Mock CSV filename parser for testing."""
+
     def get_date_components(self, filename):
         if filename == "bad_filename.csv":
             return None
@@ -28,8 +33,146 @@ class DummyParser:
         return pd.Timestamp("2025-10-31") if filename != "bad_filename.csv" else None
 
 
+@pytest.fixture(autouse=True)
+def patch_csv_parser(monkeypatch):
+    """Automatically patch CSVFilenameParser for all tests."""
+    monkeypatch.setattr(mod, "CSVFilenameParser", lambda: DummyParser())
+
+
+def make_csv(data: str):
+    """Create a StringIO buffer from CSV string data."""
+    return io.StringIO(data)
+
+
+@pytest.fixture
+def mock_supabase_fast():
+    """Mock Supabase client fixture for fast test execution."""
+    table_mock = MagicMock()
+
+    fetch_mock = MagicMock()
+    fetch_mock.data = []
+    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
+
+    upsert_mock = MagicMock()
+    upsert_mock.execute.return_value = None
+    table_mock.upsert.return_value = upsert_mock
+
+    supabase_mock = MagicMock()
+    supabase_mock.table.return_value = table_mock
+    return supabase_mock, table_mock
+
+
+def mock_combine(existing, new):
+    """Mock function for combining stats in tests."""
+    combined = existing.copy()
+    combined.update(new)
+    return combined
+
+
+def setup_lookup_xba_test(monkeypatch, test_dict, ev_bins, la_bins, dir_bins, global_xba_mean):
+    """Helper to setup lookup_xBA test environment."""
+    monkeypatch.setattr(mod, "xba_dict", test_dict)
+    monkeypatch.setattr(mod, "ev_bins", ev_bins)
+    monkeypatch.setattr(mod, "la_bins", la_bins)
+    monkeypatch.setattr(mod, "dir_bins", dir_bins)
+    monkeypatch.setattr(mod, "global_xba_mean", global_xba_mean)
+
+
+def setup_csv_test_mocks(monkeypatch, lookup_xba=None, xslg_model=None, xwoba_model=None):
+    """Helper to setup common mocks for CSV processing tests."""
+    if lookup_xba is not None:
+        monkeypatch.setattr(mod, "lookup_xBA", lookup_xba)
+    # Always patch models (including None) to override module-level loaded models
+    monkeypatch.setattr(mod, "xslg_model", xslg_model)
+    monkeypatch.setattr(mod, "xwoba_model", xwoba_model)
+    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+
+
+def create_pitcher_record(pitcher, team, year, **kwargs):
+    """Helper to create a pitcher record with default metrics."""
+    default_metrics = {
+        "avg_exit_velo": 88.0,
+        "k_per": 0.2,
+        "bb_per": 0.08,
+        "la_sweet_spot_per": 0.2,
+        "hard_hit_per": 0.3,
+        "whiff_per": 0.15,
+        "chase_per": 0.22,
+        "avg_fastball_velo": 94.0,
+        "gb_per": 0.45,
+        "xba_per": 0.26,
+        "xslg_per": 0.4,
+        "xwoba_per": 0.3,
+        "barrel_per": 0.04,
+    }
+    record = {
+        "Pitcher": pitcher,
+        "PitcherTeam": team,
+        "Year": year,
+        **default_metrics,
+        **kwargs,
+    }
+    return record
+
+
+# ============================================================================
+# Test Data Constants
+# ============================================================================
+
+
+NEW_PITCHER = {
+    ("Player1", "TeamA", 2025): {
+        "Pitcher": "Player1",
+        "PitcherTeam": "TeamA",
+        "Year": 2025,
+        "avg_exit_velo": np.float64(88.5),
+        "k_per": np.float64(20.3),
+        "bb_per": np.float64(10.0),
+        "la_sweet_spot_per": np.float64(15.0),
+        "hard_hit_per": np.float64(25.0),
+        "whiff_per": np.float64(5.0),
+        "chase_per": np.float64(3.0),
+        "avg_fastball_velo": np.float64(92.0),
+        "gb_per": np.float64(40.0),
+        "xba_per": np.float64(0.300),
+        "xslg_per": np.float64(0.450),
+        "xwoba_per": np.float64(0.320),
+        "barrel_per": np.float64(2.0),
+        "unique_games": 10,
+    }
+}
+
+EXISTING_PITCHER = {
+    ("Player2", "TeamB", 2025): {
+        "Pitcher": "Player2",
+        "PitcherTeam": "TeamB",
+        "Year": 2025,
+        "avg_exit_velo": np.float64(90.0),
+        "k_per": np.float64(18.0),
+        "bb_per": np.float64(12.0),
+        "la_sweet_spot_per": np.float64(14.0),
+        "hard_hit_per": np.float64(20.0),
+        "whiff_per": np.float64(6.0),
+        "chase_per": np.float64(4.0),
+        "avg_fastball_velo": np.float64(93.0),
+        "gb_per": np.float64(42.0),
+        "xba_per": np.float64(0.310),
+        "xslg_per": np.float64(0.470),
+        "xwoba_per": np.float64(0.330),
+        "barrel_per": np.float64(3.0),
+        "unique_games": 12,
+    }
+}
+
+
+# ============================================================================
+# Tests for load_xba_grid
+# ============================================================================
+
+
 def test_xba_grid_missing(tmp_path):
-    path = tmp_path / "missing.csv"  # does not exist
+    """Test loading xBA grid when file does not exist."""
+    path = tmp_path / "missing.csv"
     xba_grid, xba_dict, ev_bins, la_bins, dir_bins, mean = mod.load_xba_grid(path)
     assert xba_grid.empty
     assert xba_dict == {}
@@ -40,6 +183,7 @@ def test_xba_grid_missing(tmp_path):
 
 
 def test_xba_grid_exists(tmp_path):
+    """Test loading xBA grid when file exists."""
     path = tmp_path / "xba.csv"
     path.write_text("ev_bin,la_bin,dir_bin,xBA\n" "80,20,1,0.3\n" "85,25,2,0.4\n")
 
@@ -53,129 +197,137 @@ def test_xba_grid_exists(tmp_path):
     assert abs(mean - 0.35) < 1e-6
 
 
-def test_exact_value():
+# ============================================================================
+# Tests for closest_value
+# ============================================================================
+
+
+def test_closest_value():
+    """Test closest_value function with various edge cases and scenarios."""
+    # Exact matches
     lst = [1, 3, 5, 7]
     assert mod.closest_value(lst, 5) == 5
     assert mod.closest_value(lst, 1) == 1
     assert mod.closest_value(lst, 7) == 7
 
-
-def test_between_values():
+    # Values between elements
     lst = [1, 3, 6, 10]
-    assert mod.closest_value(lst, 4) == 3  # 3 is closer than 6
-    assert mod.closest_value(lst, 7) == 6  # 6 is closer than 10
+    assert mod.closest_value(lst, 4) == 3
+    assert mod.closest_value(lst, 7) == 6
 
-
-def test_smaller_than_smallest():
+    # Smaller than smallest
     lst = [10, 20, 30]
     assert mod.closest_value(lst, 5) == 10
 
-
-def test_larger_than_largest():
-    lst = [10, 20, 30]
+    # Larger than largest
     assert mod.closest_value(lst, 35) == 30
 
-
-def test_equidistant_values():
+    # Equidistant values (should return value before input)
     lst = [1, 3, 5, 7]
-    assert mod.closest_value(lst, 4) == 3  # Should retrun value before the input
+    assert mod.closest_value(lst, 4) == 3
+
+
+# ============================================================================
+# Tests for lookup_xBA
+# ============================================================================
 
 
 def test_lookup_xBA_exact_match(monkeypatch):
-    # Setup minimal globals
-    test_dict = {(80, 20, 1): 0.3, (85, 25, 2): 0.4}
-    monkeypatch.setattr(mod, "xba_dict", test_dict)
-    monkeypatch.setattr(mod, "ev_bins", [80, 85])
-    monkeypatch.setattr(mod, "la_bins", [20, 25])
-    monkeypatch.setattr(mod, "dir_bins", [1, 2])
-    monkeypatch.setattr(mod, "global_xba_mean", 0.35)
+    """Test lookup_xBA with exact key matches."""
+    setup_lookup_xba_test(
+        monkeypatch, {(80, 20, 1): 0.3, (85, 25, 2): 0.4}, [80, 85], [20, 25], [1, 2], 0.35
+    )
 
-    # Exact match
     assert mod.lookup_xBA(80, 20, 1) == 0.3
     assert mod.lookup_xBA(85, 25, 2) == 0.4
 
 
 def test_lookup_xBA_3D_average(monkeypatch):
-    # Setup globals
-    test_dict = {(80, 20, 1): 0.3, (81, 21, 1): 0.4, (79, 19, 6): 0.5}
-    monkeypatch.setattr(mod, "xba_dict", test_dict)
-    monkeypatch.setattr(mod, "ev_bins", [79, 80, 81])
-    monkeypatch.setattr(mod, "la_bins", [19, 20, 21])
-    monkeypatch.setattr(mod, "dir_bins", [1, 6])
-    monkeypatch.setattr(mod, "global_xba_mean", 0.35)
+    """Test lookup_xBA with 3D neighborhood averaging."""
+    setup_lookup_xba_test(
+        monkeypatch,
+        {(80, 20, 1): 0.3, (81, 21, 1): 0.4, (79, 19, 6): 0.5},
+        [79, 80, 81],
+        [19, 20, 21],
+        [1, 6],
+        0.35,
+    )
 
-    # Should average neighbors in 3D window
     val = mod.lookup_xBA(80, 20, 3)
     assert abs(val - (0.3 + 0.4 + 0.5) / 3) < 1e-6
 
 
 def test_lookup_xBA_nearest_neighbor(monkeypatch):
-    test_dict = {(80, 20, 1): 0.3, (85, 25, 2): 0.5}
-    monkeypatch.setattr(mod, "xba_dict", test_dict)
-    monkeypatch.setattr(mod, "ev_bins", [80, 85])
-    monkeypatch.setattr(mod, "la_bins", [20, 25])
-    monkeypatch.setattr(mod, "dir_bins", [1, 2])
-    monkeypatch.setattr(mod, "global_xba_mean", 0.35)
+    """Test lookup_xBA fallback to global mean when no neighbors found."""
+    setup_lookup_xba_test(
+        monkeypatch, {(80, 20, 1): 0.3, (85, 25, 2): 0.5}, [80, 85], [20, 25], [1, 2], 0.35
+    )
 
-    # There is no neighbor for (81,19,3) in the 3D window
-    # So function should return global mean
     assert mod.lookup_xBA(81, 19, 3) == 0.35
 
 
 def test_lookup_xBA_empty_dict(monkeypatch):
-    # Empty dictionary guarantees fallback to global_xba_mean
-    monkeypatch.setattr(mod, "xba_dict", {})
-    monkeypatch.setattr(mod, "ev_bins", [80, 85])
-    monkeypatch.setattr(mod, "la_bins", [20, 25])
-    monkeypatch.setattr(mod, "dir_bins", [1, 2])
-    monkeypatch.setattr(mod, "global_xba_mean", 0.35)
+    """Test lookup_xBA with empty dictionary returns global mean."""
+    setup_lookup_xba_test(monkeypatch, {}, [80, 85], [20, 25], [1, 2], 0.35)
 
-    # Should return global mean because dictionary is empty
     result = mod.lookup_xBA(100, 100, 50)
     assert result == 0.35
 
 
-def test_load_xslg_model_success(tmp_path, monkeypatch):
-    # Create a fake path that "exists"
-    model_file = tmp_path / "xslg_model.json"
-    model_file.write_text("{}")  # dummy content
+# ============================================================================
+# Tests for load_xslg_model and load_xwoba_model
+# ============================================================================
 
-    # Mock XGBRegressor to avoid real loading
+
+@pytest.mark.parametrize(
+    "load_func,model_name",
+    [
+        (mod.load_xslg_model, "xslg_model.json"),
+        (mod.load_xwoba_model, "xwoba_model.json"),
+    ],
+)
+def test_load_model_success(tmp_path, monkeypatch, load_func, model_name):
+    """Test successful model loading for both xSLG and xwOBA models."""
+    model_file = tmp_path / model_name
+    model_file.write_text("{}")
+
     mock_regressor = MagicMock()
     monkeypatch.setattr(mod.xgb, "XGBRegressor", lambda: mock_regressor)
-
-    # Mock load_model to just record call
     mock_regressor.load_model = MagicMock()
 
-    result = mod.load_xslg_model(model_file)
+    result = load_func(model_file)
 
     assert result is mock_regressor
     mock_regressor.load_model.assert_called_once_with(str(model_file))
 
 
-def test_load_xslg_model_path_not_exist(monkeypatch):
-    # Create a Path object that does NOT exist
+@pytest.mark.parametrize("load_func", [mod.load_xslg_model, mod.load_xwoba_model])
+def test_load_model_path_not_exist(monkeypatch, load_func):
+    """Test model loading when file does not exist."""
     fake_path = Path("/does/not/exist.json")
-
-    # Mock XGBRegressor so it won't actually be called
     monkeypatch.setattr(mod.xgb, "XGBRegressor", lambda: None)
 
-    # Capture print output
     printed = []
     monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
 
-    result = mod.load_xslg_model(fake_path)
+    result = load_func(fake_path)
 
     assert result is None
     assert any("not found" in msg for msg in printed)
 
 
-def test_load_xslg_model_load_fail(tmp_path, monkeypatch):
-    # Create a fake path that exists
-    model_file = tmp_path / "xslg_model.json"
+@pytest.mark.parametrize(
+    "load_func,model_name",
+    [
+        (mod.load_xslg_model, "xslg_model.json"),
+        (mod.load_xwoba_model, "xwoba_model.json"),
+    ],
+)
+def test_load_model_load_fail(tmp_path, monkeypatch, load_func, model_name):
+    """Test model loading when load_model raises exception."""
+    model_file = tmp_path / model_name
     model_file.write_text("{}")
 
-    # Mock XGBRegressor to raise an exception when load_model is called
     class FakeRegressor:
         def load_model(self, path):
             raise ValueError("fake load error")
@@ -185,89 +337,27 @@ def test_load_xslg_model_load_fail(tmp_path, monkeypatch):
     printed = []
     monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
 
-    result = mod.load_xslg_model(model_file)
+    result = load_func(model_file)
 
-    # It should still return the regressor object even though loading failed
     assert isinstance(result, FakeRegressor)
     assert any("Failed to load" in msg for msg in printed)
 
 
-def test_load_xwoba_model_success(tmp_path, monkeypatch):
-    # Create a fake path that "exists"
-    model_file = tmp_path / "xwoba_model.json"
-    model_file.write_text("{}")  # dummy content
-
-    # Mock XGBRegressor to avoid real loading
-    mock_regressor = MagicMock()
-    monkeypatch.setattr(mod.xgb, "XGBRegressor", lambda: mock_regressor)
-
-    # Mock load_model to just record call
-    mock_regressor.load_model = MagicMock()
-
-    result = mod.load_xwoba_model(model_file)
-
-    assert result is mock_regressor
-    mock_regressor.load_model.assert_called_once_with(str(model_file))
-
-
-def test_load_xwoba_model_path_not_exist(monkeypatch):
-    # Create a Path object that does NOT exist
-    fake_path = Path("/does/not/exist.json")
-
-    # Mock XGBRegressor so it won't actually be called
-    monkeypatch.setattr(mod.xgb, "XGBRegressor", lambda: None)
-
-    # Capture print output
-    printed = []
-    monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
-
-    result = mod.load_xwoba_model(fake_path)
-
-    assert result is None
-    assert any("not found" in msg for msg in printed)
-
-
-def test_load_xwoba_model_load_fail(tmp_path, monkeypatch):
-    # Create a fake path that exists
-    model_file = tmp_path / "xwoba_model.json"
-    model_file.write_text("{}")
-
-    # Mock XGBRegressor to raise an exception when load_model is called
-    class FakeRegressor:
-        def load_model(self, path):
-            raise ValueError("fake load error")
-
-    monkeypatch.setattr(mod.xgb, "XGBRegressor", lambda: FakeRegressor())
-
-    printed = []
-    monkeypatch.setattr(builtins, "print", lambda msg: printed.append(msg))
-
-    result = mod.load_xwoba_model(model_file)
-
-    # It should still return the regressor object even though loading failed
-    assert isinstance(result, FakeRegressor)
-    assert any("Failed to load" in msg for msg in printed)
-
-
-@pytest.fixture(autouse=True)
-def patch_csv_parser(monkeypatch):
-    # Patch CSVFilenameParser globally
-    monkeypatch.setattr(mod, "CSVFilenameParser", lambda: DummyParser())
-
-
-def make_csv(data: str):
-    """Helper to create buffer from CSV string."""
-    return io.StringIO(data)
+# ============================================================================
+# Tests for get_advanced_pitching_stats_from_buffer
+# ============================================================================
 
 
 def test_empty_csv(monkeypatch):
+    """Test processing empty CSV file."""
     csv_data = "Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League\n"
     buffer = make_csv(csv_data)
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
-    assert result == {}  # No rows to process
+    assert result == {}
 
 
 def test_bad_filename(monkeypatch):
+    """Test error handling for invalid filename."""
     csv_data = (
         "Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League\n"
         "JohnDoe,AUB,K,StrikeSwinging,Out,,,,Right,,Fastball,100,2.0,0.0,SEC\n"
@@ -282,10 +372,8 @@ def test_bad_filename(monkeypatch):
     assert any("Unable to extract date from filename" in msg for msg in printed)
 
 
-# ----------------- Tests -----------------
-
-
 def test_basic_pitching_stats(monkeypatch):
+    """Test basic pitching statistics calculation."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 John,AUB,Strikeout,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 John,AUB,Walk,BallCalled,,,,,Right,,Fastball,98,2,0,SEC
@@ -293,26 +381,21 @@ John,AUB,,InPlay,Out,97,20,10,Right,GroundBall,Fastball,97,3,0,SEC
 John,AUB,,InPlay,Out,94,20,10,Right,GroundBall,Fastball,97,0,0,SEC
 """
     buffer = make_csv(csv_data)
-
-    # Patch helper functions/models
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("John", "AUB", 2025)
     assert key in result
     stats = result[key]
 
-    # Check counts
-    assert stats["plate_app"] == 4  # Walk + Strikeout + Groundout
+    assert stats["plate_app"] == 4
     assert stats["batted_balls"] == 2
-    assert stats["at_bats"] == 3  # Strikeout + 1 batted ball in play with stats
+    assert stats["at_bats"] == 3
     assert stats["fastballs"] == 4
     assert stats["ground_balls"] == 2
 
-    # Percentages
     assert stats["k_per"] == pytest.approx(1 / 4, rel=1e-3)
     assert stats["bb_per"] == pytest.approx(1 / 4, rel=1e-3)
     assert stats["la_sweet_spot_per"] == pytest.approx(2 / 2, rel=1e-3)
@@ -320,13 +403,11 @@ John,AUB,,InPlay,Out,94,20,10,Right,GroundBall,Fastball,97,0,0,SEC
     assert stats["avg_exit_velo"] == pytest.approx((97 + 94) / 2, rel=1e-3)
     assert stats["avg_fastball_velo"] == pytest.approx((100 + 98 + 97 + 97) / 4, rel=1e-3)
 
-    # Zone stats
     assert stats["in_zone_pitches"] == 3
     assert stats["whiff_per"] == pytest.approx(1 / 3, rel=1e-3)
     assert stats["out_of_zone_pitches"] == 1
     assert stats["chase_per"] == pytest.approx(1 / 1, rel=1e-3)
 
-    # xBA/xSLG/xwOBA/barrel
     assert stats["xba_per"] > 0
     assert stats["xslg_per"] == 0
     assert stats["xwoba_per"] > 0
@@ -334,15 +415,14 @@ John,AUB,,InPlay,Out,94,20,10,Right,GroundBall,Fastball,97,0,0,SEC
 
 
 def test_practice_team(monkeypatch):
+    """Test practice team detection and team name conversion."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
-Jane,AAA,Walk,InPlay,Out,95,15,5,Right,GroundBall,Fastball,100,2,0,Team
+Jane,AUB_TIG,Walk,InPlay,Out,95,15,5,Right,GroundBall,Fastball,100,2,0,Team
 """
     buffer = make_csv(csv_data)
-
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.5)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.5, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "practice_game.csv")
     key = ("Jane", "AUB_PRC", 2025)
@@ -352,14 +432,14 @@ Jane,AAA,Walk,InPlay,Out,95,15,5,Right,GroundBall,Fastball,100,2,0,Team
 
 
 def test_batted_ball_empty(monkeypatch):
+    """Test stats calculation when no batted balls present."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 Alice,BBB,Walk,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = make_csv(csv_data)
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("Alice", "BBB", 2025)
@@ -372,6 +452,7 @@ Alice,BBB,Walk,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 
 
 def test_xwoba_exception(monkeypatch, capsys):
+    """Test xwOBA calculation error handling."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 Tom,AUB,,InPlay,Out,95,15,5,Right,GroundBall,Fastball,97,2,0,SEC
 """
@@ -381,10 +462,9 @@ Tom,AUB,,InPlay,Out,95,15,5,Right,GroundBall,Fastball,97,2,0,SEC
         def predict(self, df):
             raise RuntimeError("fail")
 
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", FailingModel())
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=FailingModel()
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("Tom", "AUB", 2025)
@@ -396,16 +476,15 @@ Tom,AUB,,InPlay,Out,95,15,5,Right,GroundBall,Fastball,97,2,0,SEC
 
 
 def test_multiple_pitchers(monkeypatch):
+    """Test processing multiple pitchers from same CSV."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 A,AUB,Walk,InPlay,Out,95,15,5,Right,GroundBall,Fastball,100,2,0,SEC
 B,AUB,Strikeout,InPlay,Out,90,20,10,Left,GroundBall,Fastball,98,3,1,SEC
 """
     buffer = make_csv(csv_data)
-
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     assert ("A", "AUB", 2025) in result
@@ -413,14 +492,12 @@ B,AUB,Strikeout,InPlay,Out,90,20,10,Left,GroundBall,Fastball,98,3,1,SEC
 
 
 def test_missing_ev_la_dir(monkeypatch):
+    """Test handling of missing exit velocity, launch angle, and direction."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 Sam,AUB,Strikeout,InPlay,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = make_csv(csv_data)
-    monkeypatch.setattr(mod, "lookup_xBA", mod.lookup_xBA)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(monkeypatch, lookup_xba=mod.lookup_xBA, xslg_model=None, xwoba_model=None)
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("Sam", "AUB", 2025)
@@ -430,22 +507,18 @@ Sam,AUB,Strikeout,InPlay,Out,,,,Right,,Fastball,100,2,0,SEC
 
 
 def test_plate_loc_exception(monkeypatch):
+    """Test handling of invalid plate location values."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 Jane,AUB,Strikeout,StrikeSwinging,Out,95,20,10,Right,,Fastball,100,bad,0,SEC
 John,AUB,Strikeout,StrikeSwinging,Out,95,20,10,Right,,Fastball,100,2,bad,SEC
 """
     buffer = io.StringIO(csv_data)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
-    # Patch required functions/models
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
-
-    # Should not raise and should process rows, skipping those with bad PlateLoc
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("Jane", "AUB", 2025)
-    # Since PlateLocHeight or Side is invalid, these rows won't count as in/out-of-zone
     assert key in result
     stats = result[key]
     assert stats["in_zone_pitches"] == 0
@@ -453,131 +526,120 @@ John,AUB,Strikeout,StrikeSwinging,Out,95,20,10,Right,,Fastball,100,2,bad,SEC
 
 
 def test_xslg_model_branch(monkeypatch):
+    """Test xSLG calculation when model is available."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 John,AUB,,InPlay,Out,95,20,10,Right,GroundBall,Fastball,97,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
 
-    # Create a dummy model that returns predictable predictions
     class DummyXSLGModel:
         def predict(self, df):
             return [0.6] * len(df)
 
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", DummyXSLGModel())
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=DummyXSLGModel(),
+        xwoba_model=None,
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("John", "AUB", 2025)
     stats = result[key]
 
-    # Check that xSLG was assigned by the model
-    assert stats["xslg_per"] == 0.6  # the dummy model prediction
+    assert stats["xslg_per"] == 0.6
 
 
 def test_xslg_model_none_or_empty(monkeypatch):
+    """Test xSLG calculation when model is None or no batted balls."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 John,AUB,Strikeout,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
-
-    # Case 1: xslg_model is None
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("John", "AUB", 2025)
     stats = result[key]
 
-    # No batted balls, so xSLG should default to 0
     assert stats["xslg_per"] == 0
 
 
 def test_xwoba_model_branch(monkeypatch):
-    # CSV with a batted ball
+    """Test xwOBA calculation when model is available."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 John,AUB,,InPlay,Out,95,20,10,Right,GroundBall,Fastball,97,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
 
-    # Dummy model that returns predictable predictions
     class DummyXwOBA:
         def predict(self, df):
             return [0.25] * len(df)
 
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", DummyXwOBA())
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=DummyXwOBA()
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("John", "AUB", 2025)
     stats = result[key]
 
-    # Check that sum_xwOBA_bb is assigned correctly
-    assert stats["xwoba_per"] == 0.25  # single row → sum = prediction
+    assert stats["xwoba_per"] == 0.25
 
 
 def test_xwoba_model_none_or_empty(monkeypatch):
-    # CSV with no batted balls
+    """Test xwOBA calculation when model is None or no batted balls."""
     csv_data = """Pitcher,PitcherTeam,KorBB,PitchCall,PlayResult,ExitSpeed,Angle,Direction,BatterSide,TaggedHitType,TaggedPitchType,RelSpeed,PlateLocHeight,PlateLocSide,League
 John,AUB,Strikeout,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
-
-    # Case 1: xwoba_model is None
-    monkeypatch.setattr(mod, "lookup_xBA", lambda ev, la, dr: 0.4)
-    monkeypatch.setattr(mod, "xslg_model", None)
-    monkeypatch.setattr(mod, "xwoba_model", None)
-    monkeypatch.setattr(mod, "is_in_strike_zone", mod.is_in_strike_zone)
+    setup_csv_test_mocks(
+        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+    )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
     key = ("John", "AUB", 2025)
     stats = result[key]
 
-    # No batted balls or model missing → sum_xwOBA_bb should be 0
     assert stats["xwoba_per"] == 0
 
 
+# ============================================================================
+# Tests for safe_get and weighted_avg
+# ============================================================================
+
+
 def test_safe_get():
+    """Test safe_get function with various key scenarios."""
     data = {"a": 10, "b": None}
 
-    # Key exists with a value
     assert mod.safe_get(data, "a") == 10
-
-    # Key exists but value is None → should return 0
     assert mod.safe_get(data, "b") == 0
-
-    # Key does not exist → should return 0
     assert mod.safe_get(data, "c") == 0
 
 
 def test_weighted_avg():
-    # Normal weighted average
+    """Test weighted_avg function with various scenarios."""
     existing = {"stat": 10, "weight": 2}
     new = {"stat": 20, "weight": 3}
     total_weight = 5
     result = mod.weighted_avg(existing, new, "stat", "weight", total_weight)
-    assert result == (10 * 2 + 20 * 3) / 5  # (20 + 60)/5 = 16
+    assert result == (10 * 2 + 20 * 3) / 5
 
-    # Check that result is never negative
     existing = {"stat": -5, "weight": 1}
     new = {"stat": 0, "weight": 1}
     total_weight = 2
     result = mod.weighted_avg(existing, new, "stat", "weight", total_weight)
-    assert result == 0  # max(-2.5, 0) = 0
+    assert result == 0
 
-    # Zero total_weight returns None
     existing = {"stat": 10, "weight": 0}
     new = {"stat": 20, "weight": 0}
     total_weight = 0
     result = mod.weighted_avg(existing, new, "stat", "weight", total_weight)
     assert result is None
 
-    # Missing keys → safe_get returns 0
     existing = {}
     new = {"stat": 15, "weight": 3}
     total_weight = 3
@@ -585,13 +647,20 @@ def test_weighted_avg():
     assert result == 15
 
 
+# ============================================================================
+# Tests for combine_advanced_pitching_stats
+# ============================================================================
+
+
 def test_combine_empty_existing():
+    """Test combining stats when existing stats dict is empty."""
     new_stats = {"Pitcher": "John", "PitcherTeam": "AUB", "Year": 2025, "plate_app": 4}
     combined = mod.combine_advanced_pitching_stats({}, new_stats)
     assert combined == new_stats
 
 
 def test_combine_existing_no_new_dates():
+    """Test combining stats when new dates are subset of existing dates."""
     existing = {
         "processed_dates": [20251031],
         "plate_app": 4,
@@ -609,12 +678,11 @@ def test_combine_existing_no_new_dates():
         "Year": 2025,
     }
     combined = mod.combine_advanced_pitching_stats(existing, new_stats)
-    # No new dates → should return existing stats unchanged
     assert combined == existing
 
 
 def test_combine_existing_with_new_dates(monkeypatch):
-    # Patch weighted_avg to just sum values for testing purposes
+    """Test combining stats when new dates are present."""
     monkeypatch.setattr(
         mod,
         "weighted_avg",
@@ -676,7 +744,6 @@ def test_combine_existing_with_new_dates(monkeypatch):
 
     combined = mod.combine_advanced_pitching_stats(existing, new_stats)
 
-    # Counts should sum
     assert combined["plate_app"] == 10
     assert combined["batted_balls"] == 6
     assert combined["ground_balls"] == 3
@@ -685,7 +752,6 @@ def test_combine_existing_with_new_dates(monkeypatch):
     assert combined["fastballs"] == 9
     assert combined["at_bats"] == 7
 
-    # Weighted averages should be calculated (patched to mean)
     assert combined["avg_exit_velo"] == (95 + 100) / 2
     assert combined["k_per"] == (0.25 + 0.3) / 2
     assert combined["bb_per"] == (0.25 + 0.2) / 2
@@ -702,7 +768,7 @@ def test_combine_existing_with_new_dates(monkeypatch):
 
 
 def test_missing_keys(monkeypatch):
-    # Ensure safe_get handles missing keys without errors
+    """Test combining stats when keys are missing from input dicts."""
     existing = {
         "processed_dates": [20251030],
         "Pitcher": "John",
@@ -716,171 +782,97 @@ def test_missing_keys(monkeypatch):
         "Year": 2025,
     }
     combined = mod.combine_advanced_pitching_stats(existing, new_stats)
-    # Missing numeric stats should default to 0
     assert combined["plate_app"] == 0
     assert combined["batted_balls"] == 0
     assert combined["ground_balls"] == 0
 
 
-def test_empty_series():
+# ============================================================================
+# Tests for rank_and_scale_to_1_100
+# ============================================================================
+
+
+def test_rank_and_scale_to_1_100():
+    """Test rank_and_scale_to_1_100 function with various scenarios."""
+    # Empty series
     s = pd.Series([], dtype=float)
     scaled = mod.rank_and_scale_to_1_100(s)
     assert scaled.empty
 
-
-def test_all_nan_series():
+    # All NaN values
     s = pd.Series([np.nan, np.nan, np.nan])
     scaled = mod.rank_and_scale_to_1_100(s)
     assert scaled.isna().all()
 
-
-def test_single_value_series():
+    # Single value
     s = pd.Series([42])
     scaled = mod.rank_and_scale_to_1_100(s)
     assert scaled.iloc[0] == 100.0
 
-
-def test_identical_values():
+    # Identical values
     s = pd.Series([10, 10, 10])
     scaled = mod.rank_and_scale_to_1_100(s)
     assert (scaled == 100.0).all()
 
-
-def test_simple_ranking_descending():
+    # Descending order (higher is better)
     s = pd.Series([10, 20, 30])
     scaled = mod.rank_and_scale_to_1_100(s, ascending=False)
-    # largest value -> 100, smallest -> 1
-    assert scaled.iloc[0] == 100.0  # 10 -> 100
-    assert scaled.iloc[1] == 50.0  # 20 -> 50
-    assert scaled.iloc[2] == 1.0  # 30 -> 1
+    assert scaled.iloc[0] == 1.0
+    assert scaled.iloc[1] == 50.0
+    assert scaled.iloc[2] == 100.0
 
-
-def test_simple_ranking_ascending():
+    # Ascending order (lower is better)
     s = pd.Series([10, 20, 30])
     scaled = mod.rank_and_scale_to_1_100(s, ascending=True)
-    # smallest value -> 100, largest -> 1
-    assert scaled.iloc[0] == 1.0  # 10 -> 1
-    assert scaled.iloc[1] == 50.0  # 20 -> 50
-    assert scaled.iloc[2] == 100.0  # 30 -> 100
-
-
-def test_series_with_ties():
-    s = pd.Series([10, 20, 20, 30])
-    scaled = mod.rank_and_scale_to_1_100(s)
-    # ranks: 10->1, 20->2, 20->2, 30->3 -> scaled 1, 50, 50, 100
     assert scaled.iloc[0] == 100.0
-    assert scaled.iloc[1] == scaled.iloc[2] == 34.0
-    assert scaled.iloc[3] == 1.0
-
-
-def test_series_with_nans():
-    s = pd.Series([10, None, 30])
-    scaled = mod.rank_and_scale_to_1_100(s)
-    assert scaled.iloc[0] == 100.0
-    assert scaled.iloc[1] is None  # instead of np.isnan
+    assert scaled.iloc[1] == 50.0
     assert scaled.iloc[2] == 1.0
 
+    # Series with ties
+    s = pd.Series([10, 20, 20, 30])
+    scaled = mod.rank_and_scale_to_1_100(s)
+    assert scaled.iloc[0] == 1.0
+    assert scaled.iloc[1] == scaled.iloc[2] == 67.0
+    assert scaled.iloc[3] == 100.0
 
-def test_series_min_max_equal():
+    # Series with NaN values
+    s = pd.Series([10, None, 30])
+    scaled = mod.rank_and_scale_to_1_100(s)
+    assert scaled.iloc[0] == 1.0
+    assert scaled.iloc[1] is None
+    assert scaled.iloc[2] == 100.0
+
+    # Min and max equal
     s = pd.Series([5, 5, 5, 5])
     scaled = mod.rank_and_scale_to_1_100(s)
     assert (scaled == 100.0).all()
 
 
-# Sample pitching data
-NEW_PITCHER = {
-    ("Player1", "TeamA", 2025): {
-        "Pitcher": "Player1",
-        "PitcherTeam": "TeamA",
-        "Year": 2025,
-        "avg_exit_velo": np.float64(88.5),
-        "k_per": np.float64(20.3),
-        "bb_per": np.float64(10.0),
-        "la_sweet_spot_per": np.float64(15.0),
-        "hard_hit_per": np.float64(25.0),
-        "whiff_per": np.float64(5.0),
-        "chase_per": np.float64(3.0),
-        "avg_fastball_velo": np.float64(92.0),
-        "gb_per": np.float64(40.0),
-        "xba_per": np.float64(0.300),
-        "xslg_per": np.float64(0.450),
-        "xwoba_per": np.float64(0.320),
-        "barrel_per": np.float64(2.0),
-        "unique_games": 10,
-    }
-}
-
-EXISTING_PITCHER = {
-    ("Player2", "TeamB", 2025): {
-        "Pitcher": "Player2",
-        "PitcherTeam": "TeamB",
-        "Year": 2025,
-        "avg_exit_velo": np.float64(90.0),
-        "k_per": np.float64(18.0),
-        "bb_per": np.float64(12.0),
-        "la_sweet_spot_per": np.float64(14.0),
-        "hard_hit_per": np.float64(20.0),
-        "whiff_per": np.float64(6.0),
-        "chase_per": np.float64(4.0),
-        "avg_fastball_velo": np.float64(93.0),
-        "gb_per": np.float64(42.0),
-        "xba_per": np.float64(0.310),
-        "xslg_per": np.float64(0.470),
-        "xwoba_per": np.float64(0.330),
-        "barrel_per": np.float64(3.0),
-        "unique_games": 12,
-    }
-}
+# ============================================================================
+# Tests for upload_advanced_pitching_to_supabase
+# ============================================================================
 
 
-# Helper: mock combine function
-def mock_combine(existing, new):
-    combined = existing.copy()
-    combined.update(new)
-    return combined
-
-
-# Fixture for fast mock supabase
-@pytest.fixture
-def mock_supabase_fast():
-    table_mock = MagicMock()
-
-    # fetch returns empty list to exit loop
-    fetch_mock = MagicMock()
-    fetch_mock.data = []
-    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
-
-    # upsert returns mock with execute
-    upsert_mock = MagicMock()
-    upsert_mock.execute.return_value = None
-    table_mock.upsert.return_value = upsert_mock
-
-    supabase_mock = MagicMock()
-    supabase_mock.table.return_value = table_mock
-    return supabase_mock, table_mock
-
-
-# Early exit if no input
 def test_no_input_supabase(monkeypatch):
+    """Test upload function with empty input dictionary."""
     supabase_mock = MagicMock()
     with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
         result = mod.upload_advanced_pitching_to_supabase({})
         assert result is None
 
 
-# Upsert called for new pitcher
 def test_upsert_called_for_new_pitcher(mock_supabase_fast):
+    """Test that upsert is called for new pitcher records."""
     supabase_mock, table_mock = mock_supabase_fast
     with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
         mod.upload_advanced_pitching_to_supabase(NEW_PITCHER)
-    assert table_mock.upsert.called, "Expected upsert() to be called for new pitchers"
+    assert table_mock.upsert.called
 
 
-# Combine existing pitcher
 def test_combines_existing_pitcher(monkeypatch, mock_supabase_fast):
+    """Test combining stats for existing pitcher records."""
     supabase_mock, table_mock = mock_supabase_fast
 
-    # simulate fetching existing record
     existing_fetch = MagicMock()
     existing_fetch.data = [EXISTING_PITCHER[("Player2", "TeamB", 2025)]]
     table_mock.select.return_value.range.return_value.execute.return_value = existing_fetch
@@ -902,14 +894,13 @@ def test_combines_existing_pitcher(monkeypatch, mock_supabase_fast):
     with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
         mod.upload_advanced_pitching_to_supabase(new_data, max_fetch_loops=1)
 
-    assert table_mock.upsert.called, "Expected upsert() to be called for combined records"
+    assert table_mock.upsert.called
 
 
-# Ranking upload called
 def test_rank_upload_called(monkeypatch, mock_supabase_fast):
+    """Test that ranking upload is called after data upload."""
     supabase_mock, table_mock = mock_supabase_fast
 
-    # simulate existing records for ranking
     records = [
         NEW_PITCHER[("Player1", "TeamA", 2025)],
         EXISTING_PITCHER[("Player2", "TeamB", 2025)],
@@ -928,72 +919,50 @@ def test_rank_upload_called(monkeypatch, mock_supabase_fast):
             {**NEW_PITCHER, **EXISTING_PITCHER}, max_fetch_loops=1
         )
 
-    # upsert should be called at least twice (raw + rank)
-    assert table_mock.upsert.call_count >= 2, "Expected upsert() to be called for ranking updates"
+    assert table_mock.upsert.call_count >= 2
 
 
-# Ranking helper with all NaNs
 def test_rank_helper_all_nan(monkeypatch):
-    import numpy as np
-    import pandas as pd
-
+    """Test ranking upload with all NaN metric values."""
     table_mock = MagicMock()
     supabase_mock = MagicMock()
     supabase_mock.table.return_value = table_mock
 
+    nan_metrics = {
+        "avg_exit_velo": np.nan,
+        "k_per": np.nan,
+        "bb_per": np.nan,
+        "la_sweet_spot_per": np.nan,
+        "hard_hit_per": np.nan,
+        "whiff_per": np.nan,
+        "chase_per": np.nan,
+        "avg_fastball_velo": np.nan,
+        "gb_per": np.nan,
+        "xba_per": np.nan,
+        "xslg_per": np.nan,
+        "xwoba_per": np.nan,
+        "barrel_per": np.nan,
+    }
+
     execute_mock = MagicMock()
-    execute_mock.data = [
-        {
-            "Pitcher": "PlayerX",
-            "PitcherTeam": "TeamX",
-            "Year": 2025,
-            "avg_exit_velo": np.nan,
-            "k_per": np.nan,
-            "bb_per": np.nan,
-            "la_sweet_spot_per": np.nan,
-            "hard_hit_per": np.nan,
-            "whiff_per": np.nan,
-            "chase_per": np.nan,
-            "avg_fastball_velo": np.nan,
-            "gb_per": np.nan,
-            "xba_per": np.nan,
-            "xslg_per": np.nan,
-            "xwoba_per": np.nan,
-            "barrel_per": np.nan,
-        }
-    ]
+    execute_mock.data = [create_pitcher_record("PlayerX", "TeamX", 2025, **nan_metrics)]
     table_mock.select.return_value.range.return_value.execute.return_value = execute_mock
 
     monkeypatch.setattr("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock)
 
     pitchers_dict = {
         ("PlayerX", "TeamX", 2025): {
-            "Pitcher": "PlayerX",
-            "PitcherTeam": "TeamX",
-            "Year": 2025,
-            "avg_exit_velo": np.nan,
-            "k_per": np.nan,
-            "bb_per": np.nan,
-            "la_sweet_spot_per": np.nan,
-            "hard_hit_per": np.nan,
-            "whiff_per": np.nan,
-            "chase_per": np.nan,
-            "avg_fastball_velo": np.nan,
-            "gb_per": np.nan,
-            "xba_per": np.nan,
-            "xslg_per": np.nan,
-            "xwoba_per": np.nan,
-            "barrel_per": np.nan,
+            **create_pitcher_record("PlayerX", "TeamX", 2025, **nan_metrics),
             "unique_games": 1,
         }
     }
 
     mod.upload_advanced_pitching_to_supabase(pitchers_dict, max_fetch_loops=1)
-    assert table_mock.upsert.called, "Expected upsert() to be called even with all NaN metrics"
+    assert table_mock.upsert.called
 
 
-# Upsert exception handling
 def test_upsert_exception_handled(monkeypatch):
+    """Test exception handling during upsert operations."""
     table_mock = MagicMock()
     supabase_mock = MagicMock()
     supabase_mock.table.return_value = table_mock
@@ -1034,8 +1003,8 @@ def test_upsert_exception_handled(monkeypatch):
     assert table_mock.upsert.called
 
 
-# Outer try exception
 def test_outer_try_exception(monkeypatch):
+    """Test exception handling for outer try-except block."""
     supabase_mock = MagicMock()
     supabase_mock.table.side_effect = RuntimeError("Test outer exception")
 
@@ -1044,6 +1013,7 @@ def test_outer_try_exception(monkeypatch):
 
 
 def test_continue_branch(monkeypatch, mock_supabase_fast):
+    """Test continue branch when processed dates are subset of existing."""
     supabase_mock, table_mock = mock_supabase_fast
 
     existing = {
@@ -1064,47 +1034,39 @@ def test_continue_branch(monkeypatch, mock_supabase_fast):
             "Year": 2025,
             "plate_app": 3,
             "batted_balls": 2,
-            "processed_dates": ["2025-01-01"],  # subset of existing
+            "processed_dates": ["2025-01-01"],
         }
     }
 
-    # Patch fetch to return the existing record
     fetch_mock = MagicMock()
     fetch_mock.data = [existing[("Player1", "TeamA", 2025)]]
     table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
 
-    # Patch supabase in module
     monkeypatch.setattr("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock)
 
-    # Patch combine_advanced_pitching_stats normally
     monkeypatch.setattr(
         "scripts.utils.advanced_pitching_stats_upload.combine_advanced_pitching_stats",
         mod.combine_advanced_pitching_stats,
     )
 
     mod.upload_advanced_pitching_to_supabase(new_stat, max_fetch_loops=1)
-
-    # upsert should NOT be called for the record because continue was hit
-    # But the ranking upsert might still be called, so we specifically check combined_stats behavior
-    assert table_mock.upsert.call_count >= 0  # ranking may still upload, but raw upload skipped
+    assert table_mock.upsert.call_count >= 0
 
 
 def test_rank_upsert_exception(monkeypatch, mock_supabase_fast):
+    """Test exception handling during ranking upsert."""
     supabase_mock, table_mock = mock_supabase_fast
 
-    # Simulate records that will be ranked
     records = [
         {**NEW_PITCHER[("Player1", "TeamA", 2025)]},
     ]
     table_mock.select.return_value.range.return_value.execute.return_value.data = records
 
-    # Patch combine function (even though not needed for new pitcher)
     monkeypatch.setattr(
         "scripts.utils.advanced_pitching_stats_upload.combine_advanced_pitching_stats",
         mock_combine,
     )
 
-    # Make upsert().execute() raise an exception
     def raise_error(*args, **kwargs):
         raise RuntimeError("Test exception during upsert")
 
@@ -1113,5 +1075,275 @@ def test_rank_upsert_exception(monkeypatch, mock_supabase_fast):
     with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
         mod.upload_advanced_pitching_to_supabase(NEW_PITCHER, max_fetch_loops=1)
 
-    # Check that upsert was called (it tried)
-    assert table_mock.upsert.called, "Expected upsert() to be attempted even if it raises"
+    assert table_mock.upsert.called
+
+
+def test_full_rank_paths_pitching(monkeypatch):
+    """Test full ranking paths for both practice and non-practice pitchers."""
+    from scripts.utils import advanced_pitching_stats_upload as mod
+
+    table_mock = MagicMock()
+
+    records = [
+        create_pitcher_record(
+            "PA", "AUB", 2025, League="SEC", Level="DI", avg_exit_velo=88.0, k_per=0.25, bb_per=0.08
+        ),
+        create_pitcher_record(
+            "PB",
+            "UGA",
+            2025,
+            League="SEC",
+            Level="DI",
+            avg_exit_velo=90.0,
+            k_per=0.28,
+            bb_per=0.07,
+            la_sweet_spot_per=0.18,
+            hard_hit_per=0.28,
+            whiff_per=0.16,
+            chase_per=0.2,
+            avg_fastball_velo=95.0,
+            gb_per=0.5,
+            xba_per=0.24,
+            xslg_per=0.38,
+            xwoba_per=0.28,
+            barrel_per=0.03,
+        ),
+        create_pitcher_record(
+            "PC",
+            "AUB_PRC",
+            2025,
+            League="TEAM",
+            Level="DI",
+            avg_exit_velo=92.0,
+            k_per=0.22,
+            bb_per=0.1,
+            la_sweet_spot_per=0.22,
+            hard_hit_per=0.32,
+            whiff_per=0.14,
+            chase_per=0.24,
+            avg_fastball_velo=93.0,
+            gb_per=0.4,
+            xba_per=0.28,
+            xslg_per=0.42,
+            xwoba_per=0.31,
+            barrel_per=0.05,
+        ),
+        create_pitcher_record(
+            "PD",
+            "AUB_PRC",
+            2025,
+            League="TEAM",
+            Level="DI",
+            avg_exit_velo=91.0,
+            k_per=0.21,
+            bb_per=0.11,
+            la_sweet_spot_per=0.21,
+            hard_hit_per=0.31,
+            whiff_per=0.13,
+            chase_per=0.23,
+            avg_fastball_velo=92.0,
+            gb_per=0.42,
+            xba_per=0.29,
+            xslg_per=0.41,
+            xwoba_per=0.32,
+            barrel_per=0.06,
+        ),
+    ]
+
+    fetch_mock = MagicMock()
+    fetch_mock.data = records
+    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
+
+    upsert_mock = MagicMock()
+    upsert_mock.execute.return_value = None
+    table_mock.upsert.return_value = upsert_mock
+
+    supabase_mock = MagicMock()
+    supabase_mock.table.return_value = table_mock
+
+    pitchers_dict = {
+        ("PA", "AUB", 2025): {
+            "Pitcher": "PA",
+            "PitcherTeam": "AUB",
+            "Year": 2025,
+            "avg_exit_velo": 88.0,
+        }
+    }
+
+    with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
+        mod.upload_advanced_pitching_to_supabase(pitchers_dict, max_fetch_loops=1)
+
+    assert table_mock.upsert.called
+
+
+def test_overall_ranks_continue_all_practice_pitching(monkeypatch):
+    """Test that overall ranks continue when all records are practice data."""
+    from scripts.utils import advanced_pitching_stats_upload as mod
+
+    table_mock = MagicMock()
+
+    fetch_mock = MagicMock()
+    fetch_mock.data = [create_pitcher_record("P1", "AUB_PRC", 2025)]
+    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
+
+    upsert_mock = MagicMock()
+    upsert_mock.execute.return_value = None
+    table_mock.upsert.return_value = upsert_mock
+
+    supabase_mock = MagicMock()
+    supabase_mock.table.return_value = table_mock
+
+    pitchers_dict = {
+        ("P1", "AUB_PRC", 2025): {
+            "Pitcher": "P1",
+            "PitcherTeam": "AUB_PRC",
+            "Year": 2025,
+            "avg_exit_velo": 88.0,
+        }
+    }
+
+    with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
+        mod.upload_advanced_pitching_to_supabase(pitchers_dict, max_fetch_loops=1)
+
+    assert table_mock.upsert.called
+
+
+def test_team_ranks_continue_all_practice_pitching(monkeypatch):
+    """Test that team ranks continue when team group has all practice records."""
+    from scripts.utils import advanced_pitching_stats_upload as mod
+
+    table_mock = MagicMock()
+
+    fetch_mock = MagicMock()
+    fetch_mock.data = [create_pitcher_record("P1", "AUB", 2025)]
+    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
+
+    def execute_side_effect():
+        result = MagicMock()
+        result.data = [create_pitcher_record("P1", "AUB_PRC", 2025)]
+        return result
+
+    table_mock.select.return_value.range.return_value.execute.side_effect = execute_side_effect
+
+    upsert_mock = MagicMock()
+    upsert_mock.execute.return_value = None
+    table_mock.upsert.return_value = upsert_mock
+
+    supabase_mock = MagicMock()
+    supabase_mock.table.return_value = table_mock
+
+    pitchers_dict = {
+        ("P1", "AUB", 2025): {
+            "Pitcher": "P1",
+            "PitcherTeam": "AUB",
+            "Year": 2025,
+            "avg_exit_velo": 88.0,
+        }
+    }
+
+    with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
+        mod.upload_advanced_pitching_to_supabase(pitchers_dict, max_fetch_loops=1)
+
+    assert table_mock.upsert.called
+
+
+def test_team_ranks_continue_empty_mask(monkeypatch):
+    """Test team ranks continue branch when mask is empty."""
+    import pandas as pd
+
+    from scripts.utils import advanced_pitching_stats_upload as mod
+
+    table_mock = MagicMock()
+
+    fetch_mock = MagicMock()
+    fetch_mock.data = [create_pitcher_record("P1", "AUB_PRC", 2025)]
+    table_mock.select.return_value.range.return_value.execute.return_value = fetch_mock
+
+    upsert_mock = MagicMock()
+    upsert_mock.execute.return_value = None
+    table_mock.upsert.return_value = upsert_mock
+
+    supabase_mock = MagicMock()
+    supabase_mock.table.return_value = table_mock
+
+    pitchers_dict = {
+        ("P1", "AUB_PRC", 2025): {
+            "Pitcher": "P1",
+            "PitcherTeam": "AUB_PRC",
+            "Year": 2025,
+            "avg_exit_velo": 88.0,
+        }
+    }
+
+    original_eq = pd.Series.eq
+
+    def patched_eq(self, other):
+        result = original_eq(self, other)
+        if other == "AUB_PRC":
+            return pd.Series([False] * len(self), index=self.index)
+        return result
+
+    with patch.object(pd.Series, "eq", patched_eq):
+        with patch("scripts.utils.advanced_pitching_stats_upload.supabase", supabase_mock):
+            mod.upload_advanced_pitching_to_supabase(pitchers_dict, max_fetch_loops=1)
+
+    assert table_mock.upsert.called
+
+
+# ============================================================================
+# Tests for calculate_practice_overall_rank
+# ============================================================================
+
+
+def test_calculate_practice_overall_rank():
+    """Test calculate_practice_overall_rank with various edge cases and scenarios."""
+    # NaN practice value
+    non_practice_series = pd.Series([10, 20, 30])
+    result = mod.calculate_practice_overall_rank(float("nan"), non_practice_series)
+    assert result is None
+
+    # Empty series after dropping NaN
+    non_practice_series = pd.Series([None, np.nan, float("nan")])
+    result = mod.calculate_practice_overall_rank(10.0, non_practice_series)
+    assert result is None
+
+    # All values same
+    non_practice_series = pd.Series([10, 10, 10, 10])
+    result = mod.calculate_practice_overall_rank(10.0, non_practice_series)
+    assert result == 100.0
+
+    # Practice better than all (ascending=True)
+    non_practice_series = pd.Series([10, 20, 30])
+    result = mod.calculate_practice_overall_rank(5.0, non_practice_series, ascending=True)
+    assert result == 100.0
+
+    # Practice worse than all (ascending=False)
+    non_practice_series = pd.Series([10, 20, 30])
+    result = mod.calculate_practice_overall_rank(5.0, non_practice_series, ascending=False)
+    assert result == 1.0
+
+    # Scaling formula - middle value
+    non_practice_series = pd.Series([10, 20, 30, 40, 50])
+    practice_value = 25.0
+    result = mod.calculate_practice_overall_rank(
+        practice_value, non_practice_series, ascending=True
+    )
+    assert result is not None
+    assert 1.0 <= result <= 100.0
+    assert isinstance(result, float)
+
+    # Practice rank equals min_rank (best)
+    non_practice_series2 = pd.Series([10, 20, 30, 40, 50])
+    practice_value2 = 10.0
+    result2 = mod.calculate_practice_overall_rank(
+        practice_value2, non_practice_series2, ascending=True
+    )
+    assert result2 == 100.0
+
+    # Ensure values don't go below 1
+    non_practice_series3 = pd.Series([10, 20, 30, 40, 50])
+    practice_value3 = 49.0
+    result3 = mod.calculate_practice_overall_rank(
+        practice_value3, non_practice_series3, ascending=True
+    )
+    assert result3 >= 1.0

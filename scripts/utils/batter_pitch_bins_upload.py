@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from supabase import Client, create_client
 
-from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_supabase_vars
+from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_practice, check_supabase_vars
 from .file_date import CSVFilenameParser
 
 # ---------------------------------------------------------------------------
@@ -145,6 +145,9 @@ def empty_row(team: str, game_date, batter: str, zone_meta: Dict[str, object]) -
 def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str, float]]:
     df = pd.read_csv(buffer)
 
+    # Determines if this is practice data by checking the League column
+    is_practice = check_practice(df)
+
     # Get date from filename
     date_parser = CSVFilenameParser()
     game_date = str(date_parser.get_date_object(filename))
@@ -175,7 +178,12 @@ def get_batter_bins_from_buffer(buffer, filename: str) -> Dict[BinKey, Dict[str,
             continue
 
         zone_meta = classify_zone(x, y)
-        team = str(row["BatterTeam"]).strip()
+        # Convert different aub practice team to be consistent
+        batter_team = str(row["BatterTeam"]).strip()
+        if is_practice and batter_team == "AUB_PRC":
+            team = "AUB_TIG"
+        else:
+            team = batter_team
         batter = str(row["Batter"]).strip()
         if not team or not batter:
             continue

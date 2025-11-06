@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+<<<<<<< HEAD
 import { useParams } from 'react-router';
 import {
   Box,
@@ -10,6 +11,10 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+=======
+import { useParams, useLocation } from 'react-router';
+import { Box, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material';
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
 
 import StatBar from '@/components/player/StatBar';
 import InfieldSprayChart from '@/components/player/Charts/InfieldSprayChart';
@@ -27,6 +32,8 @@ type PercentilesTabProps = {
 type BattingStatKey = keyof AdvancedBattingStatsTable;
 type PitchingStatKey = keyof AdvancedPitchingStatsTable;
 
+type RankType = 'Overall' | 'Team';
+
 interface StatConfig<T extends string> {
   key: T;
   label: string;
@@ -38,7 +45,11 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     trackmanAbbreviation: string;
     playerName: string;
   }>();
+<<<<<<< HEAD
   const decodedTeam = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
+=======
+  const location = useLocation();
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
 
   const [battingRows, setBattingRows] = useState<AdvancedBattingStatsTable[]>([]);
   const [pitchingRows, setPitchingRows] = useState<AdvancedPitchingStatsTable[]>([]);
@@ -46,8 +57,14 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rankType, setRankType] = useState<RankType>('Overall');
 
+<<<<<<< HEAD
   const seasonLabel = selectedSeason ? String(selectedSeason) : formatYearRange(dateRange);
+=======
+  const seasonLabel = formatYearRange(dateRange);
+  const practice = new URLSearchParams(location.search).get('practice') === 'true';
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
 
   useEffect(() => {
     async function fetchStats() {
@@ -58,6 +75,11 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
       try {
         const formattedPlayerName = decodeURIComponent(playerName).replace('_', ', ');
         const decodedTeamName = decodeURIComponent(trackmanAbbreviation);
+        const isAuburn = decodedTeamName === 'AUB_TIG';
+        
+        // Determine which team to fetch from
+        // If practice is enabled and it's Auburn, use AUB_PRC for practice data
+        const teamToFetch = practice && isAuburn ? 'AUB_PRC' : decodedTeamName;
 
         // Load tracked seasons from Supabase (same source as SeasonDateRangeSelect)
         const seasonsResp = await fetchSeasonDateRanges();
@@ -80,16 +102,39 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
             : { startDate: dateRange.startDate, endDate: dateRange.endDate };
 
         const [battingResponse, pitchingResponse] = await Promise.all([
+<<<<<<< HEAD
           fetchAdvancedBattingStats(formattedPlayerName, decodedTeamName, fullRange),
           fetchAdvancedPitchingStats(formattedPlayerName, decodedTeamName, fullRange),
+=======
+          fetchAdvancedBattingStats(formattedPlayerName, teamToFetch, dateRange),
+          fetchAdvancedPitchingStats(formattedPlayerName, teamToFetch, dateRange),
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
         ]);
 
+        // Get practice data if available, otherwise null
+        const battingData =
+          battingResponse.data?.find((entry) => entry.Batter === formattedPlayerName) ?? null;
+        const pitchingData =
+          pitchingResponse.data?.find((entry) => entry.Pitcher === formattedPlayerName) ?? null;
+
+        // If practice mode is on but no practice data found, handle gracefully
+        // (no error, just show no data)
+        if (practice && isAuburn && !battingData && !pitchingData) {
+          // No practice data available - set to null and continue (no error)
+          setBattingStats(null);
+          setPitchingStats(null);
+          setLoading(false);
+          return;
+        }
+
+        // Only show error if both responses failed (not just missing data)
         if (battingResponse.error && pitchingResponse.error) {
           setError(`Failed to load stats for ${formattedPlayerName}`);
           setLoading(false);
           return;
         }
 
+<<<<<<< HEAD
         const battingData = battingResponse.data ?? [];
         const pitchingData = pitchingResponse.data ?? [];
 
@@ -109,6 +154,10 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         const inRange = seasonList.filter((y) => y >= startYear && y <= endYear);
         const defaultYear = (inRange.length > 0 ? inRange : seasonList).at(-1) ?? null;
         setSelectedSeason(defaultYear);
+=======
+        setBattingStats(battingData);
+        setPitchingStats(pitchingData);
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
       } catch (err: unknown) {
         console.error('Error fetching stats:', err);
         setError('Failed to load player stats');
@@ -118,6 +167,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     }
 
     fetchStats();
+<<<<<<< HEAD
   }, [dateRange, trackmanAbbreviation, playerName]);
 
   const battingStats: AdvancedBattingStatsTable | null =
@@ -125,6 +175,9 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
 
   const pitchingStats: AdvancedPitchingStatsTable | null =
     selectedSeason != null ? (pitchingRows.find((r) => r.Year === selectedSeason) ?? null) : null;
+=======
+  }, [dateRange, trackmanAbbreviation, playerName, seasonLabel, practice]);
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
 
   const getRankColor = (rank: number): string => {
     const r = Math.max(0, Math.min(rank, 100));
@@ -155,7 +208,24 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     );
   }
 
+<<<<<<< HEAD
   // Do not early-return on no data; we still show the info + season selector.
+=======
+  if (!battingStats && !pitchingStats) {
+    if (practice) {
+      return (
+        <Typography variant="body1" sx={{ textAlign: 'center', py: '4rem' }}>
+          No practice stats available for this player.
+        </Typography>
+      );
+    }
+    return (
+      <Typography variant="body1" sx={{ textAlign: 'center', py: '4rem' }}>
+        No stats available for this player.
+      </Typography>
+    );
+  }
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
 
   // ---- CONFIGS ----
   const battingConfigs: StatConfig<BattingStatKey>[] = [
@@ -211,7 +281,12 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           const value = stats[config.key];
           if (value === undefined) return null;
 
+<<<<<<< HEAD
           const rankKey = `${config.key}_rank` as keyof StatsType;
+=======
+          const rankSuffix = rankType === 'Team' ? '_rank_team' : '_rank';
+          const rankKey = `${config.key}${rankSuffix}` as T;
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
           const rankValue = stats[rankKey];
           const rank = typeof rankValue === 'number' ? Math.round(rankValue) : 50;
 
@@ -270,6 +345,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         margin: '40px auto',
       }}
     >
+<<<<<<< HEAD
       {/* Info and Season Selector */}
       <Box sx={{ width: '100%', maxWidth: 800, mb: 2 }}>
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -308,6 +384,26 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
           No percentile data available for the selected season.
         </Typography>
       )}
+=======
+      {/* Rank Type Toggle */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3, width: '100%' }}>
+        <ToggleButtonGroup
+          value={rankType}
+          exclusive
+          onChange={(_event, next: RankType | null) => next && setRankType(next)}
+          size="small"
+          sx={{ display: 'flex', width: '100%', maxWidth: 300 }}
+        >
+          <ToggleButton value="Overall" sx={{ flex: 1 }}>
+            Overall
+          </ToggleButton>
+          <ToggleButton value="Team" sx={{ flex: 1 }}>
+            Team
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+>>>>>>> 32a1466 (Squashed: Updated Percentile Rankings)
       {/* Batting Stats + Chart */}
       {battingStats && (
         <Box sx={{ width: '100%', mb: 8 }}>
@@ -322,11 +418,17 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
       )}
 
       {/* Pitching Stats (stacked below, no spray chart) */}
-      {pitchingStats && (
+      {pitchingStats ? (
         <Box sx={{ width: '100%', mb: 6 }}>
           {renderStatBars(pitchingStats, pitchingConfigs, 'Pitching Stats')}
         </Box>
-      )}
+      ) : practice ? (
+        <Box sx={{ width: '100%', mb: 6, textAlign: 'center' }}>
+          <Typography variant="body1" sx={{ py: '2rem' }}>
+            No practice pitching stats available for this player.
+          </Typography>
+        </Box>
+      ) : null}
     </Box>
   );
 }
