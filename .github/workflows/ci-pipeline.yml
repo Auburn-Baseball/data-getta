@@ -61,7 +61,7 @@ jobs:
 
       - name: Format Python code
         working-directory: scripts
-        run: make format
+        run: make format-check
 
       - name: Python lint check
         working-directory: scripts
@@ -77,7 +77,7 @@ jobs:
 
       - name: Format frontend code
         working-directory: ui
-        run: npm run format
+        run: npm run format:check
 
       - name: Frontend lint check
         working-directory: ui

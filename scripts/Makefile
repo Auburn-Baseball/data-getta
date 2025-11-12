@@ -50,15 +50,15 @@ coverage:
 # Formatting
 format:
 	@echo "Sorting imports..."
-	$(ISORT) utils/ tests/ *.py
+	$(ISORT) utils/ tests/ QA/ *.py
 	@echo "Formatting code..."
-	$(BLACK) utils/ tests/ *.py
+	$(BLACK) utils/ tests/ QA/ *.py
 	@echo "Formatting complete!"
 
 format-check:
 	@echo "Checking code formatting..."
-	$(BLACK) --check utils/ tests/ *.py
-	$(ISORT) --check-only utils/ tests/ *.py
+	$(BLACK) --check utils/ tests/ QA/ *.py
+	$(ISORT) --check-only utils/ tests/ QA/ *.py
 
 # Linting
 lint:

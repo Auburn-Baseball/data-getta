@@ -48,9 +48,7 @@ SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError(
-        "SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file"
-    )
+    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -162,9 +160,7 @@ def process_local_csv_file(file_path: Path):
         buffer.seek(0)
         try:
             print("  - Processing advanced batting stats...")
-            advanced_batting_stats = get_advanced_batting_stats_from_buffer(
-                buffer, filename
-            )
+            advanced_batting_stats = get_advanced_batting_stats_from_buffer(buffer, filename)
             all_stats["advanced_batting"].update(advanced_batting_stats)
             stats_summary["advanced_batting"] = len(advanced_batting_stats)
             print(f"    Found {len(advanced_batting_stats)} advanced batting records")
@@ -214,9 +210,7 @@ def upload_all_stats(all_stats):
             upload_players_to_supabase(all_stats["players"])
 
         if all_stats["advanced_batting"]:
-            print(
-                f"  - Uploading {len(all_stats['advanced_batting'])} advanced batting records..."
-            )
+            print(f"  - Uploading {len(all_stats['advanced_batting'])} advanced batting records...")
             upload_advanced_batting_to_supabase(all_stats["advanced_batting"])
 
     except Exception as e:
