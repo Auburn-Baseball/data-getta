@@ -121,7 +121,12 @@ def classify_13(x: float, y: float):
         row = max(1, min(SPLITS, row))
         cell = (row - 1) * SPLITS + col  # 1..9
         return dict(
-            InZone=True, ZoneRow=row, ZoneCol=col, ZoneCell=cell, OuterLabel="NA", ZoneId=cell
+            InZone=True,
+            ZoneRow=row,
+            ZoneCol=col,
+            ZoneCell=cell,
+            OuterLabel="NA",
+            ZoneId=cell,
         )
     # outside -> quadrant
     if y > MID_Y:
@@ -129,7 +134,12 @@ def classify_13(x: float, y: float):
     else:
         label = "OBL" if x < MID_X else "OBR"
     return dict(
-        InZone=False, ZoneRow=0, ZoneCol=0, ZoneCell=0, OuterLabel=label, ZoneId=OUTER_ID[label]
+        InZone=False,
+        ZoneRow=0,
+        ZoneCol=0,
+        ZoneCell=0,
+        OuterLabel=label,
+        ZoneId=OUTER_ID[label],
     )
 
 

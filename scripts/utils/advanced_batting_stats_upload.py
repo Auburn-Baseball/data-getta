@@ -56,7 +56,10 @@ def load_xba_grid(path):
         xba_dict = {
             (int(ev), int(la), int(dr)): float(xba)
             for ev, la, dr, xba in zip(
-                xba_grid["ev_bin"], xba_grid["la_bin"], xba_grid["dir_bin"], xba_grid["xBA"]
+                xba_grid["ev_bin"],
+                xba_grid["la_bin"],
+                xba_grid["dir_bin"],
+                xba_grid["xBA"],
             )
         }
         ev_bins = list(xba_grid["ev_bin"].unique())
@@ -579,7 +582,11 @@ def combine_advanced_batting_stats(existing_stats: dict, new_stats: dict) -> dic
 
     # Compute weighted stats
     combined_avg_exit_velo = weighted_avg(
-        existing_stats, new_stats, "avg_exit_velo", "batted_balls", combined_batted_balls
+        existing_stats,
+        new_stats,
+        "avg_exit_velo",
+        "batted_balls",
+        combined_batted_balls,
     )
     combined_k_per = weighted_avg(
         existing_stats, new_stats, "k_per", "plate_app", combined_plate_app
@@ -588,16 +595,28 @@ def combine_advanced_batting_stats(existing_stats: dict, new_stats: dict) -> dic
         existing_stats, new_stats, "bb_per", "plate_app", combined_plate_app
     )
     combined_sweet_spot_per = weighted_avg(
-        existing_stats, new_stats, "la_sweet_spot_per", "batted_balls", combined_batted_balls
+        existing_stats,
+        new_stats,
+        "la_sweet_spot_per",
+        "batted_balls",
+        combined_batted_balls,
     )
     combined_hard_hit_per = weighted_avg(
         existing_stats, new_stats, "hard_hit_per", "batted_balls", combined_batted_balls
     )
     combined_whiff_per = weighted_avg(
-        existing_stats, new_stats, "whiff_per", "in_zone_pitches", combined_in_zone_pitches
+        existing_stats,
+        new_stats,
+        "whiff_per",
+        "in_zone_pitches",
+        combined_in_zone_pitches,
     )
     combined_chase_per = weighted_avg(
-        existing_stats, new_stats, "chase_per", "out_of_zone_pitches", combined_out_of_zone_pitches
+        existing_stats,
+        new_stats,
+        "chase_per",
+        "out_of_zone_pitches",
+        combined_out_of_zone_pitches,
     )
     combined_xba_per = weighted_avg(
         existing_stats, new_stats, "xba_per", "at_bats", combined_at_bats

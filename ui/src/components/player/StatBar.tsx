@@ -101,7 +101,8 @@ const StatBar: React.FC<StatBarProps> = ({ statName, percentile, statValue }) =>
             fontSize: 12,
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
             border: `2px solid ${barColor}`,
-            transition: 'right 0.5s ease-in-out, background 0.5s ease-in-out, border-color 0.5s ease-in-out',
+            transition:
+              'right 0.5s ease-in-out, background 0.5s ease-in-out, border-color 0.5s ease-in-out',
           }}
         >
           {percentile}

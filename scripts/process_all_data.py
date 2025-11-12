@@ -61,14 +61,17 @@ TRACKMAN_USERNAME = os.getenv("TRACKMAN_USERNAME")
 TRACKMAN_PASSWORD = os.getenv("TRACKMAN_PASSWORD")
 
 # Supabase Configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
+SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL") or os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY") or os.getenv("SUPABASE_KEY")
 
 if not TRACKMAN_USERNAME or not TRACKMAN_PASSWORD:
     raise ValueError("TRACKMAN_USERNAME and TRACKMAN_PASSWORD must be set in .env file")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_PROJECT_URL and SUPABASE_API_KEY must be set in .env file")
+    raise ValueError(
+        "VITE_SUPABASE_PROJECT_URL/SUPABASE_URL and "
+        "VITE_SUPABASE_API_KEY/SUPABASE_KEY must be set in .env file"
+    )
 
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -520,7 +523,10 @@ def process_csv_worker(file_info, all_stats, tracker):
                             file_info["date"],
                             {"skipped": "practice_non_aub_team"},
                         )
-                        return True, f"Skipped (practice file without AUB_TIG/AUB_PRC): {filename}"
+                        return (
+                            True,
+                            f"Skipped (practice file without AUB_TIG/AUB_PRC): {filename}",
+                        )
             except Exception as e:
                 return False, f"Error checking unverified file {filename}: {e}"
 
@@ -692,7 +698,10 @@ def process_csv_worker(file_info, all_stats, tracker):
 
         # Mark as processed in database
         tracker.mark_processed(
-            file_info["remote_path"], file_info["size"], file_info["date"], stats_summary
+            file_info["remote_path"],
+            file_info["size"],
+            file_info["date"],
+            stats_summary,
         )
 
         return True, f"Processed: {file_info['filename']} ({stats_summary})"

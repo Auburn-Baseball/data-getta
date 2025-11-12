@@ -21,14 +21,17 @@ env = os.getenv("ENV", "development")
 load_dotenv(project_root / f".env.{env}")
 
 # Supabase configuration
-SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY")
+SUPABASE_URL = os.getenv("VITE_SUPABASE_PROJECT_URL") or os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("VITE_SUPABASE_API_KEY") or os.getenv("SUPABASE_KEY")
 
 
 # Initialize Supabase client
 def check_supabase_vars():
     if SUPABASE_URL is None or SUPABASE_KEY is None:
-        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set")
+        raise ValueError(
+            "VITE_SUPABASE_PROJECT_URL/SUPABASE_URL and "
+            "VITE_SUPABASE_API_KEY/SUPABASE_KEY must be set"
+        )
 
 
 # Strike zone constants
