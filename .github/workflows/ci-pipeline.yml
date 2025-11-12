@@ -17,13 +17,13 @@ jobs:
       name: ci-pipeline
     env:
       ENV: production
-      TRACKMAN_URL: ${{ secrets.TRACKMAN_URL || vars.TRACKMAN_URL }}
-      TRACKMAN_USERNAME: ${{ secrets.TRACKMAN_USERNAME || vars.TRACKMAN_USERNAME }}
-      TRACKMAN_PASSWORD: ${{ secrets.TRACKMAN_PASSWORD || vars.TRACKMAN_PASSWORD }}
-      VITE_SUPABASE_PROJECT_URL: ${{ secrets.VITE_SUPABASE_PROJECT_URL || vars.VITE_SUPABASE_PROJECT_URL }}
-      VITE_SUPABASE_API_KEY: ${{ secrets.VITE_SUPABASE_API_KEY || vars.VITE_SUPABASE_API_KEY }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || vars.SUPABASE_KEY }}
+      TRACKMAN_URL: ${{ vars.TRACKMAN_URL }}
+      TRACKMAN_USERNAME: ${{ vars.TRACKMAN_USERNAME }}
+      TRACKMAN_PASSWORD: ${{ vars.TRACKMAN_PASSWORD }}
+      VITE_SUPABASE_PROJECT_URL: ${{ vars.VITE_SUPABASE_PROJECT_URL }}
+      VITE_SUPABASE_API_KEY: ${{ vars.VITE_SUPABASE_API_KEY }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,17 +43,17 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
 
-      - name: Create scripts environment file
+      - name: Create env file at repo root
         run: |
-          cat <<EOF > .env.production
-          TRACKMAN_URL=${TRACKMAN_URL}
-          TRACKMAN_USERNAME=${TRACKMAN_USERNAME}
-          TRACKMAN_PASSWORD=${TRACKMAN_PASSWORD}
-          VITE_SUPABASE_PROJECT_URL=${VITE_SUPABASE_PROJECT_URL}
-          VITE_SUPABASE_API_KEY=${VITE_SUPABASE_API_KEY}
-          SUPABASE_URL=${SUPABASE_URL}
-          SUPABASE_KEY=${SUPABASE_KEY}
-          EOF
+          printf "TRACKMAN_URL=%s\nTRACKMAN_USERNAME=%s\nTRACKMAN_PASSWORD=%s\nVITE_SUPABASE_PROJECT_URL=%s\nVITE_SUPABASE_API_KEY=%s\nSUPABASE_URL=%s\nSUPABASE_KEY=%s\n" \
+            "${{ vars.TRACKMAN_URL }}" \
+            "${{ vars.TRACKMAN_USERNAME }}" \
+            "${{ vars.TRACKMAN_PASSWORD }}" \
+            "${{ vars.VITE_SUPABASE_PROJECT_URL }}" \
+            "${{ vars.VITE_SUPABASE_API_KEY }}" \
+            "${{ vars.SUPABASE_URL }}" \
+            "${{ vars.SUPABASE_KEY }}" > .env.production
+          grep -E 'VITE_SUPABASE_.*=.+' .env.production >/dev/null || (echo "VITE_* vars missing" && exit 1)
 
       - name: Install Python dependencies
         working-directory: scripts
