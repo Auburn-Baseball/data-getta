@@ -13,6 +13,8 @@ jobs:
   ci:
     name: Run Scripts and UI Checks
     runs-on: ubuntu-latest
+    environment:
+      name: ci-pipeline
     env:
       ENV: ci
       TRACKMAN_URL: ${{ secrets.TRACKMAN_URL }}
