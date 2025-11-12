@@ -18,6 +18,7 @@ from typing import Dict, Optional, Tuple, cast
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from postgrest.types import JSON
 from supabase import Client, create_client
 
 from .common import (
@@ -775,9 +776,10 @@ def upload_advanced_pitching_to_supabase(
         total_inserted = 0
         for i in range(0, len(pitcher_data), upload_batch_size):
             batch = pitcher_data[i : i + upload_batch_size]
+            json_batch = cast(JSON, batch)
             try:
                 supabase.table("AdvancedPitchingStats").upsert(
-                    batch, on_conflict="Pitcher,PitcherTeam,Year"
+                    json_batch, on_conflict="Pitcher,PitcherTeam,Year"
                 ).execute()
                 total_inserted += len(batch)
                 print(f"Uploaded batch {i//upload_batch_size + 1}: {len(batch)} records")
@@ -922,9 +924,10 @@ def upload_advanced_pitching_to_supabase(
         total_updated = 0
         for i in range(0, len(update_data), upload_batch_size):
             batch = update_data[i : i + upload_batch_size]
+            json_batch = cast(JSON, batch)
             try:
                 supabase.table("AdvancedPitchingStats").upsert(
-                    batch, on_conflict="Pitcher,PitcherTeam,Year"
+                    json_batch, on_conflict="Pitcher,PitcherTeam,Year"
                 ).execute()
                 total_updated += len(batch)
                 print(f"Updated batch {i//upload_batch_size + 1}: {len(batch)} records")

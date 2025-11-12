@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Any, Dict, Mapping, Tuple, cast
 
 import pandas as pd
 from supabase import Client, create_client
@@ -141,9 +141,12 @@ def upload_players_to_supabase(players_dict: Dict[Tuple[str, str, int], Dict], b
         # Get final count
         count_result = supabase.table("Players").select("BatterId, PitcherId").execute()
 
+        player_rows = cast(list[Mapping[str, Any]], count_result.data)
         unique_players: set[tuple[str, str]] = set()
-        for p in count_result.data:
-            unique_players.add((p.get("BatterId"), p.get("PitcherId")))
+        for record in player_rows:
+            batter_id = cast(str, record.get("BatterId"))
+            pitcher_id = cast(str, record.get("PitcherId"))
+            unique_players.add((batter_id, pitcher_id))
         total_players = len(unique_players)
 
         print(f"Total unique players in database: {total_players}")
