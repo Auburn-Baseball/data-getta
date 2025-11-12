@@ -45,7 +45,7 @@ jobs:
 
       - name: Create scripts environment file
         run: |
-          cat <<'EOF' > .env.production
+          cat <<EOF > .env.production
           TRACKMAN_URL=${TRACKMAN_URL}
           TRACKMAN_USERNAME=${TRACKMAN_USERNAME}
           TRACKMAN_PASSWORD=${TRACKMAN_PASSWORD}
