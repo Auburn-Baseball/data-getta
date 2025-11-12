@@ -17,13 +17,13 @@ jobs:
       name: ci-pipeline
     env:
       ENV: production
-      TRACKMAN_URL: ${{ secrets.TRACKMAN_URL }}
-      TRACKMAN_USERNAME: ${{ secrets.TRACKMAN_USERNAME }}
-      TRACKMAN_PASSWORD: ${{ secrets.TRACKMAN_PASSWORD }}
-      VITE_SUPABASE_PROJECT_URL: ${{ secrets.VITE_SUPABASE_PROJECT_URL }}
-      VITE_SUPABASE_API_KEY: ${{ secrets.VITE_SUPABASE_API_KEY }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      TRACKMAN_URL: ${{ secrets.TRACKMAN_URL || vars.TRACKMAN_URL }}
+      TRACKMAN_USERNAME: ${{ secrets.TRACKMAN_USERNAME || vars.TRACKMAN_USERNAME }}
+      TRACKMAN_PASSWORD: ${{ secrets.TRACKMAN_PASSWORD || vars.TRACKMAN_PASSWORD }}
+      VITE_SUPABASE_PROJECT_URL: ${{ secrets.VITE_SUPABASE_PROJECT_URL || vars.VITE_SUPABASE_PROJECT_URL }}
+      VITE_SUPABASE_API_KEY: ${{ secrets.VITE_SUPABASE_API_KEY || vars.VITE_SUPABASE_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || vars.SUPABASE_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
