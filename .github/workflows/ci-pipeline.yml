@@ -59,30 +59,30 @@ jobs:
         working-directory: scripts
         run: make install
 
-      - name: Run Python tests
+      - name: Format Python code
         working-directory: scripts
-        run: make test
+        run: make format
 
       - name: Python lint check
         working-directory: scripts
         run: make lint-check
 
-      - name: Python format check
+      - name: Run Python tests
         working-directory: scripts
-        run: make format-check
+        run: make test
 
       - name: Install frontend dependencies
         working-directory: ui
         run: npm install
 
-      - name: Run frontend tests
+      - name: Format frontend code
         working-directory: ui
-        run: npm run test
+        run: npm run format
 
       - name: Frontend lint check
         working-directory: ui
         run: npm run lint:check
 
-      - name: Frontend format check
+      - name: Run frontend tests
         working-directory: ui
-        run: npm run format:check
+        run: npm run test
