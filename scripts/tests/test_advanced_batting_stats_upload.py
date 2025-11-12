@@ -665,7 +665,8 @@ def test_combines_existing_batter(monkeypatch, mock_supabase_fast):
     table_mock.select.return_value.range.return_value.execute.return_value = existing_fetch
 
     monkeypatch.setattr(
-        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats", mock_combine
+        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats",
+        mock_combine,
     )
 
     batters_dict = {
@@ -695,7 +696,8 @@ def test_rank_upload_called(monkeypatch, mock_supabase_fast):
     table_mock.select.return_value.range.return_value.execute.return_value = rank_fetch
 
     monkeypatch.setattr(
-        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats", mock_combine
+        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats",
+        mock_combine,
     )
 
     with patch("scripts.utils.advanced_batting_stats_upload.supabase", supabase_mock):
@@ -795,7 +797,8 @@ def test_rank_upsert_exception(monkeypatch, mock_supabase_fast):
     table_mock.select.return_value.range.return_value.execute.return_value.data = records
 
     monkeypatch.setattr(
-        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats", mock_combine
+        "scripts.utils.advanced_batting_stats_upload.combine_advanced_batting_stats",
+        mock_combine,
     )
 
     def raise_error(*args, **kwargs):

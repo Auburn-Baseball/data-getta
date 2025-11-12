@@ -27,12 +27,11 @@ ui/*.local
 .env
 .env.development
 .env.production
+.env*
 
 # Locally processed file log
 ./scripts/processed_files.json
 
-package-lock.json
-scripts/poetry.lock
 scripts/.coverage
 csv/
 

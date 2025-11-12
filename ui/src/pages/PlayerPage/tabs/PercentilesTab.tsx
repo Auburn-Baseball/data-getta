@@ -43,7 +43,6 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
     playerName: string;
   }>();
   const location = useLocation();
-  const decodedTeam = trackmanAbbreviation ? decodeURIComponent(trackmanAbbreviation) : '';
 
   const [battingRows, setBattingRows] = useState<AdvancedBattingStatsTable[]>([]);
   const [pitchingRows, setPitchingRows] = useState<AdvancedPitchingStatsTable[]>([]);
@@ -66,7 +65,7 @@ export default function PercentilesTab({ dateRange }: PercentilesTabProps) {
         const formattedPlayerName = decodeURIComponent(playerName).replace('_', ', ');
         const decodedTeamName = decodeURIComponent(trackmanAbbreviation);
         const isAuburn = decodedTeamName === 'AUB_TIG';
-        
+
         // Determine which team to fetch from
         // If practice is enabled and it's Auburn, use AUB_PRC for practice data
         const teamToFetch = practice && isAuburn ? 'AUB_PRC' : decodedTeamName;

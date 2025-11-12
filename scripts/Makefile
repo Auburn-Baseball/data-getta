@@ -1,4 +1,4 @@
-.PHONY: help process test coverage clean install lint format check type-check
+.PHONY: help process test coverage clean install lint lint-check format format-check check type-check
 
 PYTHON = poetry run python3
 PYTEST = poetry run pytest
@@ -15,6 +15,7 @@ help:
 	@echo "  make test-watch    - Run tests in watch mode"
 	@echo "  make coverage      - Run tests with coverage"
 	@echo "  make lint          - Run all linters"
+	@echo "  make lint-check    - Check linting without applying fixes"
 	@echo "  make format        - Auto-format code"
 	@echo "  make format-check  - Check if formatting is needed"
 	@echo "  make type-check    - Run type checker"
@@ -49,15 +50,15 @@ coverage:
 # Formatting
 format:
 	@echo "Sorting imports..."
-	$(ISORT) utils/ tests/ *.py
+	$(ISORT) utils/ tests/ QA/ *.py
 	@echo "Formatting code..."
-	$(BLACK) utils/ tests/ *.py
+	$(BLACK) utils/ tests/ QA/ *.py
 	@echo "Formatting complete!"
 
 format-check:
 	@echo "Checking code formatting..."
-	$(BLACK) --check utils/ tests/ *.py
-	$(ISORT) --check-only utils/ tests/ *.py
+	$(BLACK) --check utils/ tests/ QA/ *.py
+	$(ISORT) --check-only utils/ tests/ QA/ *.py
 
 # Linting
 lint:
@@ -65,13 +66,18 @@ lint:
 	$(FLAKE8) utils/ *.py
 	@echo "Linting complete!"
 
+lint-check:
+	@echo "Checking lint (no changes applied)..."
+	$(FLAKE8) utils/ *.py
+	@echo "Lint check complete!"
+
 type-check:
 	@echo "Running mypy..."
 	cd .. && poetry -C scripts run pre-commit run mypy --all-files
 	@echo "Type checking complete!"
 
 # Run all checks
-check: format lint type-check test
+check: format-check lint-check type-check test
 	@echo "\nAll checks passed!"
 
 # Installation

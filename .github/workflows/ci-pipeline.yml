@@ -1,0 +1,88 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+
+jobs:
+  ci:
+    name: Run Scripts and UI Checks
+    runs-on: ubuntu-latest
+    environment:
+      name: ci-pipeline
+    env:
+      ENV: production
+      TRACKMAN_URL: ${{ vars.TRACKMAN_URL }}
+      TRACKMAN_USERNAME: ${{ vars.TRACKMAN_USERNAME }}
+      TRACKMAN_PASSWORD: ${{ vars.TRACKMAN_PASSWORD }}
+      VITE_SUPABASE_PROJECT_URL: ${{ vars.VITE_SUPABASE_PROJECT_URL }}
+      VITE_SUPABASE_API_KEY: ${{ vars.VITE_SUPABASE_API_KEY }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Create env file at repo root
+        run: |
+          printf "TRACKMAN_URL=%s\nTRACKMAN_USERNAME=%s\nTRACKMAN_PASSWORD=%s\nVITE_SUPABASE_PROJECT_URL=%s\nVITE_SUPABASE_API_KEY=%s\nSUPABASE_URL=%s\nSUPABASE_KEY=%s\n" \
+            "${{ vars.TRACKMAN_URL }}" \
+            "${{ vars.TRACKMAN_USERNAME }}" \
+            "${{ vars.TRACKMAN_PASSWORD }}" \
+            "${{ vars.VITE_SUPABASE_PROJECT_URL }}" \
+            "${{ vars.VITE_SUPABASE_API_KEY }}" \
+            "${{ vars.SUPABASE_URL }}" \
+            "${{ vars.SUPABASE_KEY }}" > .env.production
+          grep -E 'VITE_SUPABASE_.*=.+' .env.production >/dev/null || (echo "VITE_* vars missing" && exit 1)
+
+      - name: Install Python dependencies
+        working-directory: scripts
+        run: make install
+
+      - name: Format Python code
+        working-directory: scripts
+        run: make format-check
+
+      - name: Python lint check
+        working-directory: scripts
+        run: make lint-check
+
+      - name: Run Python tests
+        working-directory: scripts
+        run: make test
+
+      - name: Install frontend dependencies
+        working-directory: ui
+        run: npm install
+
+      - name: Format frontend code
+        working-directory: ui
+        run: npm run format:check
+
+      - name: Frontend lint check
+        working-directory: ui
+        run: npm run lint:check
+
+      - name: Run frontend tests
+        working-directory: ui
+        run: npm run test

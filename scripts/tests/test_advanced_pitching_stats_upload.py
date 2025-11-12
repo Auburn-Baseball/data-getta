@@ -235,7 +235,12 @@ def test_closest_value():
 def test_lookup_xBA_exact_match(monkeypatch):
     """Test lookup_xBA with exact key matches."""
     setup_lookup_xba_test(
-        monkeypatch, {(80, 20, 1): 0.3, (85, 25, 2): 0.4}, [80, 85], [20, 25], [1, 2], 0.35
+        monkeypatch,
+        {(80, 20, 1): 0.3, (85, 25, 2): 0.4},
+        [80, 85],
+        [20, 25],
+        [1, 2],
+        0.35,
     )
 
     assert mod.lookup_xBA(80, 20, 1) == 0.3
@@ -260,7 +265,12 @@ def test_lookup_xBA_3D_average(monkeypatch):
 def test_lookup_xBA_nearest_neighbor(monkeypatch):
     """Test lookup_xBA fallback to global mean when no neighbors found."""
     setup_lookup_xba_test(
-        monkeypatch, {(80, 20, 1): 0.3, (85, 25, 2): 0.5}, [80, 85], [20, 25], [1, 2], 0.35
+        monkeypatch,
+        {(80, 20, 1): 0.3, (85, 25, 2): 0.5},
+        [80, 85],
+        [20, 25],
+        [1, 2],
+        0.35,
     )
 
     assert mod.lookup_xBA(81, 19, 3) == 0.35
@@ -382,7 +392,10 @@ John,AUB,,InPlay,Out,94,20,10,Right,GroundBall,Fastball,97,0,0,SEC
 """
     buffer = make_csv(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -421,7 +434,10 @@ Jane,AUB_TIG,Walk,InPlay,Out,95,15,5,Right,GroundBall,Fastball,100,2,0,Team
 """
     buffer = make_csv(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.5, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.5,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "practice_game.csv")
@@ -438,7 +454,10 @@ Alice,BBB,Walk,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = make_csv(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -463,7 +482,10 @@ Tom,AUB,,InPlay,Out,95,15,5,Right,GroundBall,Fastball,97,2,0,SEC
             raise RuntimeError("fail")
 
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=FailingModel()
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=FailingModel(),
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -483,7 +505,10 @@ B,AUB,Strikeout,InPlay,Out,90,20,10,Left,GroundBall,Fastball,98,3,1,SEC
 """
     buffer = make_csv(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -514,7 +539,10 @@ John,AUB,Strikeout,StrikeSwinging,Out,95,20,10,Right,,Fastball,100,2,bad,SEC
 """
     buffer = io.StringIO(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -557,7 +585,10 @@ John,AUB,Strikeout,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -579,7 +610,10 @@ John,AUB,,InPlay,Out,95,20,10,Right,GroundBall,Fastball,97,2,0,SEC
             return [0.25] * len(df)
 
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=DummyXwOBA()
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=DummyXwOBA(),
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -596,7 +630,10 @@ John,AUB,Strikeout,StrikeSwinging,Out,,,,Right,,Fastball,100,2,0,SEC
 """
     buffer = io.StringIO(csv_data)
     setup_csv_test_mocks(
-        monkeypatch, lookup_xba=lambda ev, la, dr: 0.4, xslg_model=None, xwoba_model=None
+        monkeypatch,
+        lookup_xba=lambda ev, la, dr: 0.4,
+        xslg_model=None,
+        xwoba_model=None,
     )
 
     result = mod.get_advanced_pitching_stats_from_buffer(buffer, "file.csv")
@@ -1086,7 +1123,14 @@ def test_full_rank_paths_pitching(monkeypatch):
 
     records = [
         create_pitcher_record(
-            "PA", "AUB", 2025, League="SEC", Level="DI", avg_exit_velo=88.0, k_per=0.25, bb_per=0.08
+            "PA",
+            "AUB",
+            2025,
+            League="SEC",
+            Level="DI",
+            avg_exit_velo=88.0,
+            k_per=0.25,
+            bb_per=0.08,
         ),
         create_pitcher_record(
             "PB",

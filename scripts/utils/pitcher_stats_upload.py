@@ -2,6 +2,7 @@ import json
 from typing import Dict, Tuple
 
 import pandas as pd
+from postgrest.types import CountMethod
 from supabase import Client, create_client
 
 from .common import SUPABASE_KEY, SUPABASE_URL, NumpyEncoder, check_practice, is_in_strike_zone
@@ -285,7 +286,7 @@ def upload_pitchers_to_supabase(pitchers_dict: Dict[Tuple[str, str, int], Dict])
         print(f"Successfully processed {total_inserted} pitcher records")
 
         # Get final count
-        count_result = supabase.table("PitcherStats").select("*", count="exact").execute()
+        count_result = supabase.table("PitcherStats").select("*", count=CountMethod.exact).execute()
         total_pitchers = count_result.count
         print(f"Total pitchers in database: {total_pitchers}")
 
