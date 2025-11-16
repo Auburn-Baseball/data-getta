@@ -1,0 +1,50 @@
+name: Auto-merge keep-alive PRs
+
+on:
+  schedule:
+    - cron: "0 */1 * * *" # Every hour (UTC time)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    environment:
+      name: actions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get GitHub App token
+        id: app-token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
+      - name: Run Auto Merge Script
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh jq
+          echo "Looking for keep-alive PRs authored by GitHub Actions..."
+          gh pr list --repo "$REPO" --state open --json number,author,title,files \
+            --jq '.[] | {number, author: .author.login, title, files}' | jq .
+
+          prs=$(gh pr list --repo "$REPO" --state open --json number,author,title,files \
+            --jq '.[] | select(.author.login | tostring | contains("github-actions")) | select(.files | map(.path) | index(".keep-alive")) | .number')
+
+          if [ -z "$prs" ]; then
+            echo "No matching keep-alive PRs found."
+            exit 0
+          fi
+
+          for pr in $prs; do
+            echo "Merging PR #$pr"
+            gh pr merge "$pr" --repo "$REPO" --squash --delete-branch --admin
+          done

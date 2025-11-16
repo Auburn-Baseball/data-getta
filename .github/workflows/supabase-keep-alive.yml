@@ -1,0 +1,39 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Run every 5 days
+    - cron: "0 0 */5 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  query-seasondates:
+    runs-on: ubuntu-latest
+    environment:
+      name: actions
+    env:
+      SUPABASE_PROJECT_URL: ${{ vars.SUPABASE_PROJECT_URL }}
+      SUPABASE_API_KEY: ${{ vars.SUPABASE_API_KEY }}
+    steps:
+      - name: Query most recent season date
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_PROJECT_URL:-}" ] || [ -z "${SUPABASE_API_KEY:-}" ]; then
+            echo "Missing SUPABASE_PROJECT_URL or SUPABASE_API_KEY."
+            exit 1
+          fi
+
+          endpoint="${SUPABASE_PROJECT_URL%/}/rest/v1/SeasonDates?order=year.desc&limit=1"
+
+          echo "Fetching most recent row from SeasonDates..."
+          response=$(curl -sS --fail \
+            -H "apikey: ${SUPABASE_API_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_API_KEY}" \
+            -H "Accept: application/json" \
+            "$endpoint")
+
+          echo "Response:"
+          echo "$response" | jq .

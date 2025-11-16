@@ -1,0 +1,36 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Run weekly to keep the repository active
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Append keep-alive marker
+        run: |
+          printf '💚\n' >> .keep-alive
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: keep alive"
+          title: "chore: keep alive"
+          body: "Automated keep-alive update."
+          branch: "chore/keep-alive"
+          add-paths: ".keep-alive"
+          delete-branch: true
+          
