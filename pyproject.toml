@@ -11,6 +11,7 @@ numpy = "2.3.3"
 pandas = "2.3.2"
 python-dotenv = "1.1.1"
 supabase = "2.18.1"
+xgboost = "2.1.1"
 
 [build-system]
 requires = ["poetry-core>=2.2.0"]
