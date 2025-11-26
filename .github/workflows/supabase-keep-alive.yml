@@ -2,8 +2,8 @@ name: Supabase Keep Alive
 
 on:
   schedule:
-    # Run every 24 hours
-    - cron: "0 0 * * *"
+    # Run every 12 hours
+    - cron: "0 */12 * * *"
   workflow_dispatch:
 
 permissions:
