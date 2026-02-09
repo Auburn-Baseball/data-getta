@@ -478,59 +478,34 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer = BytesIO()
         ftp.retrbinary(f"RETR {filename}", buffer.write)
 
-        # If file is unverified, check if it's practice before skipping/processing it
         if "unverified" in filename.lower():
             buffer.seek(0)
             try:
                 df = pd.read_csv(buffer)
+
+                # Detect practice files
                 is_practice = False
                 if "League" in df.columns:
                     league_values = df["League"].dropna().astype(str).str.strip().str.upper()
                     is_practice = (league_values == "TEAM").any()
 
-                # If it's not practice, skip this file and mark as processed
-                if not is_practice:
+                # Skip ONLY if it is practice
+                if is_practice:
                     tracker.mark_processed(
                         file_info["remote_path"],
                         file_info["size"],
                         file_info["date"],
-                        {"skipped": "unverified_non_practice"},
+                        {"skipped": "practice_game"},
                     )
-                    return True, f"Skipped (unverified non-practice): {filename}"
+                    return True, f"Skipped practice game: {filename}"
 
-                # If it's practice, check if teams are AUB_TIG or AUB_PRC
-                if is_practice:
-                    allowed_teams = {"AUB_TIG", "AUB_PRC"}
-                    has_allowed_team = False
+                # Otherwise: unverified but real game → KEEP IT
+                print(f"Processing unverified game file: {filename}")
 
-                    # Check BatterTeam column
-                    if "BatterTeam" in df.columns:
-                        batter_teams = df["BatterTeam"].dropna().astype(str).str.strip()
-                        if any(team in allowed_teams for team in batter_teams.unique()):
-                            has_allowed_team = True
-
-                    # Check PitcherTeam column
-                    if "PitcherTeam" in df.columns:
-                        pitcher_teams = df["PitcherTeam"].dropna().astype(str).str.strip()
-                        if any(team in allowed_teams for team in pitcher_teams.unique()):
-                            has_allowed_team = True
-
-                    # If practice file but no allowed teams, skip it
-                    if not has_allowed_team:
-                        tracker.mark_processed(
-                            file_info["remote_path"],
-                            file_info["size"],
-                            file_info["date"],
-                            {"skipped": "practice_non_aub_team"},
-                        )
-                        return (
-                            True,
-                            f"Skipped (practice file without AUB_TIG/AUB_PRC): {filename}",
-                        )
             except Exception as e:
-                return False, f"Error checking unverified file {filename}: {e}"
+                print(f"Error checking practice status for {filename}: {e}")
 
-            # Reset buffer for processing
+            # Reset buffer so downstream processors can read it
             buffer.seek(0)
 
         # Process through each module
