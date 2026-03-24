@@ -15,6 +15,7 @@ import {
   fetchAdvancedPitchingStats,
 } from '@/services/teamPerformanceService';
 import { fetchSeasonDateRanges } from '@/services/seasonService';
+import { fetchTeamsByDateRange } from '@/services/teamService';
 import {
   transformTeamPerformance,
   TeamPerformanceRow,
@@ -41,6 +42,7 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
   const [rows, setRows] = useState<TeamPerformanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamNameMap, setTeamNameMap] = useState<Record<string, string>>({});
 
   // Load available seasons from Supabase and choose default selection
   useEffect(() => {
@@ -87,10 +89,19 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
         const [
           { data: battingData, error: battingError },
           { data: pitchingData, error: pitchingError },
+          { data: teamsData },
         ] = await Promise.all([
           fetchAdvancedBattingStats(range),
           fetchAdvancedPitchingStats(range),
+          fetchTeamsByDateRange(range),
         ]);
+        const nameMap: Record<string, string> = {};
+        for (const team of teamsData ?? []) {
+          if (team.TrackmanAbbreviation && team.TeamName) {
+            nameMap[team.TrackmanAbbreviation] = team.TeamName;
+          }
+        }
+        setTeamNameMap(nameMap);
 
         if (battingError) throw new Error(`Error fetching batting stats: ${battingError.message}`);
         if (pitchingError)
@@ -160,7 +171,7 @@ export default function TeamPerformancePage({ dateRange }: TeamPerformancePagePr
       {!loading &&
         !error &&
         (rows.length > 0 ? (
-          <TeamPercent rows={rowsToShow} mode={mode} />
+          <TeamPercent rows={rowsToShow} mode={mode} teamNameMap={teamNameMap} />
         ) : (
           <Typography variant="body1" sx={{ py: 2 }}>
             No team performance data available for the selected season.
