@@ -65,9 +65,18 @@ const formatRaw = (label: string, v: number | string) => {
   return String(v);
 };
 
-export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: 'overall' | 'wl' }) {
+export default function CreateTeamPercent({
+  rows,
+  mode,
+  teamNameMap,
+}: {
+  rows: Row[];
+  mode: 'overall' | 'wl';
+  teamNameMap?: Record<string, string>;
+}) {
   // Empty state if no rows (e.g., W/L mode for now)
   const hasData = rows && rows.length > 0;
+  const displayName = (code: string) => teamNameMap?.[code] ?? code;
 
   // Group rows by team code
   const groupedByTeam = useMemo(() => {
@@ -181,7 +190,7 @@ export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: '
                       <Box sx={{ height: [80, 120, 60][idx] }} />
                     </Box>
                     <Typography fontSize={13} fontWeight={idx === 1 ? 700 : 600}>
-                      {team.team}
+                      {displayName(team.team)}
                     </Typography>
                     <Typography fontSize={11}>{team.average.toFixed(1)}%</Typography>
                   </Box>
@@ -235,7 +244,7 @@ export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: '
                   {restRanked.map((team, idx) => (
                     <tr key={team.team} style={{ borderBottom: '1px solid #2c3e50' }}>
                       <td style={{ padding: '8px 12px' }}>{idx + 4}.</td>
-                      <td style={{ padding: '8px 12px' }}>{team.team}</td>
+                      <td style={{ padding: '8px 12px' }}>{displayName(team.team)}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                         {team.average.toFixed(1)}%
                       </td>
@@ -255,7 +264,7 @@ export default function CreateTeamPercent({ rows, mode }: { rows: Row[]; mode: '
             return (
               <Box key={teamCode} sx={{ mt: 6 }}>
                 <Typography variant="h5" fontWeight={700} gutterBottom>
-                  {teamCode}
+                  {displayName(teamCode)}
                 </Typography>
                 {offensive.length > 0 && (
                   <>
