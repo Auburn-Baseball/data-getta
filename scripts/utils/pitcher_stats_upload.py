@@ -79,7 +79,7 @@ def get_pitcher_stats_from_buffer(buffer, filename: str) -> Dict[Tuple[str, str,
             if not pitcher_name or not pitcher_team:
                 continue
 
-            key = (pitcher_name, pitcher_team, season_year)
+            key = (pitcher_name, pitcher_team, game_date)
 
             # Calculate basic counting stats
             total_strikeouts_pitcher = len(group[group["KorBB"] == "Strikeout"])

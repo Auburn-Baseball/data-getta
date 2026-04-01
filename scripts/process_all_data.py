@@ -99,7 +99,7 @@ class DatabaseProcessedFilesTracker:
         Generate a unique hash for file identification using the file size,
         remote path, and last time modified.
         -------------------------------------------------------------------"""
-        identifier = f"{remote_path}|{file_size}|{last_modified}"
+        identifier = remote_path
         return hashlib.md5(identifier.encode()).hexdigest()
 
     def _load_all_processed_hashes(self, batch_size=1000):
@@ -478,34 +478,59 @@ def process_csv_worker(file_info, all_stats, tracker):
         buffer = BytesIO()
         ftp.retrbinary(f"RETR {filename}", buffer.write)
 
+        # If file is unverified, check if it's practice before skipping/processing it
         if "unverified" in filename.lower():
             buffer.seek(0)
             try:
                 df = pd.read_csv(buffer)
-
-                # Detect practice files
                 is_practice = False
                 if "League" in df.columns:
                     league_values = df["League"].dropna().astype(str).str.strip().str.upper()
                     is_practice = (league_values == "TEAM").any()
 
-                # Skip ONLY if it is practice
-                if is_practice:
+                # If it's not practice, skip this file and mark as processed
+                if not is_practice:
                     tracker.mark_processed(
                         file_info["remote_path"],
                         file_info["size"],
                         file_info["date"],
-                        {"skipped": "practice_game"},
+                        {"skipped": "unverified_non_practice"},
                     )
-                    return True, f"Skipped practice game: {filename}"
+                    return True, f"Skipped (unverified non-practice): {filename}"
 
-                # Otherwise: unverified but real game → KEEP IT
-                print(f"Processing unverified game file: {filename}")
+                # If it's practice, check if teams are AUB_TIG or AUB_PRC
+                if is_practice:
+                    allowed_teams = {"AUB_TIG", "AUB_PRC"}
+                    has_allowed_team = False
 
+                    # Check BatterTeam column
+                    if "BatterTeam" in df.columns:
+                        batter_teams = df["BatterTeam"].dropna().astype(str).str.strip()
+                        if any(team in allowed_teams for team in batter_teams.unique()):
+                            has_allowed_team = True
+
+                    # Check PitcherTeam column
+                    if "PitcherTeam" in df.columns:
+                        pitcher_teams = df["PitcherTeam"].dropna().astype(str).str.strip()
+                        if any(team in allowed_teams for team in pitcher_teams.unique()):
+                            has_allowed_team = True
+
+                    # If practice file but no allowed teams, skip it
+                    if not has_allowed_team:
+                        tracker.mark_processed(
+                            file_info["remote_path"],
+                            file_info["size"],
+                            file_info["date"],
+                            {"skipped": "practice_non_aub_team"},
+                        )
+                        return (
+                            True,
+                            f"Skipped (practice file without AUB_TIG/AUB_PRC): {filename}",
+                        )
             except Exception as e:
-                print(f"Error checking practice status for {filename}: {e}")
+                return False, f"Error checking unverified file {filename}: {e}"
 
-            # Reset buffer so downstream processors can read it
+            # Reset buffer for processing
             buffer.seek(0)
 
         # Process through each module
@@ -513,22 +538,8 @@ def process_csv_worker(file_info, all_stats, tracker):
 
         # Batters
         buffer.seek(0)
-        try:
-            batter_stats = get_batter_stats_from_buffer(buffer, file_info["filename"])
-            all_stats.setdefault("batter_stats", {})
-
-            # Add new stats into all_stats['batter_stats']
-            for key, row in batter_stats.items():
-                # key = (BatterTeam, Date, Batter)
-                team, date, batter = key
-                key_out = (batter, team, date)
-                all_stats["batter_stats"][key_out] = row
-
-            stats_summary["batter_stats"] = len(all_stats["batter_stats"])
-
-        except Exception as e:
-            print(f"Error processing batter stats for {file_info['filename']}: {e}")
-            stats_summary["batter_stats"] = 0
+        # Advanced Batting DISABLED
+        stats_summary["advanced_batting"] = 0
 
         # Pitchers
         buffer.seek(0)
@@ -588,28 +599,8 @@ def process_csv_worker(file_info, all_stats, tracker):
             stats_summary["players"] = 0
 
         # Advanced Batting
-        buffer.seek(0)
-        try:
-            advanced_batting_stats = get_advanced_batting_stats_from_buffer(
-                buffer, file_info["filename"]
-            )
-
-            # Merge new stats into existing ones
-            for key, new_stat in advanced_batting_stats.items():
-                if key in all_stats["advanced_batting"]:
-                    combined = combine_advanced_batting_stats(
-                        all_stats["advanced_batting"][key], new_stat
-                    )
-                    all_stats["advanced_batting"][key] = combined
-                else:
-                    all_stats["advanced_batting"][key] = new_stat
-
-            stats_summary["advanced_batting"] = len(all_stats["advanced_batting"])
-
-        except Exception as e:
-            print(f"Error processing advanced batting stats for {file_info['filename']}: {e}")
-            stats_summary["advanced_batting"] = 0
-
+    # Advanced Batting DISABLED
+        stats_summary["advanced_batting"] = 0
         # Advanced Pitching
         buffer.seek(0)
         try:
@@ -685,7 +676,7 @@ def process_csv_worker(file_info, all_stats, tracker):
         return False, f"Error processing {file_info['filename']}: {e}"
 
 
-def process_with_progress(csv_files, tracker, max_workers=4):
+def process_with_progress(csv_files, tracker, max_workers=2):
     """---------------------------------------------------------------
     Process files with concurrent workers and progress tracking.
     -------------------------------------------------------------------"""
@@ -792,11 +783,11 @@ def upload_all_stats(all_stats):
     else:
         print("No new player stats to upload.")
 
-    if all_stats["advanced_batting"]:
-        print(f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records...")
-        upload_advanced_batting_to_supabase(all_stats["advanced_batting"])
-    else:
-        print("No new advanced batting stats to upload.")
+    #if all_stats["advanced_batting"]:
+     #   print(f"\nUploading {len(all_stats['advanced_batting'])} advanced batting records...")
+      #  upload_advanced_batting_to_supabase(all_stats["advanced_batting"])
+    #else:
+     #   print("No new advanced batting stats to upload.")
 
     if all_stats["advanced_pitching"]:
         print(f"\nUploading {len(all_stats['advanced_pitching'])} advanced pitching records...")
@@ -875,7 +866,7 @@ def main():
             print(f"TEST MODE: Processing only the first file: {csv_files[0]['filename']}")
 
         # Process files concurrently
-        all_stats = process_with_progress(csv_files, tracker, max_workers=6)
+        all_stats = process_with_progress(csv_files, tracker, max_workers=3)
 
         # Upload to database
         upload_all_stats(all_stats)
