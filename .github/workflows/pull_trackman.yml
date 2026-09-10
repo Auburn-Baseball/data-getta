@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: "0 3 * * *"
   workflow_dispatch:
+    inputs:
+      date_range:
+        description: 'Date range to process (YYYYMMDD-YYYYMMDD). Leave blank to process today only.'
+        required: false
+        default: ''
 
 jobs:
   pull_and_process_csvs:
@@ -43,7 +48,11 @@ jobs:
       # Step 4: Run FTP download script for current day only
       - name: Pull TrackMan CSVs
         run: |
-          START_DATE=$(date +%Y%m%d)
-          END_DATE=$(date +%Y%m%d)
-          echo "Running script from $START_DATE to $END_DATE"
-          poetry run python scripts/process_all_data.py --date-range "$START_DATE-$END_DATE"
+          if [ -n "${{ github.event.inputs.date_range }}" ]; then
+            DATE_RANGE="${{ github.event.inputs.date_range }}"
+          else
+            TODAY=$(date +%Y%m%d)
+            DATE_RANGE="$TODAY-$TODAY"
+          fi
+          echo "Running script with date range: $DATE_RANGE"
+          poetry run python scripts/process_all_data.py --date-range "$DATE_RANGE"
